@@ -6,9 +6,9 @@ A suite now exists on all three surfaces and **all of it passes**. Figures below
 | Surface | Framework | Tests | Command |
 | --- | --- | --- | --- |
 | Laravel | PHPUnit 12.5 | **138** (1332 assertions) | `php artisan test` |
-| Android | JUnit 4 | **14** | `.\gradlew.bat :app:testDebugUnitTest` |
+| Android | JUnit 4 + `kotlinx-coroutines-test` | **38** | `.\gradlew.bat :app:testDebugUnitTest` |
 | Add-on | `node --test` (no dependencies) | **27** | `npm test` in `extension/` |
-| | | **179 total** | |
+| | | **203 total** | |
 
 The Laravel figure includes the 25 tests Breeze generated, which had never been run before and also pass.
 
@@ -88,7 +88,7 @@ Scope it to the six modules (PRD.md F-01…F-06) plus the SECURITY.md requiremen
 ## Verified commands
 All run successfully:
 - Server: `php artisan test` (from `laravel/`) — 138 passed. Also `--testsuite=Unit` / `--testsuite=Feature`. Note the batch wrapper eats `|`, so `--filter="A|B"` fails; filter one class at a time or run a suite.
-- Android: `.\gradlew.bat :app:testDebugUnitTest` (from `android/`, `JAVA_HOME` set to Android Studio's JBR) — 14 passed.
+- Android: `.\gradlew.bat :app:testDebugUnitTest` (from `android/`, `JAVA_HOME` set to Android Studio's JBR) — 38 passed.
 - Add-on: `npm test` (from `extension/`) — 27 passed. No install step; it uses Node's built-in runner.
 - Coverage: **Not available** — no Xdebug or pcov.
 - End-to-end: **Not configured** — Playwright not installed.
@@ -113,11 +113,15 @@ A route-table audit fails the build when a model-bound route is added without a 
 
 **Android** — the transfer-direction rule that was actually wrong in the first build (both legs must read source → destination), type classification, and clock formatting including the negative case.
 
+**Android ViewModels** — now testable because the five module repositories were extracted into interfaces (`NotesRepository` and friends are interfaces; `ApiNotesRepository` is the only production implementation). `PomodoroViewModelTest` drives the countdown on virtual time: ticking, focus rolling into the break, a no-break preset ending after focus, pause freezing the clock, resume continuing from where it stopped, and deleting the *running* preset stopping the timer while deleting another leaves it alone. `BudgetViewModelTest` covers the submit flow — a rejected write keeps the composer open with the server's reason, a partial load failure keeps the balances already on screen rather than blanking them, and the typed amount string reaches the repository untouched.
+
+Fakes are hand-written (`app/src/test/.../testing/Fakes.kt`), not generated: they are short and they break loudly when an interface changes.
+
 **Add-on** — URL joining with and without a trailing slash, bearer header presence, the first-field-error-wins rule for a 422, an unreachable server reported as such, a 401 clearing the session while other failures do not, and history leaving the retention window `null` rather than guessing one.
 
 ## Known gaps
 - **Coverage is unmeasured** (no driver installed).
-- **Android ViewModels are untested.** `PomodoroViewModel`'s countdown and `BudgetViewModel`'s submit flow need the repositories behind interfaces so a fake can stand in; they are concrete classes taking a concrete `JackApi`. Extracting those interfaces is the prerequisite, and is the single highest-value next test task.
+- **`AuthStore` has no interface**, so `LoginViewModel` is still untested. It exposes `StateFlow`s as well as methods, so extracting a contract is slightly more involved than it was for the repositories. The Notes, Clipboard and Workout ViewModels are also still untested, though their fakes would now be trivial to add.
 - **`extension/src/lib/dom.js` is untested** — every function touches `document`, so it needs jsdom or a browser runner.
 - **The extension host is still unexercised**: service worker, `chrome.alarms`, notifications, permission prompts, `history.onVisited` and the auto-delete path. No unit test reaches these; they need Playwright against a loaded unpacked extension, or a manual checklist.
 - **No E2E anywhere.** The web app has never been clicked through in a browser; Android was exercised by hand on an emulator but has no instrumented tests; the add-on's popup was driven only through an API-stubbing harness.

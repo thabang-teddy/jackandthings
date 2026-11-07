@@ -5,6 +5,11 @@ import com.jackandthings.data.AppPrefs
 import com.jackandthings.data.TokenStore
 import com.jackandthings.data.remote.ApiClient
 import com.jackandthings.data.remote.JackApi
+import com.jackandthings.repo.ApiBudgetRepository
+import com.jackandthings.repo.ApiClipboardRepository
+import com.jackandthings.repo.ApiNotesRepository
+import com.jackandthings.repo.ApiPomodoroRepository
+import com.jackandthings.repo.ApiWorkoutRepository
 import com.jackandthings.repo.AuthStore
 import com.jackandthings.repo.BudgetRepository
 import com.jackandthings.repo.ClipboardRepository
@@ -32,11 +37,13 @@ class AppContainer(context: Context) {
 
     val auth: AuthStore = AuthStore(api, client, tokens)
 
-    val notes: NotesRepository = NotesRepository(api)
-    val pomodoro: PomodoroRepository = PomodoroRepository(api)
-    val clipboard: ClipboardRepository = ClipboardRepository(api)
-    val workout: WorkoutRepository = WorkoutRepository(api)
-    val budget: BudgetRepository = BudgetRepository(api)
+    // Declared as the interfaces so nothing above this line depends on the
+    // API-backed implementations.
+    val notes: NotesRepository = ApiNotesRepository(api)
+    val pomodoro: PomodoroRepository = ApiPomodoroRepository(api)
+    val clipboard: ClipboardRepository = ApiClipboardRepository(api)
+    val workout: WorkoutRepository = ApiWorkoutRepository(api)
+    val budget: BudgetRepository = ApiBudgetRepository(api)
 
     init {
         client.onUnauthenticated = auth::onUnauthenticated
