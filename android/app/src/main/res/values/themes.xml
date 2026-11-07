@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Compose draws the whole UI, so this only needs to cover the window
+        before the first frame. NoActionBar because the app supplies its own.
+    -->
+    <style name="Theme.JackAndThings" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/brand_surface</item>
+        <item name="android:navigationBarColor">@color/brand_surface</item>
+    </style>
+</resources>

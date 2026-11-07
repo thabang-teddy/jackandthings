@@ -1,0 +1,16 @@
+*.iml
+.gradle/
+.kotlin/
+
+# No leading slash: these appear at the root AND inside each module
+# (app/build), and a rooted pattern would miss the module ones.
+build/
+captures/
+
+/local.properties
+local.properties
+/.idea
+.DS_Store
+.externalNativeBuild
+.cxx
+/dist

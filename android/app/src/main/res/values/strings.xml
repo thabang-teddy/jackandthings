@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Jack &amp; Things</string>
+    <string name="workout_reminder_channel_name">Workout reminders</string>
+    <string name="workout_reminder_channel_description">Hourly nudge when no workout has been logged.</string>
+</resources>
