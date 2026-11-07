@@ -15,7 +15,7 @@ Versions below are what is actually installed in `laravel/` (from `composer.lock
 | Route helper | Ziggy v2.6.5 | Breeze's React stack calls `route()` in JS, same as fiyobra | — |
 | Hosting | Existing server already hosting `fiyobra` (confirmed) | Owner's explicit choice | Specific provisioning, domain, and environment separation from `fiyobra`'s production environment — **unresolved** |
 | Android | Kotlin + Jetpack Compose, Material 3 (built) | Owner's explicit choice. Conventions and the pinned dependency set come from the sibling Laravel+Kotlin client at `C:\Users\Teddy\projects\giwubible\kotlin` | AGP 9.2.1 / Kotlin 2.2.21 / Compose BOM 2025.09.01; **minSdk 26** (vs. giwubible's 21) so notification channels need no version guard; raw OkHttp 4.12 + kotlinx.serialization, **no Retrofit**; hand-assembled `AppContainer`, **no Hilt/Koin**; WorkManager 2.10.1 for the hourly reminder |
-| Browser add-ons | Chrome + Firefox (confirmed, from `docs/init.txt`) | Owner's explicit choice | Not started. Manifest version (proposal: Manifest V3 WebExtensions), build tooling — **unresolved** |
+| Browser add-ons | Manifest V3 WebExtension, plain ES modules, **no build step** (built) | Chrome + Firefox from `docs/init.txt`. No bundler because it loads unpacked as-is and stays auditable, which matters for an extension that can read browsing history | Chrome uses `background.service_worker`, Firefox `background.scripts`; the manifest carries both and each browser ignores the other's key. Firefox needs `browser_specific_settings.gecko.id` |
 
 ## System boundaries
 - Client owns (as built): presentation and local UX state only. The Pomodoro countdown is the one piece of real client-side logic and is deliberately ephemeral — nothing about a running timer is persisted.
@@ -75,10 +75,19 @@ android/                 Kotlin/Compose client (five modules; no History)
     ui/<module>/         Screen + ViewModel pairs, plus common/ and theme/
     work/                WorkoutReminders: channel, scheduling, worker
   gradle/libs.versions.toml   pinned version catalog
+
+extension/               MV3 add-on (five modules + the history add-on)
+  manifest.json          cross-browser; history is an OPTIONAL permission
+  icons/                 generated PNGs (Chrome will not take SVG here)
+  src/lib/               ext.js (namespace + settings), api.js, dom.js, format.js
+  src/background/        service-worker.js: alarms for reminder, prune, timer
+  src/popup/             popup shell + views/<module>.js
+  src/options/           sign-in, server URL, preferences
 ```
 
 ## Operations
 - Local development: Herd (PHP 8.4 + bundled MySQL). `php artisan serve` + `npm run dev`, or `composer run dev` for the concurrent server/queue/log/vite setup.
+- Loading the add-on: Chrome — `chrome://extensions`, enable Developer mode, "Load unpacked", pick `extension/`. Firefox — `about:debugging#/runtime/this-firefox`, "Load Temporary Add-on", pick `extension/manifest.json`. Then open its options page and sign in. Note Chrome 156 refuses the `--load-extension` command-line switch, so loading it from the UI is the only route.
 - Environments, configuration, deployment, rollback: **unresolved**. Flagging a risk again: sharing infrastructure with `fiyobra`'s production environment means environment separation (so a jackandthings bug/outage can't affect fiyobra, and vice versa) needs an explicit decision before any deployment. Nothing has been deployed.
 - Logs, monitoring, scale limits: **unresolved**. `fiyobra` uses `sentry/sentry-laravel`; not installed here. Laravel's default `stack`/`single` log channel only.
 
@@ -95,14 +104,16 @@ android/                 Kotlin/Compose client (five modules; no History)
 - Kotlin/Compose client for Pomodoro, Notes, Budget, Workout and Clipboard, consuming `api/v1` with Sanctum bearer tokens. History is deliberately excluded — it is browser history, which `docs/init.txt` assigns to the add-ons and the web app.
 - The app reaches a local server at `http://10.0.2.2:8000/api/v1/` by default (the emulator's route to the host), and the address is editable in Settings so a LAN or deployed host needs no rebuild. Note Herd serves the web app at `http://jackandthings.test`, which the emulator cannot resolve — hence `php artisan serve` for device testing.
 
-**Confirmed but not started:**
-- Chrome/Firefox add-ons. They will consume the same `api/v1` contract, including the `history-entries` endpoints that nothing populates yet.
+**Built (browser add-on):**
+- One Manifest V3 extension carrying Pomodoro, Notes, Budget, Workout and Clipboard, plus the history add-on `docs/init.txt` describes separately. Keeping it as one extension matches the "merge these into one app" intent; `history` being an *optional* permission keeps the privacy cost off anyone who only wants the notes.
+- It is the first thing that actually populates `history-entries`: recording mirrors visits to the server, and auto-delete clears browser history past the server's retention window. Both are separate opt-ins and both need the optional permission.
+- Cross-origin calls work without server changes — Laravel's `HandleCors` is already in the default stack and answers the preflight on `api/*`. The extension still needs the API host in `host_permissions`, which it requests at runtime for whatever address is configured.
 
 **Still unresolved:**
 - The real history auto-delete rule (schedule, which browsers/profiles, per-domain exceptions) — the 90-day default is a placeholder.
 - Notification delivery for workout reminders **beyond Android**. The Android app now polls `workout-entries/due` hourly via WorkManager and raises its own local notification, which is what the server's poll-only design intended; the web app still shows an in-page banner only, and nothing is pushed from the server.
 - Clipboard cross-device sync semantics (conflict handling, retention, whether content should be encrypted at rest given it may hold passwords).
 - Whether an admin/operator role exists.
-- Android architecture pattern and min SDK; add-on manifest version and build tooling.
+- Whether the add-on should be packaged and signed for distribution. It is load-unpacked only today, and Firefox treats an unsigned one as temporary, so it disappears on restart.
 - Environment separation from `fiyobra`'s production hosting; deployment, rollback, monitoring.
 - Email verification is scaffolded but not enforced (`User` does not implement `MustVerifyEmail`), so the `verified` middleware currently passes through.

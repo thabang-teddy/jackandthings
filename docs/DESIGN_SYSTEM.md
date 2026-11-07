@@ -6,8 +6,8 @@
 
 ## Design direction
 - Brand attributes (proposal): calm, focused, trustworthy — chosen because the suite mixes focus tools (Pomodoro), money (Budget), and health (Workout), where a trustworthy, low-noise feel suits all three.
-- Supported devices: web (desktop + mobile responsive, via Inertia/React), Android (native Kotlin/Compose, built), browser add-on popups (Chrome/Firefox, not built) — confirmed from `docs/init.txt` and prior answers.
-- The two built surfaces currently look like their respective platform defaults rather than like each other: the web app sits on Breeze's Tailwind baseline, while Android uses Material 3 with **dynamic colour**, taking its palette from the user's wallpaper on Android 12+. That follows from there being no approved palette yet; it is not a decision that they should diverge. Agreeing a palette is what would bring them together.
+- Supported devices: web (desktop + mobile responsive, via Inertia/React), Android (native Kotlin/Compose), browser add-on popup (Chrome/Firefox) — all three built.
+- The three surfaces currently look like their respective platform defaults rather than like each other: the web app sits on Breeze's Tailwind baseline, Android uses Material 3 with **dynamic colour** (taking its palette from the wallpaper on Android 12+), and the add-on uses its own small CSS-custom-property sheet with a `prefers-color-scheme` dark mode. That follows from there being no approved palette yet; it is not a decision that they should diverge. Agreeing a palette is what would bring them together — and the add-on's `popup.css` `:root` block is the closest thing to a token file that exists, so it is a reasonable place to start.
 - References: none supplied. **Unresolved** — propose reusing the sibling project's (`fiyobra`) visual language for consistency if one exists; needs owner confirmation.
 
 ## UI tokens

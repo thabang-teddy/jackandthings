@@ -6,7 +6,7 @@
 - Threats relevant to this product:
   - Cross-tenant data leakage — critical given the confirmed multi-tenant model; one user must never see another user's budget, notes, workouts, clipboard, or history.
   - Clipboard content exposure — clipboard sharing is a plaintext-sensitive feature by nature (users may copy passwords, codes, etc.).
-  - Over-broad browser permissions for the History add-on (reading/deleting browsing history requires sensitive extension permissions).
+  - Over-broad browser permissions for the History add-on. Handled by making `history` an **optional** permission requested only when that feature is used, rather than granted at install; recording and auto-delete are then two further opt-ins. Auto-delete destroys the user's own browser history, so it also confirms before a manual run.
   - Unauthorized or abusive API access (no rate limiting designed yet).
 
 ## Authentication and authorization
@@ -26,7 +26,9 @@
 
 ## Input and output handling
 - Validation (built): one FormRequest per action in `laravel/app/Http/Requests`, with length caps, numeric bounds on money, ownership-scoped `Rule::exists` on any referenced record, per-user unique account names, and cross-field checks (insufficient funds, transfer to a different account). `BudgetService` re-asserts the funds rule independently of the request layer.
-- Injection/XSS: Eloquent/query-builder parameterised queries throughout; React escapes by default. The one deliberate `dangerouslySetInnerHTML` is in `Components/Pagination.jsx`, rendering Laravel's own paginator labels (`&laquo;`), not user input.
+- Injection/XSS: Eloquent/query-builder parameterised queries throughout; React escapes by default. The one deliberate `dangerouslySetInnerHTML` is in `Components/Pagination.jsx`, rendering Laravel's own paginator labels (`&laquo;`), not user input. The add-on builds every node with `textContent` and its `h()` helper throws if handed raw HTML, because note bodies, snippets and page titles all reach it as data.
+- Add-on network posture: cross-origin calls rely on the API host being in `host_permissions`, requested at runtime for whatever server the user configures rather than shipping a wildcard. Laravel answers the preflight with `Access-Control-Allow-Origin: *`, which is acceptable only because these routes are bearer-token authenticated and carry no cookie auth — it should be narrowed if cookie-based auth is ever added to `api/*`.
+- The add-on stores its token in `chrome.storage.local`, which is origin-isolated but **not encrypted**, unlike the Android client's keystore-backed store. Acceptable for a desktop profile, worth noting as the weakest of the three.
 - Mass assignment: `user_id` is not fillable on any model; ownership is only ever set by creating through the authenticated user's relation.
 - Upload restrictions: not applicable — no file upload feature exists.
 - Rate limits (built): `POST /api/v1/auth/token` is throttled to 6/min (the password-guessing surface); all other authenticated API routes 60/min. Breeze throttles its own login route. **Unresolved:** whether the web module routes need write throttling (fiyobra throttles its write routes individually).

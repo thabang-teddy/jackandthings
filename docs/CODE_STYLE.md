@@ -27,6 +27,14 @@ Reflects the Laravel app as built in `laravel/`. Conventions follow the sibling 
 - Money is `Long` cents end to end, formatted only by `formatZar()` (en-ZA). Amounts are sent to the server as the user's typed string so no float touches money.
 - Wire models are `@Serializable` with explicit `@SerialName` for every field whose JSON name differs, so a rename on either side fails loudly rather than arriving as null. R8 keep rules for them live in `proguard-rules.pro`.
 
+## Browser add-on (extension/)
+- Plain ES modules, **no build step and no dependencies** — it loads unpacked exactly as committed. Keep it that way unless there is a real reason not to: it is the only surface that can read browsing history, so being readable without a bundle is part of its security story.
+- Use the `ext` export from `lib/ext.js` (`browser ?? chrome`) rather than touching `chrome.*` directly, so Firefox and Chrome share one path.
+- **Never assemble HTML.** Build nodes with the `h()` helper in `lib/dom.js`, which sets `textContent` and throws if handed an `html` prop. Server data and page titles both land here.
+- Anything needing a permission beyond the install-time set checks `hasPermission()` first and asks with `requestPermission()` at the moment of use, not up front.
+- Work that must outlive the popup belongs in the service worker behind a `chrome.alarms` alarm — a popup is destroyed the instant it loses focus, so an interval in popup script is never the answer.
+- Money and dates reuse `lib/format.js`, which mirrors the other two clients (integer cents, en-ZA).
+
 ## Android dependency policy
 The version catalog in `android/gradle/libs.versions.toml` is pinned as a **set** copied from `giwubible/kotlin`, which already builds on this machine. Bump it deliberately, not routinely: the newer AndroidX line raises the minimum SDK. `android.builtInKotlin=false` in `gradle.properties` is load-bearing — AGP 9 ships its own Kotlin support and otherwise rejects the standalone Kotlin plugin that the Compose and serialization plugins attach to. The other `android.*` flags there are deprecated and only quiet warnings.
 
@@ -67,6 +75,10 @@ All of these were run successfully in this repository.
 - Point at another server without editing source: `-PjackApiBaseUrl=https://host/api/v1/`
 - Install/run: `adb install -r app\build\outputs\apk\debug\app-debug.apk` then `adb shell am start -n com.jackandthings/.MainActivity`
 - The app expects `php artisan serve` (port 8000) for emulator testing; Herd's `jackandthings.test` is not resolvable from the emulator.
+
+**Add-on** (from the repo root):
+- There is no build or lint step. Syntax was checked by copying each module to `.mjs` and running `node --check`; worth repeating after edits.
+- Load it by hand: Chrome `chrome://extensions` → Developer mode → "Load unpacked" → `extension/`; Firefox `about:debugging#/runtime/this-firefox` → "Load Temporary Add-on" → `extension/manifest.json`. Chrome 156 rejects `--load-extension`, so there is no scripted route.
 
 **Laravel** (from `laravel/`):
 - Format: `vendor/bin/pint` (Laravel Pint v1.32.1)

@@ -35,7 +35,7 @@ Drafted from `docs/init.txt`; step-level detail is a **proposal** pending your a
 7. A user views their browsing history list; the History add-on automatically deletes URL history on some schedule. Exact deletion rule/schedule and scope (which browsers, which URLs): **unresolved**.
 
 ## Feature specifications
-Two passes are done: the Laravel server (web UI + `api/v1`), and the Kotlin Android client. The browser add-ons are not started.
+All three surfaces now exist: the Laravel server (web UI + `api/v1`), the Kotlin Android client, and the Manifest V3 browser add-on.
 
 | ID | User need | Behavior | Status | Priority |
 | --- | --- | --- | --- | --- |
@@ -43,8 +43,8 @@ Two passes are done: the Laravel server (web UI + `api/v1`), and the Kotlin Andr
 | F-02 | As a user, I need to manage notes | Create, read, update, delete notes (title, body) | **Built (web + API + Android)** | Must |
 | F-03 | As a user, I need to track a budget | Multiple accounts; deposit/withdraw; transfer between own accounts; dashboard with per-account and total balances | **Built (web + API + Android).** Fixed ZAR, integer cents, derived balances, atomic two-leg transfers, overdrafts rejected. No categories | Must |
 | F-04 | As a user, I need to track workouts | Log entries (activity, when, notes); know when an hour has passed without one | **Built on Android; partial on web.** The server reports due-state only and sends nothing; the Android app polls it hourly (WorkManager) and raises a local notification. The web app shows an in-page banner with no notification | Must |
-| F-05 | As a user, I need to share clipboard content across apps | Save snippets; copy them back | **Built (web + API + Android).** Android reads/writes the system clipboard and accepts text from the share sheet, stamping `source_device`. Genuinely cross-device once a second client is installed; the add-ons will complete the picture | Must |
-| F-06 | As a user, I need to manage browsing history | View history list; auto-delete old URLs | **Partly built, server only.** Model, API, management UI and a daily `history:prune` exist, fed by manual/seeded entries. Deliberately absent from Android. Real ingestion needs the browser add-on, and the retention rule is a placeholder | Must |
+| F-05 | As a user, I need to share clipboard content across apps | Save snippets; copy them back | **Built on all three.** Android reads/writes the system clipboard and accepts share-sheet text; the add-on can paste from and copy to the clipboard. Both stamp `source_device`, so a snippet saved on the phone is one click away in the browser — the cross-device sync `init.txt` asked for | Must |
+| F-06 | As a user, I need to manage browsing history | View history list; auto-delete old URLs | **Built (server + add-on).** The add-on records visits to the server and clears browser history past the retention window, both opt-in behind an optional permission; the server keeps the records and runs `history:prune`. Deliberately absent from Android. The retention rule itself is still a placeholder | Must |
 
 ## Success measures
 - Metric: **unresolved** — no success metrics have been defined yet.
@@ -54,7 +54,7 @@ Two passes are done: the Laravel server (web UI + `api/v1`), and the Kotlin Andr
 **Settled since the first draft:** build order (server first, then Android and add-ons), currency (fixed ZAR), stack and auth (Laravel 13 + Inertia/React + MySQL + Breeze/Sanctum), and Budget's multi-account model.
 
 **Still open:**
-- Workout reminders on surfaces other than Android. Android is settled: it polls due-state hourly and raises its own local notification, so the server still pushes nothing. Whether the web app should get web push (or nothing) is undecided.
+- Workout reminders in the *web app*. Android and the add-on both poll due-state hourly and raise their own local notification, so the server still pushes nothing — that design is settled. Only the web page, which can only show an in-page banner, is undecided.
 - History auto-delete rule: schedule, which browsers/profiles, per-domain exceptions — needed before F-06 is complete. A 90-day placeholder is in `config/history.php`, clearly marked as not approved.
 - Clipboard sensitivity: snippets are stored in plaintext and may contain passwords. Decide on a retention window and/or encryption at rest — see SECURITY.md.
 - Sanctum token expiry (currently none) and whether a password change should revoke all tokens.
@@ -62,7 +62,7 @@ Two passes are done: the Laravel server (web UI + `api/v1`), and the Kotlin Andr
 - Whether email verification should be enforced (scaffolded but inactive — `User` does not implement `MustVerifyEmail`).
 - Environment separation from `fiyobra`'s hosting, plus deployment/rollback/monitoring — needed before anything ships.
 - Success metrics and release criteria (below) remain undefined.
-- Add-on manifest version and build tooling — needed before that pass starts.
+- Whether the add-on gets packaged and signed for distribution, or stays load-unpacked.
 - Whether the existing Flutter apps `teddoro` (Pomodoro) and `budget-teddy` (Budget) should be retired now that Android covers both, and whether any of their behaviour is missing here. They were rewritten rather than ported, since merging them meant retargeting to this API regardless of language.
 
 ## Definition of ready
