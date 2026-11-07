@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>Jack &amp; Things</title>
+        <link rel="stylesheet" href="popup.css" />
+    </head>
+    <body>
+        <header class="bar">
+            <strong class="brand">Jack &amp; Things</strong>
+            <button id="settings" class="icon-button" type="button" title="Settings">
+                Settings
+            </button>
+        </header>
+
+        <nav id="tabs" class="tabs" hidden>
+            <button class="tab" data-view="pomodoro" type="button">Timer</button>
+            <button class="tab" data-view="notes" type="button">Notes</button>
+            <button class="tab" data-view="budget" type="button">Budget</button>
+            <button class="tab" data-view="workout" type="button">Workout</button>
+            <button class="tab" data-view="clipboard" type="button">Clip</button>
+            <button class="tab" data-view="history" type="button">History</button>
+        </nav>
+
+        <main id="view" class="view">
+            <p class="muted">Loading…</p>
+        </main>
+
+        <script type="module" src="popup.js"></script>
+    </body>
+</html>
