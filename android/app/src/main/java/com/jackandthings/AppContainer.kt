@@ -5,6 +5,7 @@ import com.jackandthings.data.AppPrefs
 import com.jackandthings.data.TokenStore
 import com.jackandthings.data.remote.ApiClient
 import com.jackandthings.data.remote.JackApi
+import com.jackandthings.repo.ApiAuthStore
 import com.jackandthings.repo.ApiBudgetRepository
 import com.jackandthings.repo.ApiClipboardRepository
 import com.jackandthings.repo.ApiNotesRepository
@@ -35,7 +36,7 @@ class AppContainer(context: Context) {
     private val api: JackApi = JackApi(client)
     private val tokens: TokenStore = TokenStore.create(appContext)
 
-    val auth: AuthStore = AuthStore(api, client, tokens)
+    val auth: AuthStore = ApiAuthStore(api, client, tokens)
 
     // Declared as the interfaces so nothing above this line depends on the
     // API-backed implementations.

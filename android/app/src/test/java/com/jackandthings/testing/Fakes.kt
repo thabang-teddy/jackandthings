@@ -1,16 +1,63 @@
 package com.jackandthings.testing
 
+import com.jackandthings.model.AuthUser
 import com.jackandthings.model.BudgetAccount
 import com.jackandthings.model.BudgetTransaction
 import com.jackandthings.model.PomodoroPreset
+import com.jackandthings.repo.AuthStore
 import com.jackandthings.repo.BudgetRepository
 import com.jackandthings.repo.PomodoroRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Hand-written fakes rather than a mocking framework: they are short, they
  * read as the behaviour being set up, and they break loudly when an interface
  * changes.
  */
+
+class FakeAuthStore : AuthStore {
+
+    private val _signedIn = MutableStateFlow(false)
+    override val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
+
+    private val _user = MutableStateFlow<AuthUser?>(null)
+    override val user: StateFlow<AuthUser?> = _user.asStateFlow()
+
+    /** Set to make the next sign-in fail the way bad credentials would. */
+    var failure: Throwable? = null
+
+    var restoreCalls: Int = 0
+    var signOutCalls: Int = 0
+
+    /** Every credential pair the screen submitted, in order. */
+    val attempts: MutableList<Pair<String, String>> = mutableListOf()
+
+    override fun restore() {
+        restoreCalls++
+    }
+
+    override suspend fun signIn(email: String, password: String): Result<Unit> {
+        attempts.add(email to password)
+        failure?.let { return Result.failure(it) }
+
+        _user.value = AuthUser(1, "Test User", email)
+        _signedIn.value = true
+        return Result.success(Unit)
+    }
+
+    override suspend fun signOut() {
+        signOutCalls++
+        _user.value = null
+        _signedIn.value = false
+    }
+
+    override fun onUnauthenticated() {
+        _user.value = null
+        _signedIn.value = false
+    }
+}
 
 class FakePomodoroRepository(
     var presets: MutableList<PomodoroPreset> = mutableListOf(),
