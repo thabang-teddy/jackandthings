@@ -4,7 +4,7 @@ Reflects the Laravel app as built in `laravel/`. Conventions follow the sibling 
 
 ## Languages and conventions
 - PHP 8.4 locally (`composer.json` requires `^8.3`), Laravel v13.40.0. Plain JavaScript + React 18 via Inertia — **no TypeScript**, matching fiyobra.
-- Kotlin for the Android app (not started).
+- Kotlin 2.2.21 + Jetpack Compose for the Android app, JVM target 17, official Kotlin code style.
 - `declare(strict_types=1);` at the top of every hand-written PHP file (matches fiyobra, which uses it throughout `app/`). Framework-generated files (Breeze controllers, the default `User` model shell) are left as generated.
 - Typed properties, parameter types, and return types on all new code. Constructor property promotion with `private readonly` for injected services.
 - Naming: models singular (`BudgetAccount`), tables plural snake_case (`budget_accounts`), controllers `<Thing>Controller`, FormRequests `<Thing>Request`, policies `<Thing>Policy`. React components and pages PascalCase; hooks `use*`.
@@ -17,6 +17,18 @@ Reflects the Laravel app as built in `laravel/`. Conventions follow the sibling 
 - Business logic lives in `app/Services/` (`BudgetService`, `WorkoutReminderStatus`), not in controllers — controllers stay transport-only. Cross-cutting controller behavior goes in `app/Http/Controllers/Concerns/` (`AuthorizesOwnership`).
 - React: `Pages/` mirrors module names, `Components/` holds shared UI, `Layouts/AuthenticatedLayout.jsx` owns the nav, `Lib/` holds pure helpers.
 - Inertia pages attach their layout via the static-property convention `Page.layout = (page) => <AuthenticatedLayout>{page}</AuthenticatedLayout>` (same as fiyobra).
+
+## Kotlin (android/)
+- `val` over `var`; immutable `data class` state; updates via `copy()`. No `!!` anywhere — use `?.`, `?:` or an early return.
+- One immutable state object per screen in a `MutableStateFlow`, exposed as `StateFlow` and collected with `collectAsStateWithLifecycle()`. ViewModels expose named action methods rather than a sealed event sink; the single-state-object and one-way-data-flow parts are what matter.
+- ViewModels are constructed through a `companion object { fun factory(deps) }` using `viewModelFactory { initializer { … } }`, which is how manual DI meets `viewModel()`.
+- Repositories return `Result<T>` and are the only layer that talks to `JackApi`. Wrap calls in `apiCall { }` from `repo/ApiResult.kt`, **not** `runCatching` — the former rethrows `CancellationException` instead of turning a cancelled coroutine into a fake failure.
+- One file per screen and per ViewModel; shared composables live in `ui/common/`.
+- Money is `Long` cents end to end, formatted only by `formatZar()` (en-ZA). Amounts are sent to the server as the user's typed string so no float touches money.
+- Wire models are `@Serializable` with explicit `@SerialName` for every field whose JSON name differs, so a rename on either side fails loudly rather than arriving as null. R8 keep rules for them live in `proguard-rules.pro`.
+
+## Android dependency policy
+The version catalog in `android/gradle/libs.versions.toml` is pinned as a **set** copied from `giwubible/kotlin`, which already builds on this machine. Bump it deliberately, not routinely: the newer AndroidX line raises the minimum SDK. `android.builtInKotlin=false` in `gradle.properties` is load-bearing — AGP 9 ships its own Kotlin support and otherwise rejects the standalone Kotlin plugin that the Compose and serialization plugins attach to. The other `android.*` flags there are deprecated and only quiet warnings.
 
 ## Coding rules
 - Keep functions focused; follow established repository patterns.
@@ -47,7 +59,16 @@ Reflects the Laravel app as built in `laravel/`. Conventions follow the sibling 
 - No credentials or unrelated files in the diff.
 
 ## Verified commands
-All of these were run successfully in this repository:
+All of these were run successfully in this repository.
+
+**Android** (from `android/`, with `JAVA_HOME` set to Android Studio's bundled JBR at `C:\Program Files\Android\Android Studio\jbr`):
+- Build: `.\gradlew.bat :app:assembleDebug`
+- Compile only: `.\gradlew.bat :app:compileDebugKotlin`
+- Point at another server without editing source: `-PjackApiBaseUrl=https://host/api/v1/`
+- Install/run: `adb install -r app\build\outputs\apk\debug\app-debug.apk` then `adb shell am start -n com.jackandthings/.MainActivity`
+- The app expects `php artisan serve` (port 8000) for emulator testing; Herd's `jackandthings.test` is not resolvable from the emulator.
+
+**Laravel** (from `laravel/`):
 - Format: `vendor/bin/pint` (Laravel Pint v1.32.1)
 - Lint (JS): `npm run lint` (ESLint + Prettier)
 - Build: `npm run build` (Vite)
@@ -58,4 +79,4 @@ All of these were run successfully in this repository:
 
 Note: new Inertia pages must be rebuilt (`npm run build`) or served by `npm run dev` before they will render — `resources/views/app.blade.php` loads a per-page Vite entry, so a page missing from the manifest fails.
 
-There is **no type-check step** (no TypeScript) and **no static analyser** configured — PHPStan/Psalm are not installed. Never invent commands or claim checks passed without running them.
+There is **no type-check step** on the web side (no TypeScript) and **no static analyser** configured — PHPStan/Psalm are not installed, and neither are ktlint or Detekt for Kotlin. Never invent commands or claim checks passed without running them.

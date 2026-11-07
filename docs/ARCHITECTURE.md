@@ -14,7 +14,7 @@ Versions below are what is actually installed in `laravel/` (from `composer.lock
 | Authentication | Laravel Breeze (session) + Sanctum v4.3.3 tokens, email+password (built) | Owner's explicit choice. Breeze used instead of hand-rolling (fiyobra hand-rolled only for column-encryption/2FA/multi-domain needs that do not apply here) | Web uses the session guard; Android/add-ons use bearer tokens from `POST /api/v1/auth/token` |
 | Route helper | Ziggy v2.6.5 | Breeze's React stack calls `route()` in JS, same as fiyobra | — |
 | Hosting | Existing server already hosting `fiyobra` (confirmed) | Owner's explicit choice | Specific provisioning, domain, and environment separation from `fiyobra`'s production environment — **unresolved** |
-| Android | Kotlin (confirmed, from `docs/init.txt`) | Owner's explicit choice | Not started. Architecture pattern (MVVM/Compose vs. XML views), min SDK, networking library — **unresolved** |
+| Android | Kotlin + Jetpack Compose, Material 3 (built) | Owner's explicit choice. Conventions and the pinned dependency set come from the sibling Laravel+Kotlin client at `C:\Users\Teddy\projects\giwubible\kotlin` | AGP 9.2.1 / Kotlin 2.2.21 / Compose BOM 2025.09.01; **minSdk 26** (vs. giwubible's 21) so notification channels need no version guard; raw OkHttp 4.12 + kotlinx.serialization, **no Retrofit**; hand-assembled `AppContainer`, **no Hilt/Koin**; WorkManager 2.10.1 for the hourly reminder |
 | Browser add-ons | Chrome + Firefox (confirmed, from `docs/init.txt`) | Owner's explicit choice | Not started. Manifest version (proposal: Manifest V3 WebExtensions), build tooling — **unresolved** |
 
 ## System boundaries
@@ -63,6 +63,18 @@ laravel/
     Lib/formatZar.js
     Pages/             Dashboard hub + Pomodoro, Notes, Budget, Workout, Clipboard, History
   routes/web.php, api.php, console.php, auth.php
+
+android/                 Kotlin/Compose client (five modules; no History)
+  app/src/main/java/com/jackandthings/
+    AppContainer.kt      hand-assembled object graph
+    MainActivity.kt      reads ACTION_SEND shared text
+    data/                AppPrefs, TokenStore (EncryptedSharedPreferences)
+    data/remote/         ApiClient (OkHttp), JackApi (one method per endpoint)
+    model/Models.kt      @Serializable wire models
+    repo/                AuthStore + one repository per module, all Result<T>
+    ui/<module>/         Screen + ViewModel pairs, plus common/ and theme/
+    work/                WorkoutReminders: channel, scheduling, worker
+  gradle/libs.versions.toml   pinned version catalog
 ```
 
 ## Operations
@@ -79,12 +91,16 @@ laravel/
 - History: hard-delete model plus a daily `history:prune` with a clearly-marked placeholder retention window.
 - Workout: reminder *state* only, polled via API; no delivery.
 
-**Confirmed but not started (later passes):**
-- Kotlin Android app; Chrome/Firefox add-ons. Both will consume the `api/v1` contract above.
+**Built (Android):**
+- Kotlin/Compose client for Pomodoro, Notes, Budget, Workout and Clipboard, consuming `api/v1` with Sanctum bearer tokens. History is deliberately excluded — it is browser history, which `docs/init.txt` assigns to the add-ons and the web app.
+- The app reaches a local server at `http://10.0.2.2:8000/api/v1/` by default (the emulator's route to the host), and the address is editable in Settings so a LAN or deployed host needs no rebuild. Note Herd serves the web app at `http://jackandthings.test`, which the emulator cannot resolve — hence `php artisan serve` for device testing.
+
+**Confirmed but not started:**
+- Chrome/Firefox add-ons. They will consume the same `api/v1` contract, including the `history-entries` endpoints that nothing populates yet.
 
 **Still unresolved:**
 - The real history auto-delete rule (schedule, which browsers/profiles, per-domain exceptions) — the 90-day default is a placeholder.
-- Notification delivery mechanism for workout reminders.
+- Notification delivery for workout reminders **beyond Android**. The Android app now polls `workout-entries/due` hourly via WorkManager and raises its own local notification, which is what the server's poll-only design intended; the web app still shows an in-page banner only, and nothing is pushed from the server.
 - Clipboard cross-device sync semantics (conflict handling, retention, whether content should be encrypted at rest given it may hold passwords).
 - Whether an admin/operator role exists.
 - Android architecture pattern and min SDK; add-on manifest version and build tooling.

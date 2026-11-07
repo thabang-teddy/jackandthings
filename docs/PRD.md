@@ -35,16 +35,16 @@ Drafted from `docs/init.txt`; step-level detail is a **proposal** pending your a
 7. A user views their browsing history list; the History add-on automatically deletes URL history on some schedule. Exact deletion rule/schedule and scope (which browsers, which URLs): **unresolved**.
 
 ## Feature specifications
-Status reflects the first build pass: the Laravel server (web UI + `api/v1`). Android and the browser add-ons are not started.
+Two passes are done: the Laravel server (web UI + `api/v1`), and the Kotlin Android client. The browser add-ons are not started.
 
 | ID | User need | Behavior | Status | Priority |
 | --- | --- | --- | --- | --- |
-| F-01 | As a user, I need to run a Pomodoro timer | Save presets (name, focus/break minutes); start one; timer counts focus then rolls into the break | **Built (web + API).** Countdown is client-side and not persisted — no session history is stored | Must |
-| F-02 | As a user, I need to manage notes | Create, read, update, delete notes (title, body) | **Built (web + API)** | Must |
-| F-03 | As a user, I need to track a budget | Multiple accounts; deposit/withdraw; transfer between own accounts; dashboard with per-account and total balances | **Built (web + API).** Fixed ZAR, integer cents, derived balances, atomic two-leg transfers, overdrafts rejected. No categories | Must |
-| F-04 | As a user, I need to track workouts | Log entries (activity, when, notes); know when an hour has passed without one | **Partly built.** CRUD and due-state done (`GET /api/v1/workout-entries/due`, in-page banner). **No reminder is delivered** — delivery channel still unresolved | Must |
-| F-05 | As a user, I need to share clipboard content across apps | Save snippets; copy them back | **Partly built.** Full CRUD web UI + API, and a `source_device` column ready for other clients. Real cross-device sync needs the Android/add-on clients | Must |
-| F-06 | As a user, I need to manage browsing history | View history list; auto-delete old URLs | **Partly built.** Model, API, management UI and a daily `history:prune` exist, fed by manual/seeded entries. Real ingestion needs the browser add-on, and the retention rule is a placeholder | Must |
+| F-01 | As a user, I need to run a Pomodoro timer | Save presets (name, focus/break minutes); start one; timer counts focus then rolls into the break | **Built (web + API + Android).** Android gives it the full-screen countdown `init.txt` asked for. Nothing about a running timer is persisted on either client | Must |
+| F-02 | As a user, I need to manage notes | Create, read, update, delete notes (title, body) | **Built (web + API + Android)** | Must |
+| F-03 | As a user, I need to track a budget | Multiple accounts; deposit/withdraw; transfer between own accounts; dashboard with per-account and total balances | **Built (web + API + Android).** Fixed ZAR, integer cents, derived balances, atomic two-leg transfers, overdrafts rejected. No categories | Must |
+| F-04 | As a user, I need to track workouts | Log entries (activity, when, notes); know when an hour has passed without one | **Built on Android; partial on web.** The server reports due-state only and sends nothing; the Android app polls it hourly (WorkManager) and raises a local notification. The web app shows an in-page banner with no notification | Must |
+| F-05 | As a user, I need to share clipboard content across apps | Save snippets; copy them back | **Built (web + API + Android).** Android reads/writes the system clipboard and accepts text from the share sheet, stamping `source_device`. Genuinely cross-device once a second client is installed; the add-ons will complete the picture | Must |
+| F-06 | As a user, I need to manage browsing history | View history list; auto-delete old URLs | **Partly built, server only.** Model, API, management UI and a daily `history:prune` exist, fed by manual/seeded entries. Deliberately absent from Android. Real ingestion needs the browser add-on, and the retention rule is a placeholder | Must |
 
 ## Success measures
 - Metric: **unresolved** — no success metrics have been defined yet.
@@ -54,7 +54,7 @@ Status reflects the first build pass: the Laravel server (web UI + `api/v1`). An
 **Settled since the first draft:** build order (server first, then Android and add-ons), currency (fixed ZAR), stack and auth (Laravel 13 + Inertia/React + MySQL + Breeze/Sanctum), and Budget's multi-account model.
 
 **Still open:**
-- Delivery mechanism for hourly workout reminders (Android local notification, web push, email) — needed before F-04 is complete. Today the server only exposes due-state for a client to poll.
+- Workout reminders on surfaces other than Android. Android is settled: it polls due-state hourly and raises its own local notification, so the server still pushes nothing. Whether the web app should get web push (or nothing) is undecided.
 - History auto-delete rule: schedule, which browsers/profiles, per-domain exceptions — needed before F-06 is complete. A 90-day placeholder is in `config/history.php`, clearly marked as not approved.
 - Clipboard sensitivity: snippets are stored in plaintext and may contain passwords. Decide on a retention window and/or encryption at rest — see SECURITY.md.
 - Sanctum token expiry (currently none) and whether a password change should revoke all tokens.
@@ -62,7 +62,8 @@ Status reflects the first build pass: the Laravel server (web UI + `api/v1`). An
 - Whether email verification should be enforced (scaffolded but inactive — `User` does not implement `MustVerifyEmail`).
 - Environment separation from `fiyobra`'s hosting, plus deployment/rollback/monitoring — needed before anything ships.
 - Success metrics and release criteria (below) remain undefined.
-- Android architecture (Compose vs. views, min SDK) and add-on manifest version/build tooling — needed before those passes start.
+- Add-on manifest version and build tooling — needed before that pass starts.
+- Whether the existing Flutter apps `teddoro` (Pomodoro) and `budget-teddy` (Budget) should be retired now that Android covers both, and whether any of their behaviour is missing here. They were rewritten rather than ported, since merging them meant retargeting to this API regardless of language.
 
 ## Definition of ready
 Partly met. The server-side scope is confirmed, built and manually verified (see TESTING.md). Acceptance criteria were never formally written per feature, three features are only partly complete pending the decisions above, and no automated tests exist yet.
