@@ -6,9 +6,11 @@ A suite now exists on all three surfaces and **all of it passes**. Figures below
 | Surface | Framework | Tests | Command |
 | --- | --- | --- | --- |
 | Laravel | PHPUnit 12.5 | **138** (1332 assertions) | `php artisan test` |
-| Android | JUnit 4 + `kotlinx-coroutines-test` | **48** | `.\gradlew.bat :app:testDebugUnitTest` |
+| Android | JUnit 4 + `kotlinx-coroutines-test` | **77** | `.\gradlew.bat :app:testDebugUnitTest` |
 | Add-on | `node --test` (no dependencies) | **27** | `npm test` in `extension/` |
-| | | **213 total** | |
+| | | **242 total** | |
+
+**Every Android ViewModel is covered.** That was only possible after the five repositories and `AuthStore` were put behind interfaces, which is why that refactor counts as test work rather than tidying.
 
 The Laravel figure includes the 25 tests Breeze generated, which had never been run before and also pass.
 
@@ -88,7 +90,7 @@ Scope it to the six modules (PRD.md F-01…F-06) plus the SECURITY.md requiremen
 ## Verified commands
 All run successfully:
 - Server: `php artisan test` (from `laravel/`) — 138 passed. Also `--testsuite=Unit` / `--testsuite=Feature`. Note the batch wrapper eats `|`, so `--filter="A|B"` fails; filter one class at a time or run a suite.
-- Android: `.\gradlew.bat :app:testDebugUnitTest` (from `android/`, `JAVA_HOME` set to Android Studio's JBR) — 48 passed.
+- Android: `.\gradlew.bat :app:testDebugUnitTest` (from `android/`, `JAVA_HOME` set to Android Studio's JBR) — 77 passed.
 - Add-on: `npm test` (from `extension/`) — 27 passed. No install step; it uses Node's built-in runner.
 - Coverage: **Not available** — no Xdebug or pcov.
 - End-to-end: **Not configured** — Playwright not installed.
@@ -117,13 +119,17 @@ A route-table audit fails the build when a model-bound route is added without a 
 
 **Sign-in** (`LoginViewModelTest`) — `AuthStore` is an interface too (`ApiAuthStore` is the implementation), so the screen is testable without a server or a keystore. Covered: the submit button needing both fields, the email being trimmed, the **server address being applied before the request** rather than after (otherwise a corrected address always fails on the first try), a rejected sign-in reporting the reason and leaving the form usable, typing clearing the previous error, and a double tap sending only once.
 
+**The remaining three ViewModels** — Notes (create vs. update chosen by a blank id, title trimmed, blank title refused with the editor left open), Clipboard (the device stamp always recorded, a blank title sent as `null`, and content kept **verbatim** including leading whitespace, since snippets are often code or keys that trimming would corrupt), and Workout (logging clearing the nudge, and a failing reminder check not taking the entry list down with it — the banner is a nicety, the entries are the point).
+
+A pattern worth keeping: each of these asserts that a rejected write leaves the form open carrying the server's reason. That is the behaviour a user actually notices, and the easiest to break.
+
 Fakes are hand-written (`app/src/test/.../testing/Fakes.kt`), not generated: they are short and they break loudly when an interface changes.
 
 **Add-on** — URL joining with and without a trailing slash, bearer header presence, the first-field-error-wins rule for a 422, an unreachable server reported as such, a 401 clearing the session while other failures do not, and history leaving the retention window `null` rather than guessing one.
 
 ## Known gaps
 - **Coverage is unmeasured** (no driver installed).
-- The Notes, Clipboard and Workout ViewModels are still untested. Every collaborator they need is already an interface, so adding a fake and a test file is now mechanical — these are the easy remaining wins.
+- Android **Compose UI** is untested — the ViewModels are covered, but nothing asserts a screen renders their state. That needs instrumented or Robolectric tests.
 - **`extension/src/lib/dom.js` is untested** — every function touches `document`, so it needs jsdom or a browser runner.
 - **The extension host is still unexercised**: service worker, `chrome.alarms`, notifications, permission prompts, `history.onVisited` and the auto-delete path. No unit test reaches these; they need Playwright against a loaded unpacked extension, or a manual checklist.
 - **No E2E anywhere.** The web app has never been clicked through in a browser; Android was exercised by hand on an emulator but has no instrumented tests; the add-on's popup was driven only through an API-stubbing harness.

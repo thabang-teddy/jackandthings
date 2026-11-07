@@ -3,10 +3,17 @@ package com.jackandthings.testing
 import com.jackandthings.model.AuthUser
 import com.jackandthings.model.BudgetAccount
 import com.jackandthings.model.BudgetTransaction
+import com.jackandthings.model.ClipboardItem
+import com.jackandthings.model.Note
 import com.jackandthings.model.PomodoroPreset
+import com.jackandthings.model.ReminderState
+import com.jackandthings.model.WorkoutEntry
 import com.jackandthings.repo.AuthStore
 import com.jackandthings.repo.BudgetRepository
+import com.jackandthings.repo.ClipboardRepository
+import com.jackandthings.repo.NotesRepository
 import com.jackandthings.repo.PomodoroRepository
+import com.jackandthings.repo.WorkoutRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -56,6 +63,121 @@ class FakeAuthStore : AuthStore {
     override fun onUnauthenticated() {
         _user.value = null
         _signedIn.value = false
+    }
+}
+
+class FakeNotesRepository(
+    var notes: MutableList<Note> = mutableListOf(),
+) : NotesRepository {
+
+    var failure: Throwable? = null
+
+    /** Every (title, body) pair the screen sent, in order. */
+    val created: MutableList<Pair<String, String?>> = mutableListOf()
+    val updated: MutableList<Triple<String, String, String?>> = mutableListOf()
+    val deletedIds: MutableList<String> = mutableListOf()
+
+    override suspend fun list(): Result<List<Note>> =
+        failure?.let { Result.failure(it) } ?: Result.success(notes.toList())
+
+    override suspend fun create(title: String, body: String?): Result<Note> {
+        failure?.let { return Result.failure(it) }
+
+        created.add(title to body)
+        val note = Note("note-${notes.size + 1}", title, body)
+        notes.add(note)
+        return Result.success(note)
+    }
+
+    override suspend fun update(id: String, title: String, body: String?): Result<Note> {
+        failure?.let { return Result.failure(it) }
+
+        updated.add(Triple(id, title, body))
+        val note = Note(id, title, body)
+        notes.replaceAll { if (it.id == id) note else it }
+        return Result.success(note)
+    }
+
+    override suspend fun delete(id: String): Result<Unit> {
+        failure?.let { return Result.failure(it) }
+
+        deletedIds.add(id)
+        notes.removeAll { it.id == id }
+        return Result.success(Unit)
+    }
+}
+
+class FakeClipboardRepository(
+    var items: MutableList<ClipboardItem> = mutableListOf(),
+) : ClipboardRepository {
+
+    var failure: Throwable? = null
+
+    /** Each saved snippet as (title, content, sourceDevice). */
+    val created: MutableList<Triple<String?, String, String?>> = mutableListOf()
+    val deletedIds: MutableList<String> = mutableListOf()
+
+    override suspend fun list(): Result<List<ClipboardItem>> =
+        failure?.let { Result.failure(it) } ?: Result.success(items.toList())
+
+    override suspend fun create(
+        title: String?,
+        content: String,
+        sourceDevice: String?,
+    ): Result<ClipboardItem> {
+        failure?.let { return Result.failure(it) }
+
+        created.add(Triple(title, content, sourceDevice))
+        val item = ClipboardItem("clip-${items.size + 1}", title, content, sourceDevice)
+        items.add(item)
+        return Result.success(item)
+    }
+
+    override suspend fun delete(id: String): Result<Unit> {
+        failure?.let { return Result.failure(it) }
+
+        deletedIds.add(id)
+        items.removeAll { it.id == id }
+        return Result.success(Unit)
+    }
+}
+
+class FakeWorkoutRepository(
+    var entries: MutableList<WorkoutEntry> = mutableListOf(),
+    var reminder: ReminderState = ReminderState(due = true, lastLoggedAt = null),
+) : WorkoutRepository {
+
+    var failure: Throwable? = null
+
+    /** Set separately: the banner must not break the list if it fails. */
+    var reminderFailure: Throwable? = null
+
+    val created: MutableList<Pair<String, String?>> = mutableListOf()
+    val deletedIds: MutableList<String> = mutableListOf()
+
+    override suspend fun list(): Result<List<WorkoutEntry>> =
+        failure?.let { Result.failure(it) } ?: Result.success(entries.toList())
+
+    override suspend fun reminderState(): Result<ReminderState> =
+        reminderFailure?.let { Result.failure(it) } ?: Result.success(reminder)
+
+    override suspend fun create(activity: String, notes: String?): Result<WorkoutEntry> {
+        failure?.let { return Result.failure(it) }
+
+        created.add(activity to notes)
+        val entry = WorkoutEntry("w-${entries.size + 1}", activity, notes)
+        entries.add(entry)
+        // Logging something clears the nudge, the way the server would.
+        reminder = ReminderState(due = false, lastLoggedAt = "now")
+        return Result.success(entry)
+    }
+
+    override suspend fun delete(id: String): Result<Unit> {
+        failure?.let { return Result.failure(it) }
+
+        deletedIds.add(id)
+        entries.removeAll { it.id == id }
+        return Result.success(Unit)
     }
 }
 
