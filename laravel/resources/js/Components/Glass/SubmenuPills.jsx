@@ -7,13 +7,13 @@ function scrollToAnchor(target) {
 
 export default function SubmenuPills({ items, activeAnchor }) {
     return (
-        <div className="flex items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1">
+        <div className="flex items-center gap-1 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] p-1">
             {items.map((item) => {
                 if (item.type === 'disabled') {
                     return (
                         <span
                             key={item.label}
-                            className="cursor-not-allowed rounded-full px-3.5 py-2 text-xs font-semibold text-white/25"
+                            className="cursor-not-allowed rounded-full px-3.5 py-2 text-xs font-semibold text-[var(--muted)] opacity-50"
                             title="Not available yet"
                         >
                             {item.label}
@@ -26,8 +26,8 @@ export default function SubmenuPills({ items, activeAnchor }) {
                 const classes =
                     'rounded-full px-3.5 py-2 text-xs font-semibold transition ' +
                     (isActive
-                        ? 'bg-[#2B6CFF] text-[#06121A]'
-                        : 'text-white/55 hover:text-white');
+                        ? 'bg-[var(--accent)] text-[var(--accent-ink)]'
+                        : 'text-[var(--muted)] hover:text-[var(--ink)]');
 
                 if (item.type === 'link') {
                     return (

@@ -22,7 +22,7 @@ export default function PomodoroGlassView({
             <GlassCard id="timer">
                 {timer.preset ? (
                     <div className="flex flex-col items-center py-4 text-center">
-                        <p className="text-xs uppercase tracking-widest text-white/50">
+                        <p className="text-xs uppercase tracking-widest text-[var(--muted)]">
                             {timer.phase === 'focus' ? 'Focus' : 'Break'} ·{' '}
                             {timer.preset.name}
                         </p>
@@ -43,7 +43,7 @@ export default function PomodoroGlassView({
                         </div>
                     </div>
                 ) : (
-                    <p className="py-6 text-center text-sm text-white/50">
+                    <p className="py-6 text-center text-sm text-[var(--muted)]">
                         Pick a preset below to start a session.
                     </p>
                 )}
@@ -56,7 +56,7 @@ export default function PomodoroGlassView({
                     className="overflow-y-auto"
                 >
                     {presets.length === 0 ? (
-                        <p className="text-sm text-white/40">
+                        <p className="text-sm text-[var(--muted)]">
                             No presets yet — add one on the right.
                         </p>
                     ) : (
@@ -64,13 +64,13 @@ export default function PomodoroGlassView({
                             {presets.map((preset) => (
                                 <div
                                     key={preset.id}
-                                    className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                                    className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-3"
                                 >
                                     <div>
                                         <p className="text-sm font-semibold">
                                             {preset.name}
                                         </p>
-                                        <p className="text-xs text-white/40">
+                                        <p className="text-xs text-[var(--muted)]">
                                             {preset.focus_minutes} min focus ·{' '}
                                             {preset.break_minutes} min break
                                         </p>
@@ -87,7 +87,7 @@ export default function PomodoroGlassView({
                                             onClick={() =>
                                                 onDestroyPreset(preset)
                                             }
-                                            className="text-xs text-rose-400 hover:underline"
+                                            className="text-xs text-[var(--neg)] hover:underline"
                                         >
                                             Delete
                                         </button>

@@ -14,7 +14,7 @@ export default function WorkoutGlassIndexView({
     return (
         <div className="flex h-full min-h-0 flex-col gap-4">
             <div className="flex items-center justify-between">
-                <p className="text-sm text-white/40">
+                <p className="text-sm text-[var(--muted)]">
                     {entries.data.length} entr
                     {entries.data.length === 1 ? 'y' : 'ies'}
                 </p>
@@ -25,24 +25,39 @@ export default function WorkoutGlassIndexView({
 
             <div id="reminders">
                 {dueForReminder ? (
-                    <GlassCard className="border-amber-400/30 bg-amber-400/10">
+                    <div
+                        className="rounded-[22px] border p-5"
+                        style={{
+                            borderColor: 'var(--warn-border)',
+                            background: 'var(--warn-bg)',
+                        }}
+                    >
                         <div className="flex items-center gap-3">
-                            <BellIcon size={16} className="text-amber-300" />
+                            <BellIcon
+                                size={16}
+                                style={{ color: 'var(--warn-ink)' }}
+                            />
                             <div>
-                                <p className="text-sm font-semibold text-amber-200">
+                                <p
+                                    className="text-sm font-semibold"
+                                    style={{ color: 'var(--warn-ink)' }}
+                                >
                                     Nothing logged this hour
                                 </p>
-                                <p className="text-xs text-amber-200/70">
+                                <p
+                                    className="text-xs"
+                                    style={{ color: 'var(--warn-muted)' }}
+                                >
                                     {lastLoggedAt
                                         ? `Last workout: ${lastLoggedAt}.`
                                         : 'No workouts logged yet.'}
                                 </p>
                             </div>
                         </div>
-                    </GlassCard>
+                    </div>
                 ) : (
                     <GlassCard>
-                        <p className="text-sm text-white/50">
+                        <p className="text-sm text-[var(--muted)]">
                             You're up to date — last workout:{' '}
                             {lastLoggedAt ?? 'none yet'}.
                         </p>
@@ -56,7 +71,7 @@ export default function WorkoutGlassIndexView({
                 className="min-h-0 flex-1 overflow-y-auto"
             >
                 {entries.data.length === 0 ? (
-                    <p className="text-sm text-white/40">
+                    <p className="text-sm text-[var(--muted)]">
                         Log what you do through the day to build up a record.
                     </p>
                 ) : (
@@ -81,7 +96,7 @@ export default function WorkoutGlassIndexView({
                                     <button
                                         type="button"
                                         onClick={() => onDestroy(entry)}
-                                        className="text-white/30 hover:text-rose-400"
+                                        className="text-[var(--muted)] hover:text-[var(--neg)]"
                                     >
                                         Delete
                                     </button>

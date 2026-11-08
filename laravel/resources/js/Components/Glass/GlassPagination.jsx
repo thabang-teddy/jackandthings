@@ -19,15 +19,15 @@ export default function GlassPagination({ links }) {
                         className={
                             'rounded-full px-3 py-1.5 text-xs font-semibold ' +
                             (link.active
-                                ? 'bg-[#2B6CFF] text-[#06121A]'
-                                : 'text-white/50 hover:text-white')
+                                ? 'bg-[var(--accent)] text-[var(--accent-ink)]'
+                                : 'text-[var(--muted)] hover:text-[var(--ink)]')
                         }
                         dangerouslySetInnerHTML={{ __html: link.label }}
                     />
                 ) : (
                     <span
                         key={index}
-                        className="rounded-full px-3 py-1.5 text-xs text-white/20"
+                        className="rounded-full px-3 py-1.5 text-xs text-[var(--muted)] opacity-50"
                         dangerouslySetInnerHTML={{ __html: link.label }}
                     />
                 ),

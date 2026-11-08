@@ -14,7 +14,7 @@ export default function ClipboardGlassIndexView({
     return (
         <div id="recent" className="flex h-full min-h-0 flex-col gap-4">
             <div className="flex items-center justify-between">
-                <p className="max-w-md text-xs text-white/40">
+                <p className="max-w-md text-xs text-[var(--muted)]">
                     Snippets saved here are available to this account. Syncing
                     with the Android app and browser add-ons arrives when those
                     clients are built.
@@ -26,7 +26,7 @@ export default function ClipboardGlassIndexView({
 
             <GlassCard className="min-h-0 flex-1 overflow-y-auto">
                 {items.data.length === 0 ? (
-                    <p className="py-8 text-center text-sm text-white/50">
+                    <p className="py-8 text-center text-sm text-[var(--muted)]">
                         Nothing saved yet.
                     </p>
                 ) : (
@@ -55,14 +55,14 @@ export default function ClipboardGlassIndexView({
                                     </button>
                                     <Link
                                         href={route('clipboard.edit', item.id)}
-                                        className="text-white/50 hover:underline"
+                                        className="text-[var(--muted)] hover:underline"
                                     >
                                         Edit
                                     </Link>
                                     <button
                                         type="button"
                                         onClick={() => onDestroy(item)}
-                                        className="text-white/30 hover:text-rose-400"
+                                        className="text-[var(--muted)] hover:text-[var(--neg)]"
                                     >
                                         Delete
                                     </button>

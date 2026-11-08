@@ -66,7 +66,7 @@ export default function HistoryGlassView({
                     className="min-h-0 flex-1 overflow-y-auto"
                 >
                     {entries.data.length === 0 ? (
-                        <p className="text-sm text-white/40">
+                        <p className="text-sm text-[var(--muted)]">
                             Add one above, or wait for the browser add-on to
                             report visits.
                         </p>
@@ -85,7 +85,7 @@ export default function HistoryGlassView({
                                     <button
                                         type="button"
                                         onClick={() => onDestroy(entry)}
-                                        className="ml-2 shrink-0 text-xs text-white/30 hover:text-rose-400"
+                                        className="ml-2 shrink-0 text-xs text-[var(--muted)] hover:text-[var(--neg)]"
                                     >
                                         Delete
                                     </button>
@@ -99,14 +99,14 @@ export default function HistoryGlassView({
             </div>
 
             <GlassCard id="retention" title="Retention">
-                <p className="text-sm text-white/70">
+                <p className="text-sm text-[var(--ink)]">
                     Entries older than{' '}
-                    <strong className="font-bold text-white">
+                    <strong className="font-bold text-[var(--ink)]">
                         {retentionDays} days
                     </strong>{' '}
                     are deleted automatically by the nightly prune job.
                 </p>
-                <p className="mt-2 text-xs text-white/40">
+                <p className="mt-2 text-xs text-[var(--muted)]">
                     That window is a placeholder default, not a confirmed rule —
                     the real auto-delete policy is still an open decision. Until
                     the browser add-on exists, entries are added here by hand.

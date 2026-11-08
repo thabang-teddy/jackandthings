@@ -63,7 +63,7 @@ export default function WorkoutGlassFormView({
                     </GlassButton>
                     <Link
                         href={route('workouts.index')}
-                        className="text-sm text-white/40 hover:text-white"
+                        className="text-sm text-[var(--muted)] hover:text-[var(--ink)]"
                     >
                         Cancel
                     </Link>

@@ -254,7 +254,7 @@ export default function BudgetGlassView({
                     <div className="text-3xl font-bold">
                         {formatZar(totalCents)}
                     </div>
-                    <p className="mb-2 mt-1 text-xs text-white/40">
+                    <p className="mb-2 mt-1 text-xs text-[var(--muted)]">
                         Across {accounts.length} account
                         {accounts.length === 1 ? '' : 's'}
                     </p>
@@ -281,7 +281,7 @@ export default function BudgetGlassView({
             <div className="flex flex-col gap-4">
                 {accounts.length === 0 ? (
                     <GlassCard>
-                        <p className="text-sm text-white/40">
+                        <p className="text-sm text-[var(--muted)]">
                             No accounts yet — add one to get started.
                         </p>
                     </GlassCard>
@@ -300,7 +300,7 @@ export default function BudgetGlassView({
                                 <button
                                     type="button"
                                     onClick={() => onDeleteAccount(account)}
-                                    className="text-xs text-rose-400 hover:underline"
+                                    className="text-xs text-[var(--neg)] hover:underline"
                                 >
                                     Delete
                                 </button>
@@ -311,7 +311,7 @@ export default function BudgetGlassView({
 
                 <GlassCard id="transfer" title="Transfer money">
                     {accounts.length < 2 ? (
-                        <p className="text-sm text-white/40">
+                        <p className="text-sm text-[var(--muted)]">
                             Two accounts are needed to transfer between them.
                         </p>
                     ) : (
@@ -323,7 +323,7 @@ export default function BudgetGlassView({
             <div className="flex min-h-0 flex-col gap-4">
                 <GlassCard title="Add transaction">
                     {accounts.length === 0 ? (
-                        <p className="text-sm text-white/40">
+                        <p className="text-sm text-[var(--muted)]">
                             Add an account first.
                         </p>
                     ) : (
@@ -337,7 +337,7 @@ export default function BudgetGlassView({
                     className="min-h-0 flex-1 overflow-y-auto"
                 >
                     {transactions.length === 0 ? (
-                        <p className="text-sm text-white/40">
+                        <p className="text-sm text-[var(--muted)]">
                             Deposits, withdrawals and transfers show up here.
                         </p>
                     ) : (
@@ -371,7 +371,7 @@ export default function BudgetGlassView({
                                             onClick={() =>
                                                 onDeleteTransaction(transaction)
                                             }
-                                            className="ml-2 shrink-0 text-xs text-white/30 hover:text-rose-400"
+                                            className="ml-2 shrink-0 text-xs text-[var(--muted)] hover:text-[var(--neg)]"
                                         >
                                             Remove
                                         </button>

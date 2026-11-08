@@ -5,15 +5,20 @@ import SubmenuPills from '@/Components/Glass/SubmenuPills';
 import ThemeToggle from '@/Components/Glass/ThemeToggle';
 import { BellIcon } from '@/Components/Glass/icons';
 import { getModule, getSubmenu } from '@/Lib/glassNav';
+import { getThemeVars } from '@/Lib/themeTokens';
+import { useTheme } from '@/Lib/ThemeContext';
 
 export default function GlassShell({
     module,
     title,
+    header,
     submenu,
     activeAnchor,
     children,
 }) {
     const { auth, flash } = usePage().props;
+    const { theme } = useTheme();
+    const vars = getThemeVars(theme);
     const moduleInfo = getModule(module);
     const items = submenu ?? getSubmenu(module);
     const initials = (auth.user.name || '?')
@@ -24,17 +29,26 @@ export default function GlassShell({
         .toUpperCase();
 
     return (
-        <div className="relative min-h-screen overflow-hidden bg-[#0A0F1E] text-[#EAF0FF]">
+        <div
+            className="relative min-h-screen overflow-hidden bg-[var(--bg)] text-[var(--ink)]"
+            style={vars}
+        >
             <Head title={title ?? moduleInfo?.label ?? 'Jack & Things'} />
 
             <div
-                className="pointer-events-none absolute h-[420px] w-[420px] rounded-full opacity-35 blur-[70px]"
-                style={{ background: '#2B6CFF', top: '-140px', left: '260px' }}
+                className="pointer-events-none absolute h-[420px] w-[420px] rounded-full blur-[70px]"
+                style={{
+                    background: 'var(--glow-1)',
+                    opacity: 'var(--glow-opacity)',
+                    top: '-140px',
+                    left: '260px',
+                }}
             />
             <div
-                className="pointer-events-none absolute h-[380px] w-[380px] rounded-full opacity-35 blur-[70px]"
+                className="pointer-events-none absolute h-[380px] w-[380px] rounded-full blur-[70px]"
                 style={{
-                    background: '#17D9D4',
+                    background: 'var(--glow-2)',
+                    opacity: 'var(--glow-opacity)',
                     bottom: '-160px',
                     right: '-100px',
                 }}
@@ -45,10 +59,16 @@ export default function GlassShell({
 
                 <div className="flex min-w-0 flex-1 flex-col gap-4">
                     <div className="flex items-center gap-3">
-                        {(title || moduleInfo) && (
-                            <h1 className="text-lg font-bold">
-                                {title ?? moduleInfo.label}
-                            </h1>
+                        {header ? (
+                            <div className="[&_*]:!text-[var(--ink)]">
+                                {header}
+                            </div>
+                        ) : (
+                            (title || moduleInfo) && (
+                                <h1 className="text-lg font-bold">
+                                    {title ?? moduleInfo.label}
+                                </h1>
+                            )
                         )}
                         <div className="ml-auto flex items-center gap-2.5">
                             {items.length > 0 && (
@@ -58,14 +78,14 @@ export default function GlassShell({
                                 />
                             )}
                             <ThemeToggle />
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--card-border)] bg-[var(--card-bg)]">
                                 <BellIcon size={15} />
                             </div>
                             <Dropdown>
                                 <Dropdown.Trigger>
                                     <button
                                         type="button"
-                                        className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2B6CFF] text-[11px] font-bold text-[#06121A]"
+                                        className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent)] text-[11px] font-bold text-[var(--accent-ink)]"
                                     >
                                         {initials || 'U'}
                                     </button>
@@ -87,7 +107,14 @@ export default function GlassShell({
                     </div>
 
                     {flash?.status && (
-                        <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300">
+                        <div
+                            className="rounded-2xl px-4 py-3 text-sm"
+                            style={{
+                                border: '1px solid rgba(16,185,129,0.25)',
+                                background: 'rgba(16,185,129,0.12)',
+                                color: 'var(--pos)',
+                            }}
+                        >
                             {flash.status}
                         </div>
                     )}

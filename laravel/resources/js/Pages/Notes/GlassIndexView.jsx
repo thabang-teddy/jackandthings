@@ -9,7 +9,7 @@ export default function NotesGlassIndexView({ notes, onDestroy }) {
     return (
         <div id="notes" className="flex h-full min-h-0 flex-col gap-4">
             <div className="flex items-center justify-between">
-                <p className="text-sm text-white/40">
+                <p className="text-sm text-[var(--muted)]">
                     {notes.data.length} note{notes.data.length === 1 ? '' : 's'}
                 </p>
                 <PillButton href={route('notes.create')} primary>
@@ -20,8 +20,10 @@ export default function NotesGlassIndexView({ notes, onDestroy }) {
             <GlassCard className="min-h-0 flex-1 overflow-y-auto">
                 {notes.data.length === 0 ? (
                     <div className="py-8 text-center">
-                        <p className="text-sm text-white/50">No notes yet.</p>
-                        <p className="mt-1 text-xs text-white/30">
+                        <p className="text-sm text-[var(--muted)]">
+                            No notes yet.
+                        </p>
+                        <p className="mt-1 text-xs text-[var(--muted)]">
                             Anything you jot down here stays private to your
                             account.
                         </p>
@@ -49,7 +51,7 @@ export default function NotesGlassIndexView({ notes, onDestroy }) {
                                     <button
                                         type="button"
                                         onClick={() => onDestroy(note)}
-                                        className="text-white/30 hover:text-rose-400"
+                                        className="text-[var(--muted)] hover:text-[var(--neg)]"
                                     >
                                         Delete
                                     </button>

@@ -53,7 +53,7 @@ export default function ClipboardGlassFormView({
                     </GlassButton>
                     <Link
                         href={route('clipboard.index')}
-                        className="text-sm text-white/40 hover:text-white"
+                        className="text-sm text-[var(--muted)] hover:text-[var(--ink)]"
                     >
                         Cancel
                     </Link>

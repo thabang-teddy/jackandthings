@@ -15,8 +15,8 @@ export default function PillButton({
     const classes =
         'inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-[11.5px] font-bold transition ' +
         (primary
-            ? 'bg-white text-[#06121A] hover:bg-white/90'
-            : 'border border-white/10 bg-white/5 text-white hover:bg-white/10') +
+            ? 'bg-[var(--accent)] text-[var(--accent-ink)] hover:opacity-90'
+            : 'border border-[var(--card-border)] bg-[var(--card-bg)] text-[var(--ink)] hover:border-[var(--accent)]') +
         (disabled ? ' pointer-events-none opacity-40' : '') +
         ' ' +
         className;

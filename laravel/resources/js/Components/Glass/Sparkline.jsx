@@ -15,7 +15,7 @@ export default function Sparkline({
         return (
             <div
                 style={{ height }}
-                className="flex items-center text-[11px] text-white/35"
+                className="flex items-center text-[11px] text-[var(--muted)]"
             >
                 Not enough data yet
             </div>
