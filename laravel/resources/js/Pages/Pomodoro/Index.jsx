@@ -5,6 +5,9 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import SecondaryButton from '@/Components/SecondaryButton';
 import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { formatClock } from '@/Lib/formatClock';
+import { useTheme } from '@/Lib/ThemeContext';
+import PomodoroGlassView from './GlassView';
 import { router, useForm } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -74,15 +77,9 @@ function useCountdown() {
     };
 }
 
-function formatClock(totalSeconds) {
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
 export default function Index({ presets }) {
     const timer = useCountdown();
+    const { theme } = useTheme();
 
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
@@ -105,6 +102,18 @@ export default function Index({ presets }) {
             });
         }
     };
+
+    if (theme === 'glass') {
+        return (
+            <PomodoroGlassView
+                presets={presets}
+                timer={timer}
+                presetForm={{ data, setData, errors, processing }}
+                onSubmitPreset={submit}
+                onDestroyPreset={destroy}
+            />
+        );
+    }
 
     return (
         <PageShell title="Pomodoro">
@@ -254,4 +263,6 @@ export default function Index({ presets }) {
     );
 }
 
-Index.layout = (page) => <AuthenticatedLayout>{page}</AuthenticatedLayout>;
+Index.layout = (page) => (
+    <AuthenticatedLayout module="pomodoro">{page}</AuthenticatedLayout>
+);

@@ -6,9 +6,13 @@ import Pagination from '@/Components/Pagination';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useTheme } from '@/Lib/ThemeContext';
+import HistoryGlassView from './GlassView';
 import { router, useForm } from '@inertiajs/react';
 
 export default function Index({ entries, retentionDays }) {
+    const { theme } = useTheme();
+
     const { data, setData, post, processing, errors, reset } = useForm({
         url: '',
         title: '',
@@ -27,6 +31,18 @@ export default function Index({ entries, retentionDays }) {
             preserveScroll: true,
         });
     };
+
+    if (theme === 'glass') {
+        return (
+            <HistoryGlassView
+                entries={entries}
+                retentionDays={retentionDays}
+                formState={{ data, setData, errors, processing }}
+                onSubmit={submit}
+                onDestroy={destroy}
+            />
+        );
+    }
 
     return (
         <PageShell title="History">
@@ -128,4 +144,6 @@ export default function Index({ entries, retentionDays }) {
     );
 }
 
-Index.layout = (page) => <AuthenticatedLayout>{page}</AuthenticatedLayout>;
+Index.layout = (page) => (
+    <AuthenticatedLayout module="history">{page}</AuthenticatedLayout>
+);

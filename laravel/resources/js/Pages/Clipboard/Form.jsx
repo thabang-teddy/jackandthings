@@ -4,10 +4,14 @@ import PageShell from '@/Components/PageShell';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { getSubmenuForSecondaryPage } from '@/Lib/glassNav';
+import { useTheme } from '@/Lib/ThemeContext';
+import ClipboardGlassFormView from './GlassFormView';
 import { Link, useForm } from '@inertiajs/react';
 
 export default function Form({ item }) {
     const isEdit = Boolean(item);
+    const { theme } = useTheme();
 
     const { data, setData, post, put, processing, errors } = useForm({
         title: item?.title ?? '',
@@ -23,6 +27,19 @@ export default function Form({ item }) {
             post(route('clipboard.store'));
         }
     };
+
+    if (theme === 'glass') {
+        return (
+            <ClipboardGlassFormView
+                isEdit={isEdit}
+                data={data}
+                setData={setData}
+                errors={errors}
+                processing={processing}
+                onSubmit={submit}
+            />
+        );
+    }
 
     return (
         <PageShell title={isEdit ? 'Edit snippet' : 'New snippet'}>
@@ -71,4 +88,11 @@ export default function Form({ item }) {
     );
 }
 
-Form.layout = (page) => <AuthenticatedLayout>{page}</AuthenticatedLayout>;
+Form.layout = (page) => (
+    <AuthenticatedLayout
+        module="clipboard"
+        submenu={getSubmenuForSecondaryPage('clipboard', 'clipboard.index')}
+    >
+        {page}
+    </AuthenticatedLayout>
+);

@@ -3,11 +3,14 @@ import PageShell from '@/Components/PageShell';
 import Pagination from '@/Components/Pagination';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useTheme } from '@/Lib/ThemeContext';
+import ClipboardGlassIndexView from './GlassIndexView';
 import { Link, router } from '@inertiajs/react';
 import { useState } from 'react';
 
 export default function Index({ items }) {
     const [copiedId, setCopiedId] = useState(null);
+    const { theme } = useTheme();
 
     const copy = async (item) => {
         try {
@@ -28,6 +31,17 @@ export default function Index({ items }) {
             });
         }
     };
+
+    if (theme === 'glass') {
+        return (
+            <ClipboardGlassIndexView
+                items={items}
+                copiedId={copiedId}
+                onCopy={copy}
+                onDestroy={destroy}
+            />
+        );
+    }
 
     return (
         <PageShell
@@ -113,4 +127,6 @@ export default function Index({ items }) {
     );
 }
 
-Index.layout = (page) => <AuthenticatedLayout>{page}</AuthenticatedLayout>;
+Index.layout = (page) => (
+    <AuthenticatedLayout module="clipboard">{page}</AuthenticatedLayout>
+);

@@ -4,10 +4,14 @@ import PageShell from '@/Components/PageShell';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { getSubmenuForSecondaryPage } from '@/Lib/glassNav';
+import { useTheme } from '@/Lib/ThemeContext';
+import NotesGlassFormView from './GlassFormView';
 import { Link, useForm } from '@inertiajs/react';
 
 export default function Form({ note }) {
     const isEdit = Boolean(note);
+    const { theme } = useTheme();
 
     const { data, setData, post, put, processing, errors } = useForm({
         title: note?.title ?? '',
@@ -23,6 +27,19 @@ export default function Form({ note }) {
             post(route('notes.store'));
         }
     };
+
+    if (theme === 'glass') {
+        return (
+            <NotesGlassFormView
+                isEdit={isEdit}
+                data={data}
+                setData={setData}
+                errors={errors}
+                processing={processing}
+                onSubmit={submit}
+            />
+        );
+    }
 
     return (
         <PageShell title={isEdit ? 'Edit note' : 'New note'}>
@@ -71,4 +88,11 @@ export default function Form({ note }) {
     );
 }
 
-Form.layout = (page) => <AuthenticatedLayout>{page}</AuthenticatedLayout>;
+Form.layout = (page) => (
+    <AuthenticatedLayout
+        module="notes"
+        submenu={getSubmenuForSecondaryPage('notes', 'notes.index')}
+    >
+        {page}
+    </AuthenticatedLayout>
+);

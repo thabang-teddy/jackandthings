@@ -6,14 +6,11 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { formatZar } from '@/Lib/formatZar';
+import { getSubmenu } from '@/Lib/glassNav';
+import { useTheme } from '@/Lib/ThemeContext';
+import { TYPE_LABELS } from '@/Lib/budgetTypeLabels';
+import BudgetGlassView from './GlassView';
 import { router, useForm } from '@inertiajs/react';
-
-const TYPE_LABELS = {
-    deposit: 'Deposit',
-    withdrawal: 'Withdrawal',
-    transfer_in: 'Transfer in',
-    transfer_out: 'Transfer out',
-};
 
 const selectClasses =
     'mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300';
@@ -211,6 +208,8 @@ function TransferForm({ accounts }) {
 }
 
 export default function Dashboard({ accounts, transactions, totalCents }) {
+    const { theme } = useTheme();
+
     const deleteAccount = (account) => {
         if (
             window.confirm(
@@ -231,6 +230,18 @@ export default function Dashboard({ accounts, transactions, totalCents }) {
             );
         }
     };
+
+    if (theme === 'glass') {
+        return (
+            <BudgetGlassView
+                accounts={accounts}
+                transactions={transactions}
+                totalCents={totalCents}
+                onDeleteAccount={deleteAccount}
+                onDeleteTransaction={deleteTransaction}
+            />
+        );
+    }
 
     return (
         <PageShell title="Budget">
@@ -368,4 +379,19 @@ export default function Dashboard({ accounts, transactions, totalCents }) {
     );
 }
 
-Dashboard.layout = (page) => <AuthenticatedLayout>{page}</AuthenticatedLayout>;
+Dashboard.layout = (page) => {
+    const submenu = getSubmenu('budget').map((item) =>
+        item.target === 'transfer'
+            ? {
+                  ...item,
+                  type: page.props.accounts.length >= 2 ? 'anchor' : 'disabled',
+              }
+            : item,
+    );
+
+    return (
+        <AuthenticatedLayout module="budget" submenu={submenu}>
+            {page}
+        </AuthenticatedLayout>
+    );
+};

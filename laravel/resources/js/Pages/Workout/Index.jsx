@@ -3,9 +3,13 @@ import PageShell from '@/Components/PageShell';
 import Pagination from '@/Components/Pagination';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useTheme } from '@/Lib/ThemeContext';
+import WorkoutGlassIndexView from './GlassIndexView';
 import { Link, router } from '@inertiajs/react';
 
 export default function Index({ entries, dueForReminder, lastLoggedAt }) {
+    const { theme } = useTheme();
+
     const destroy = (entry) => {
         if (window.confirm(`Delete "${entry.activity}"?`)) {
             router.delete(route('workouts.destroy', entry.id), {
@@ -13,6 +17,17 @@ export default function Index({ entries, dueForReminder, lastLoggedAt }) {
             });
         }
     };
+
+    if (theme === 'glass') {
+        return (
+            <WorkoutGlassIndexView
+                entries={entries}
+                dueForReminder={dueForReminder}
+                lastLoggedAt={lastLoggedAt}
+                onDestroy={destroy}
+            />
+        );
+    }
 
     return (
         <PageShell
@@ -93,4 +108,6 @@ export default function Index({ entries, dueForReminder, lastLoggedAt }) {
     );
 }
 
-Index.layout = (page) => <AuthenticatedLayout>{page}</AuthenticatedLayout>;
+Index.layout = (page) => (
+    <AuthenticatedLayout module="workout">{page}</AuthenticatedLayout>
+);

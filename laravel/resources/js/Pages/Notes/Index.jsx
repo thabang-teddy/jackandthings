@@ -3,9 +3,13 @@ import PageShell from '@/Components/PageShell';
 import Pagination from '@/Components/Pagination';
 import PrimaryButton from '@/Components/PrimaryButton';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { useTheme } from '@/Lib/ThemeContext';
+import NotesGlassIndexView from './GlassIndexView';
 import { Link, router } from '@inertiajs/react';
 
 export default function Index({ notes }) {
+    const { theme } = useTheme();
+
     const destroy = (note) => {
         if (window.confirm(`Delete "${note.title}"?`)) {
             router.delete(route('notes.destroy', note.id), {
@@ -13,6 +17,10 @@ export default function Index({ notes }) {
             });
         }
     };
+
+    if (theme === 'glass') {
+        return <NotesGlassIndexView notes={notes} onDestroy={destroy} />;
+    }
 
     return (
         <PageShell
@@ -80,4 +88,6 @@ export default function Index({ notes }) {
     );
 }
 
-Index.layout = (page) => <AuthenticatedLayout>{page}</AuthenticatedLayout>;
+Index.layout = (page) => (
+    <AuthenticatedLayout module="notes">{page}</AuthenticatedLayout>
+);

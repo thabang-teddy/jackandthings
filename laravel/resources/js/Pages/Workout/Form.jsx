@@ -4,10 +4,14 @@ import PageShell from '@/Components/PageShell';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { getSubmenuForSecondaryPage } from '@/Lib/glassNav';
+import { useTheme } from '@/Lib/ThemeContext';
+import WorkoutGlassFormView from './GlassFormView';
 import { Link, useForm } from '@inertiajs/react';
 
 export default function Form({ entry }) {
     const isEdit = Boolean(entry);
+    const { theme } = useTheme();
 
     const { data, setData, post, put, processing, errors } = useForm({
         activity: entry?.activity ?? '',
@@ -24,6 +28,19 @@ export default function Form({ entry }) {
             post(route('workouts.store'));
         }
     };
+
+    if (theme === 'glass') {
+        return (
+            <WorkoutGlassFormView
+                isEdit={isEdit}
+                data={data}
+                setData={setData}
+                errors={errors}
+                processing={processing}
+                onSubmit={submit}
+            />
+        );
+    }
 
     return (
         <PageShell title={isEdit ? 'Edit workout' : 'Log workout'}>
@@ -88,4 +105,11 @@ export default function Form({ entry }) {
     );
 }
 
-Form.layout = (page) => <AuthenticatedLayout>{page}</AuthenticatedLayout>;
+Form.layout = (page) => (
+    <AuthenticatedLayout
+        module="workout"
+        submenu={getSubmenuForSecondaryPage('workout', 'workouts.index')}
+    >
+        {page}
+    </AuthenticatedLayout>
+);

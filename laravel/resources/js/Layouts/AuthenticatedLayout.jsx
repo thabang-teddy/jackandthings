@@ -2,6 +2,9 @@ import ApplicationLogo from '@/Components/ApplicationLogo';
 import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
+import GlassShell from '@/Components/Glass/GlassShell';
+import ThemeToggle from '@/Components/Glass/ThemeToggle';
+import { useTheme } from '@/Lib/ThemeContext';
 import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
@@ -19,12 +22,33 @@ const navItems = [
     { label: 'History', route: 'history.index', match: 'history.*' },
 ];
 
-export default function AuthenticatedLayout({ header, children }) {
+export default function AuthenticatedLayout({
+    header,
+    module,
+    title,
+    submenu,
+    activeAnchor,
+    children,
+}) {
     const { auth, flash } = usePage().props;
     const user = auth.user;
+    const { theme } = useTheme();
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
+
+    if (theme === 'glass') {
+        return (
+            <GlassShell
+                module={module}
+                title={title}
+                submenu={submenu}
+                activeAnchor={activeAnchor}
+            >
+                {children}
+            </GlassShell>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -51,7 +75,8 @@ export default function AuthenticatedLayout({ header, children }) {
                             </div>
                         </div>
 
-                        <div className="hidden sm:ms-6 sm:flex sm:items-center">
+                        <div className="hidden sm:ms-6 sm:flex sm:items-center sm:gap-3">
+                            <ThemeToggle />
                             <div className="relative ms-3">
                                 <Dropdown>
                                     <Dropdown.Trigger>
@@ -165,6 +190,10 @@ export default function AuthenticatedLayout({ header, children }) {
                             <div className="text-sm font-medium text-gray-500">
                                 {user.email}
                             </div>
+                        </div>
+
+                        <div className="mt-3 px-4">
+                            <ThemeToggle />
                         </div>
 
                         <div className="mt-3 space-y-1">
