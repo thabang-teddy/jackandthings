@@ -56,13 +56,19 @@ class JackApi(private val client: ApiClient) {
 
     suspend fun presets(): List<PomodoroPreset> = client.get("pomodoro-presets").decodeList()
 
-    suspend fun createPreset(name: String, focusMinutes: Int, breakMinutes: Int): PomodoroPreset =
+    suspend fun createPreset(
+        name: String,
+        focusMinutes: Int,
+        breakMinutes: Int,
+        isDefault: Boolean = false,
+    ): PomodoroPreset =
         client.post(
             "pomodoro-presets",
             buildJsonObject {
                 put("name", name)
                 put("focus_minutes", focusMinutes)
                 put("break_minutes", breakMinutes)
+                put("is_default", isDefault)
             },
         ).decode()
 

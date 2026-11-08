@@ -25,6 +25,7 @@ class PomodoroController extends Controller
                 'name' => $preset->name,
                 'focus_minutes' => $preset->focus_minutes,
                 'break_minutes' => $preset->break_minutes,
+                'is_default' => $preset->is_default,
             ]);
 
         return Inertia::render('Pomodoro/Index', ['presets' => $presets]);

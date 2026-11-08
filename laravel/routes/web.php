@@ -15,7 +15,7 @@ use App\Http\Controllers\Web\WorkoutEntryController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', [HomeController::class, 'show']);
+Route::get('/', [HomeController::class, 'show'])->name('home');
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');

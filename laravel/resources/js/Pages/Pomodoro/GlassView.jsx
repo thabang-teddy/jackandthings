@@ -6,6 +6,7 @@ import {
     GlassInput,
     GlassLabel,
 } from '@/Components/Glass/GlassFormControls';
+import { StarIcon, StarOutlineIcon } from '@/Components/Glass/icons';
 import { formatClock } from '@/Lib/formatClock';
 
 export default function PomodoroGlassView({
@@ -14,6 +15,7 @@ export default function PomodoroGlassView({
     presetForm,
     onSubmitPreset,
     onDestroyPreset,
+    onSetDefault,
 }) {
     const { data, setData, errors, processing } = presetForm;
 
@@ -66,14 +68,39 @@ export default function PomodoroGlassView({
                                     key={preset.id}
                                     className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-3"
                                 >
-                                    <div>
-                                        <p className="text-sm font-semibold">
-                                            {preset.name}
-                                        </p>
-                                        <p className="text-xs text-[var(--muted)]">
-                                            {preset.focus_minutes} min focus ·{' '}
-                                            {preset.break_minutes} min break
-                                        </p>
+                                    <div className="flex min-w-0 items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => onSetDefault(preset)}
+                                            aria-pressed={preset.is_default}
+                                            title={
+                                                preset.is_default
+                                                    ? 'Default preset (starts from home)'
+                                                    : 'Make default'
+                                            }
+                                            className={
+                                                'shrink-0 ' +
+                                                (preset.is_default
+                                                    ? 'text-[var(--accent)]'
+                                                    : 'text-[var(--muted)] hover:text-[var(--ink)]')
+                                            }
+                                        >
+                                            {preset.is_default ? (
+                                                <StarIcon size={15} />
+                                            ) : (
+                                                <StarOutlineIcon size={15} />
+                                            )}
+                                        </button>
+                                        <div className="min-w-0">
+                                            <p className="truncate text-sm font-semibold">
+                                                {preset.name}
+                                            </p>
+                                            <p className="text-xs text-[var(--muted)]">
+                                                {preset.focus_minutes} min focus
+                                                · {preset.break_minutes} min
+                                                break
+                                            </p>
+                                        </div>
                                     </div>
                                     <div className="flex shrink-0 items-center gap-3">
                                         <PillButton

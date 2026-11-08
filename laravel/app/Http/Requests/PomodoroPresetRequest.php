@@ -22,6 +22,7 @@ class PomodoroPresetRequest extends FormRequest
             'name' => ['required', 'string', 'max:60'],
             'focus_minutes' => ['required', 'integer', 'min:1', 'max:180'],
             'break_minutes' => ['required', 'integer', 'min:0', 'max:60'],
+            'is_default' => ['sometimes', 'boolean'],
         ];
     }
 }

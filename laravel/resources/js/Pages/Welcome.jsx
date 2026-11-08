@@ -10,6 +10,7 @@ export default function Welcome({
     notes,
     dueForReminder,
     lastLoggedAt,
+    defaultPreset,
 }) {
     const { theme } = useTheme();
     const vars = getThemeVars(theme);
@@ -45,6 +46,7 @@ export default function Welcome({
                         notes={notes}
                         dueForReminder={dueForReminder}
                         lastLoggedAt={lastLoggedAt}
+                        defaultPreset={defaultPreset}
                     />
                 ) : (
                     <GuestView canLogin={canLogin} />

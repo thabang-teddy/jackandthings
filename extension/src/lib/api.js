@@ -98,11 +98,16 @@ export const api = {
 
     // Pomodoro
     presets: async () => data(await request('pomodoro-presets')) ?? [],
-    createPreset: async (name, focusMinutes, breakMinutes) =>
+    createPreset: async (name, focusMinutes, breakMinutes, isDefault = false) =>
         data(
             await request('pomodoro-presets', {
                 method: 'POST',
-                body: { name, focus_minutes: focusMinutes, break_minutes: breakMinutes },
+                body: {
+                    name,
+                    focus_minutes: focusMinutes,
+                    break_minutes: breakMinutes,
+                    is_default: isDefault,
+                },
             }),
         ),
     deletePreset: (id) => request(`pomodoro-presets/${id}`, { method: 'DELETE' }),

@@ -35,10 +35,20 @@ class HomeController extends Controller
                 'title' => $note->title,
             ]);
 
+        $defaultPreset = $user->pomodoroPresets()
+            ->where('is_default', true)
+            ->first();
+
         return Inertia::render('Welcome', [
             'notes' => $notes,
             'dueForReminder' => $this->reminderStatus->isDue($user),
             'lastLoggedAt' => $this->reminderStatus->lastLoggedAt($user)?->toDayDateTimeString(),
+            'defaultPreset' => $defaultPreset === null ? null : [
+                'id' => $defaultPreset->id,
+                'name' => $defaultPreset->name,
+                'focus_minutes' => $defaultPreset->focus_minutes,
+                'break_minutes' => $defaultPreset->break_minutes,
+            ],
         ]);
     }
 }

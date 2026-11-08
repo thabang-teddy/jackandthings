@@ -20,6 +20,7 @@ import {
     faFileLines,
     faForwardStep,
     faHeart,
+    faHouse,
     faListUl,
     faMagnifyingGlass,
     faPause,
@@ -27,6 +28,7 @@ import {
     faRepeat,
     faRightLeft,
     faStar,
+    faStopwatch,
     faTableCells,
     faUser,
 } from '@fortawesome/free-solid-svg-icons';
@@ -73,3 +75,5 @@ export const ListIcon = makeIcon(faListUl);
 export const RepeatIcon = makeIcon(faRepeat);
 export const ForwardIcon = makeIcon(faForwardStep);
 export const PauseIcon = makeIcon(faPause);
+export const TimerIcon = makeIcon(faStopwatch);
+export const HomeIcon = makeIcon(faHouse);

@@ -6,6 +6,7 @@ import {
     DocumentIcon,
     HeartIcon,
     HistoryIcon,
+    HomeIcon,
 } from '@/Components/Glass/icons';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Link } from '@inertiajs/react';
@@ -57,31 +58,40 @@ const modules = [
 
 export default function Dashboard() {
     return (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {modules.map((module) => {
-                const IconComponent = module.icon;
-                return (
-                    <Link key={module.route} href={route(module.route)}>
-                        <GlassCard className="h-full transition hover:border-[var(--accent)]">
-                            <div
-                                className="mb-3 flex h-9 w-9 items-center justify-center rounded-full"
-                                style={{
-                                    backgroundColor: `${module.color}33`,
-                                    color: module.color,
-                                }}
-                            >
-                                <IconComponent size={17} />
-                            </div>
-                            <p className="font-semibold text-[var(--ink)]">
-                                {module.label}
-                            </p>
-                            <p className="mt-1 text-sm text-[var(--muted)]">
-                                {module.description}
-                            </p>
-                        </GlassCard>
-                    </Link>
-                );
-            })}
+        <div className="flex flex-col gap-4">
+            <Link
+                href={route('home')}
+                className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-[var(--muted)] transition hover:text-[var(--accent)]"
+            >
+                <HomeIcon size={15} />
+                Home
+            </Link>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {modules.map((module) => {
+                    const IconComponent = module.icon;
+                    return (
+                        <Link key={module.route} href={route(module.route)}>
+                            <GlassCard className="h-full transition hover:border-[var(--accent)]">
+                                <div
+                                    className="mb-3 flex h-9 w-9 items-center justify-center rounded-full"
+                                    style={{
+                                        backgroundColor: `${module.color}33`,
+                                        color: module.color,
+                                    }}
+                                >
+                                    <IconComponent size={17} />
+                                </div>
+                                <p className="font-semibold text-[var(--ink)]">
+                                    {module.label}
+                                </p>
+                                <p className="mt-1 text-sm text-[var(--muted)]">
+                                    {module.description}
+                                </p>
+                            </GlassCard>
+                        </Link>
+                    );
+                })}
+            </div>
         </div>
     );
 }

@@ -38,6 +38,7 @@ data class PomodoroPreset(
     val name: String,
     @SerialName("focus_minutes") val focusMinutes: Int,
     @SerialName("break_minutes") val breakMinutes: Int,
+    @SerialName("is_default") val isDefault: Boolean = false,
 )
 
 @Serializable
