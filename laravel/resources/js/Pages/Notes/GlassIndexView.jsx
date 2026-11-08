@@ -3,16 +3,21 @@ import GlassPagination from '@/Components/Glass/GlassPagination';
 import PillButton from '@/Components/Glass/PillButton';
 import TxRow from '@/Components/Glass/TxRow';
 import { DocumentIcon } from '@/Components/Glass/icons';
-import { Link } from '@inertiajs/react';
 
-export default function NotesGlassIndexView({ notes, onDestroy }) {
+export default function NotesGlassIndexView({
+    notes,
+    editingId,
+    onEdit,
+    onNew,
+    onDestroy,
+}) {
     return (
         <div id="notes" className="flex h-full min-h-0 flex-col gap-4">
             <div className="flex items-center justify-between">
                 <p className="text-sm text-[var(--muted)]">
                     {notes.data.length} note{notes.data.length === 1 ? '' : 's'}
                 </p>
-                <PillButton href={route('notes.create')} primary>
+                <PillButton onClick={onNew} primary>
                     + New note
                 </PillButton>
             </div>
@@ -42,12 +47,18 @@ export default function NotesGlassIndexView({ notes, onDestroy }) {
                             }
                             action={
                                 <div className="ml-2 flex shrink-0 items-center gap-3 text-xs">
-                                    <Link
-                                        href={route('notes.edit', note.id)}
-                                        className="text-[#8BB4FF] hover:underline"
+                                    <button
+                                        type="button"
+                                        onClick={() => onEdit(note)}
+                                        className={
+                                            'hover:underline ' +
+                                            (editingId === note.id
+                                                ? 'font-bold text-[var(--accent)]'
+                                                : 'text-[#8BB4FF]')
+                                        }
                                     >
                                         Edit
-                                    </Link>
+                                    </button>
                                     <button
                                         type="button"
                                         onClick={() => onDestroy(note)}

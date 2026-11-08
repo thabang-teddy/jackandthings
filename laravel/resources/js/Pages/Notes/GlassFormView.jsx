@@ -9,17 +9,21 @@ import {
 import { Link } from '@inertiajs/react';
 
 export default function NotesGlassFormView({
+    id,
     isEdit,
     data,
     setData,
     errors,
     processing,
     onSubmit,
+    onCancel,
+    className = 'max-w-xl',
 }) {
     return (
         <GlassCard
+            id={id}
             title={isEdit ? 'Edit note' : 'New note'}
-            className="max-w-xl"
+            className={className}
         >
             <form onSubmit={onSubmit} className="space-y-4">
                 <div>
@@ -46,12 +50,22 @@ export default function NotesGlassFormView({
                     <GlassButton type="submit" disabled={processing}>
                         {isEdit ? 'Save changes' : 'Create note'}
                     </GlassButton>
-                    <Link
-                        href={route('notes.index')}
-                        className="text-sm text-[var(--muted)] hover:text-[var(--ink)]"
-                    >
-                        Cancel
-                    </Link>
+                    {onCancel ? (
+                        <button
+                            type="button"
+                            onClick={onCancel}
+                            className="text-sm text-[var(--muted)] hover:text-[var(--ink)]"
+                        >
+                            {isEdit ? 'Cancel' : 'Clear'}
+                        </button>
+                    ) : (
+                        <Link
+                            href={route('notes.index')}
+                            className="text-sm text-[var(--muted)] hover:text-[var(--ink)]"
+                        >
+                            Cancel
+                        </Link>
+                    )}
                 </div>
             </form>
         </GlassCard>

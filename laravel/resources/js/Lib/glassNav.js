@@ -72,7 +72,7 @@ export const SUBMENUS = {
     ],
     notes: [
         { label: 'All Notes', type: 'anchor', target: 'notes' },
-        { label: 'New Note', type: 'link', target: 'notes.create' },
+        { label: 'New Note', type: 'anchor', target: 'note-form' },
     ],
     workout: [
         { label: 'Overview', type: 'anchor', target: 'overview' },
