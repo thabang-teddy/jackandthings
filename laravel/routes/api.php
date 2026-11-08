@@ -4,11 +4,12 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BudgetAccountController;
 use App\Http\Controllers\Api\V1\BudgetTransactionController;
 use App\Http\Controllers\Api\V1\BudgetTransferController;
-use App\Http\Controllers\Api\V1\ClipboardItemController;
 use App\Http\Controllers\Api\V1\HistoryEntryController;
 use App\Http\Controllers\Api\V1\NoteController;
 use App\Http\Controllers\Api\V1\PomodoroPresetController;
 use App\Http\Controllers\Api\V1\RecurringTransactionController;
+use App\Http\Controllers\Api\V1\WatchListController;
+use App\Http\Controllers\Api\V1\WatchListItemController;
 use App\Http\Controllers\Api\V1\WorkoutEntryController;
 use App\Http\Controllers\Api\V1\WorkoutPresetController;
 use Illuminate\Support\Facades\Route;
@@ -33,7 +34,10 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         Route::apiResource('notes', NoteController::class);
         Route::apiResource('pomodoro-presets', PomodoroPresetController::class)->parameters(['pomodoro-presets' => 'preset']);
-        Route::apiResource('clipboard-items', ClipboardItemController::class)->parameters(['clipboard-items' => 'item']);
+        Route::apiResource('watch-lists', WatchListController::class)->parameters(['watch-lists' => 'watchList']);
+        Route::apiResource('watch-list-items', WatchListItemController::class)
+            ->parameters(['watch-list-items' => 'watchListItem'])
+            ->only(['index', 'store', 'update', 'destroy']);
 
         // Reminder state a client polls; the server sends no notifications.
         Route::get('workout-entries/due', [WorkoutEntryController::class, 'due'])->name('workout-entries.due');

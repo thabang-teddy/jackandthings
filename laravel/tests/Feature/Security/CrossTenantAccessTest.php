@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature\Security;
 
 use App\Models\BudgetAccount;
-use App\Models\ClipboardItem;
 use App\Models\HistoryEntry;
 use App\Models\Note;
 use App\Models\PomodoroPreset;
 use App\Models\RecurringTransaction;
 use App\Models\User;
+use App\Models\WatchList;
+use App\Models\WatchListItem;
 use App\Models\WorkoutEntry;
 use App\Models\WorkoutPreset;
 use App\Services\BudgetService;
@@ -64,7 +65,10 @@ class CrossTenantAccessTest extends TestCase
         $this->victimRecords = [
             'note' => Note::factory()->for($this->victim)->create(),
             'preset' => PomodoroPreset::factory()->for($this->victim)->create(),
-            'item' => ClipboardItem::factory()->for($this->victim)->create(),
+            'watchList' => $watchList = WatchList::factory()->for($this->victim)->create(),
+            'watchListItem' => WatchListItem::factory()
+                ->for($this->victim)
+                ->create(['watch_list_id' => $watchList->getKey()]),
             'workout' => WorkoutEntry::factory()->for($this->victim)->create(),
             'workoutPreset' => WorkoutPreset::factory()->for($this->victim)->create(),
             'history' => HistoryEntry::factory()->for($this->victim)->create(),
@@ -110,9 +114,9 @@ class CrossTenantAccessTest extends TestCase
             ]],
             'web preset.destroy' => ['DELETE', '/pomodoro/presets/{preset}', []],
 
-            'web clipboard.edit' => ['GET', '/clipboard/{item}/edit', []],
-            'web clipboard.update' => ['PUT', '/clipboard/{item}', ['content' => 'x']],
-            'web clipboard.destroy' => ['DELETE', '/clipboard/{item}', []],
+            'web watchlist.destroy' => ['DELETE', '/watchlist/{watchList}', []],
+            'web watchlist.items.update' => ['PUT', '/watchlist/items/{watchListItem}', ['done' => true]],
+            'web watchlist.items.destroy' => ['DELETE', '/watchlist/items/{watchListItem}', []],
 
             'web workouts.edit' => ['GET', '/workouts/{workout}/edit', []],
             'web workouts.update' => ['PUT', '/workouts/{workout}', ['activity' => 'x']],
@@ -140,9 +144,11 @@ class CrossTenantAccessTest extends TestCase
             ]],
             'api presets.destroy' => ['DELETE', '/api/v1/pomodoro-presets/{preset}', []],
 
-            'api clipboard.show' => ['GET', '/api/v1/clipboard-items/{item}', []],
-            'api clipboard.update' => ['PUT', '/api/v1/clipboard-items/{item}', ['content' => 'x']],
-            'api clipboard.destroy' => ['DELETE', '/api/v1/clipboard-items/{item}', []],
+            'api watchlist.show' => ['GET', '/api/v1/watch-lists/{watchList}', []],
+            'api watchlist.update' => ['PUT', '/api/v1/watch-lists/{watchList}', ['name' => 'renamed']],
+            'api watchlist.destroy' => ['DELETE', '/api/v1/watch-lists/{watchList}', []],
+            'api watchlist.items.update' => ['PUT', '/api/v1/watch-list-items/{watchListItem}', ['done' => true]],
+            'api watchlist.items.destroy' => ['DELETE', '/api/v1/watch-list-items/{watchListItem}', []],
 
             'api workouts.show' => ['GET', '/api/v1/workout-entries/{workout}', []],
             'api workouts.update' => ['PUT', '/api/v1/workout-entries/{workout}', ['activity' => 'x']],
@@ -210,7 +216,8 @@ class CrossTenantAccessTest extends TestCase
         $endpoints = [
             '/api/v1/notes',
             '/api/v1/pomodoro-presets',
-            '/api/v1/clipboard-items',
+            '/api/v1/watch-lists',
+            '/api/v1/watch-list-items',
             '/api/v1/workout-entries',
             '/api/v1/workout-presets',
             '/api/v1/history-entries',

@@ -6,6 +6,7 @@ namespace Tests\Feature\Console;
 
 use App\Models\HistoryEntry;
 use App\Models\User;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -107,7 +108,7 @@ class PruneHistoryEntriesTest extends TestCase
     {
         // The schedule is the only thing making this automatic, so losing the
         // entry would quietly stop every clean-up.
-        $events = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events())
+        $events = collect(app(Schedule::class)->events())
             ->filter(fn ($event) => str_contains($event->command ?? '', 'history:prune'));
 
         $this->assertCount(1, $events, 'history:prune is not on the schedule');

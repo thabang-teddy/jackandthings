@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Models\ClipboardItem;
+use App\Models\WatchListItem;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<ClipboardItem>
+ * @extends Factory<WatchListItem>
  */
-class ClipboardItemFactory extends Factory
+class WatchListItemFactory extends Factory
 {
     /**
      * @return array<string, mixed>
@@ -18,9 +18,9 @@ class ClipboardItemFactory extends Factory
     public function definition(): array
     {
         return [
-            'title' => fake()->words(2, true),
-            'content' => fake()->sentence(),
-            'source_device' => null,
+            'title' => fake()->sentence(3),
+            'note' => fake()->optional()->sentence(),
+            'done' => false,
         ];
     }
 }

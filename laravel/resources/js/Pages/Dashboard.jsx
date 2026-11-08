@@ -2,11 +2,11 @@ import GlassCard from '@/Components/Glass/GlassCard';
 import {
     BarsIcon,
     ClockIcon,
-    CopyIcon,
     DocumentIcon,
     HeartIcon,
     HistoryIcon,
     HomeIcon,
+    ListIcon,
 } from '@/Components/Glass/icons';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Link } from '@inertiajs/react';
@@ -41,10 +41,10 @@ const modules = [
         color: '#D4537E',
     },
     {
-        label: 'Clipboard',
-        route: 'clipboard.index',
-        description: 'Save snippets to pick up elsewhere.',
-        icon: CopyIcon,
+        label: 'Watch list',
+        route: 'watchlist.index',
+        description: 'Keep track of the things you mean to watch or read.',
+        icon: ListIcon,
         color: '#BA7517',
     },
     {
@@ -97,5 +97,7 @@ export default function Dashboard() {
 }
 
 Dashboard.layout = (page) => (
-    <AuthenticatedLayout title="Dashboard">{page}</AuthenticatedLayout>
+    <AuthenticatedLayout module="dashboard" title="Dashboard">
+        {page}
+    </AuthenticatedLayout>
 );

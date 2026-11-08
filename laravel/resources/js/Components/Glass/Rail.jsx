@@ -1,20 +1,22 @@
 import { Link } from '@inertiajs/react';
 import { MODULES } from '@/Lib/glassNav';
 import {
+    GridIcon,
     BarsIcon,
     ClockIcon,
-    CopyIcon,
     DocumentIcon,
     HeartIcon,
     HistoryIcon,
+    ListIcon,
 } from '@/Components/Glass/icons';
 
 const ICONS = {
+    grid: GridIcon,
     clock: ClockIcon,
     document: DocumentIcon,
     bars: BarsIcon,
     heart: HeartIcon,
-    copy: CopyIcon,
+    list: ListIcon,
     history: HistoryIcon,
 };
 

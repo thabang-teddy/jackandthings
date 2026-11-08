@@ -266,12 +266,35 @@ class ApiContractTest extends TestCase
             ->assertJsonStructure(['data' => ['due']]);
     }
 
-    public function test_clipboard_items_keep_the_device_that_saved_them(): void
+    public function test_watch_list_items_belong_to_a_list(): void
     {
-        $this->signedIn()->postJson('/api/v1/clipboard-items', [
-            'content' => 'copy me',
-            'source_device' => 'Pixel 8',
-        ])->assertCreated()->assertJsonPath('data.source_device', 'Pixel 8');
+        $list = $this->signedIn()->postJson('/api/v1/watch-lists', [
+            'name' => 'To watch',
+        ])->assertCreated()->json('data');
+
+        $this->signedIn()->postJson('/api/v1/watch-list-items', [
+            'watch_list_id' => $list['id'],
+            'title' => 'Dune: Part Two',
+        ])->assertCreated()->assertJsonPath('data.title', 'Dune: Part Two');
+    }
+
+    public function test_watch_list_names_are_unique_per_user_but_not_globally(): void
+    {
+        $this->signedIn()->postJson('/api/v1/watch-lists', [
+            'name' => 'Weekend',
+        ])->assertCreated();
+
+        // A duplicate is a validation error, not a database 500.
+        $this->signedIn()->postJson('/api/v1/watch-lists', [
+            'name' => 'Weekend',
+        ])->assertUnprocessable()->assertJsonValidationErrors('name');
+
+        // Another user may reuse the name.
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/v1/watch-lists', [
+            'name' => 'Weekend',
+        ])->assertCreated();
     }
 
     public function test_history_reports_the_retention_window_the_clients_rely_on(): void

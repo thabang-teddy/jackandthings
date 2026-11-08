@@ -13,6 +13,13 @@
 
 export const MODULES = [
     {
+        key: 'dashboard',
+        label: 'Dashboard',
+        route: 'dashboard',
+        match: 'dashboard.*',
+        icon: 'grid',
+    },
+    {
         key: 'pomodoro',
         label: 'Pomodoro',
         route: 'pomodoro.index',
@@ -41,11 +48,11 @@ export const MODULES = [
         icon: 'heart',
     },
     {
-        key: 'clipboard',
-        label: 'Clipboard',
-        route: 'clipboard.index',
-        match: 'clipboard.*',
-        icon: 'copy',
+        key: 'watchlist',
+        label: 'Watch list',
+        route: 'watchlist.index',
+        match: 'watchlist.*',
+        icon: 'list',
     },
     {
         key: 'history',
@@ -80,10 +87,9 @@ export const SUBMENUS = {
         { label: 'Presets', type: 'anchor', target: 'presets' },
         { label: 'Reminders', type: 'anchor', target: 'reminders' },
     ],
-    clipboard: [
-        { label: 'Recent', type: 'anchor', target: 'recent' },
-        { label: 'New snippet', type: 'link', target: 'clipboard.create' },
-        { label: 'Devices', type: 'disabled' },
+    watchlist: [
+        { label: 'Lists', type: 'anchor', target: 'lists' },
+        { label: 'Items', type: 'anchor', target: 'items' },
     ],
     history: [
         { label: 'Browsing', type: 'anchor', target: 'browsing' },

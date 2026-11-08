@@ -10,13 +10,25 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['title', 'content', 'source_device'])]
-class ClipboardItem extends Model
+#[Fillable(['watch_list_id', 'title', 'note', 'done'])]
+class WatchListItem extends Model
 {
     use HasFactory, HasUuids;
+
+    protected function casts(): array
+    {
+        return [
+            'done' => 'boolean',
+        ];
+    }
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function watchList(): BelongsTo
+    {
+        return $this->belongsTo(WatchList::class, 'watch_list_id');
     }
 }

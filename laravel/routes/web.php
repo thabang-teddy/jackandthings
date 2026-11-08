@@ -5,13 +5,14 @@ use App\Http\Controllers\Web\BudgetAccountController;
 use App\Http\Controllers\Web\BudgetController;
 use App\Http\Controllers\Web\BudgetTransactionController;
 use App\Http\Controllers\Web\BudgetTransferController;
-use App\Http\Controllers\Web\ClipboardItemController;
 use App\Http\Controllers\Web\HistoryEntryController;
 use App\Http\Controllers\Web\HomeController;
 use App\Http\Controllers\Web\NoteController;
 use App\Http\Controllers\Web\PomodoroController;
 use App\Http\Controllers\Web\PomodoroPresetController;
 use App\Http\Controllers\Web\RecurringTransactionController;
+use App\Http\Controllers\Web\WatchListController;
+use App\Http\Controllers\Web\WatchListItemController;
 use App\Http\Controllers\Web\WorkoutEntryController;
 use App\Http\Controllers\Web\WorkoutPresetController;
 use Illuminate\Support\Facades\Route;
@@ -47,10 +48,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('pomodoro/presets/{preset}', [PomodoroPresetController::class, 'update'])->name('pomodoro.presets.update');
     Route::delete('pomodoro/presets/{preset}', [PomodoroPresetController::class, 'destroy'])->name('pomodoro.presets.destroy');
 
-    // Clipboard
-    Route::resource('clipboard', ClipboardItemController::class)
-        ->parameters(['clipboard' => 'item'])
-        ->except(['show']);
+    // Watch list — a group of named lists, each holding items.
+    Route::get('watchlist', [WatchListController::class, 'index'])->name('watchlist.index');
+    Route::post('watchlist', [WatchListController::class, 'store'])->name('watchlist.store');
+    Route::delete('watchlist/{watchList}', [WatchListController::class, 'destroy'])->name('watchlist.destroy');
+    Route::post('watchlist/items', [WatchListItemController::class, 'store'])->name('watchlist.items.store');
+    Route::put('watchlist/items/{watchListItem}', [WatchListItemController::class, 'update'])->name('watchlist.items.update');
+    Route::delete('watchlist/items/{watchListItem}', [WatchListItemController::class, 'destroy'])->name('watchlist.items.destroy');
 
     // Workout
     Route::post('workouts/presets', [WorkoutPresetController::class, 'store'])->name('workouts.presets.store');

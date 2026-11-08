@@ -6,20 +6,22 @@ namespace App\Providers;
 
 use App\Models\BudgetAccount;
 use App\Models\BudgetTransaction;
-use App\Models\ClipboardItem;
 use App\Models\HistoryEntry;
 use App\Models\Note;
 use App\Models\PomodoroPreset;
 use App\Models\RecurringTransaction;
+use App\Models\WatchList;
+use App\Models\WatchListItem;
 use App\Models\WorkoutEntry;
 use App\Models\WorkoutPreset;
 use App\Policies\BudgetAccountPolicy;
 use App\Policies\BudgetTransactionPolicy;
-use App\Policies\ClipboardItemPolicy;
 use App\Policies\HistoryEntryPolicy;
 use App\Policies\NotePolicy;
 use App\Policies\PomodoroPresetPolicy;
 use App\Policies\RecurringTransactionPolicy;
+use App\Policies\WatchListItemPolicy;
+use App\Policies\WatchListPolicy;
 use App\Policies\WorkoutEntryPolicy;
 use App\Policies\WorkoutPresetPolicy;
 use Illuminate\Support\Facades\Gate;
@@ -42,7 +44,8 @@ class AuthServiceProvider extends ServiceProvider
         RecurringTransaction::class => RecurringTransactionPolicy::class,
         WorkoutEntry::class => WorkoutEntryPolicy::class,
         WorkoutPreset::class => WorkoutPresetPolicy::class,
-        ClipboardItem::class => ClipboardItemPolicy::class,
+        WatchList::class => WatchListPolicy::class,
+        WatchListItem::class => WatchListItemPolicy::class,
         HistoryEntry::class => HistoryEntryPolicy::class,
     ];
 

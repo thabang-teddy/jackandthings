@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
-use App\Models\ClipboardItem;
 use App\Models\User;
+use App\Models\WatchListItem;
 
-class ClipboardItemPolicy
+class WatchListItemPolicy
 {
     public function viewAny(User $user): bool
     {
         return true;
     }
 
-    public function view(User $user, ClipboardItem $item): bool
+    public function view(User $user, WatchListItem $item): bool
     {
         return $item->user_id === $user->getKey();
     }
@@ -24,12 +24,12 @@ class ClipboardItemPolicy
         return true;
     }
 
-    public function update(User $user, ClipboardItem $item): bool
+    public function update(User $user, WatchListItem $item): bool
     {
         return $item->user_id === $user->getKey();
     }
 
-    public function delete(User $user, ClipboardItem $item): bool
+    public function delete(User $user, WatchListItem $item): bool
     {
         return $item->user_id === $user->getKey();
     }

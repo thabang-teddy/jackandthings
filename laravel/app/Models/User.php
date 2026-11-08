@@ -71,9 +71,14 @@ class User extends Authenticatable
         return $this->hasMany(WorkoutPreset::class);
     }
 
-    public function clipboardItems(): HasMany
+    public function watchLists(): HasMany
     {
-        return $this->hasMany(ClipboardItem::class);
+        return $this->hasMany(WatchList::class);
+    }
+
+    public function watchListItems(): HasMany
+    {
+        return $this->hasMany(WatchListItem::class);
     }
 
     public function historyEntries(): HasMany

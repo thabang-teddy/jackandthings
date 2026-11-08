@@ -32,9 +32,10 @@ class DemoDataSeeder extends Seeder
             ['title' => 'Project idea', 'body' => 'Merge the small apps into one suite.'],
         ]);
 
-        $user->clipboardItems()->createMany([
-            ['title' => 'Server address', 'content' => '192.168.0.42:8080'],
-            ['title' => 'Snippet', 'content' => 'php artisan migrate --seed'],
+        $watchList = $user->watchLists()->create(['name' => 'May watch list']);
+        $watchList->items()->createMany([
+            ['user_id' => $user->id, 'title' => 'Dune: Part Two'],
+            ['user_id' => $user->id, 'title' => 'The Bear — season 3', 'done' => true],
         ]);
 
         $user->workoutEntries()->createMany([
