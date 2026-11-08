@@ -7,22 +7,15 @@ use App\Http\Controllers\Web\BudgetTransactionController;
 use App\Http\Controllers\Web\BudgetTransferController;
 use App\Http\Controllers\Web\ClipboardItemController;
 use App\Http\Controllers\Web\HistoryEntryController;
+use App\Http\Controllers\Web\HomeController;
 use App\Http\Controllers\Web\NoteController;
 use App\Http\Controllers\Web\PomodoroController;
 use App\Http\Controllers\Web\PomodoroPresetController;
 use App\Http\Controllers\Web\WorkoutEntryController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+Route::get('/', [HomeController::class, 'show']);
 
 Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');

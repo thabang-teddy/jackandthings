@@ -115,6 +115,40 @@ export function SwapIcon({ size = 16, className }) {
     );
 }
 
+export function PersonIcon({ size = 16, className }) {
+    return (
+        <svg width={size} height={size} className={className} {...base}>
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+        </svg>
+    );
+}
+
+export function PlusIcon({ size = 16, className }) {
+    return (
+        <svg width={size} height={size} className={className} {...base}>
+            <path d="M12 5v14M5 12h14" />
+        </svg>
+    );
+}
+
+export function GridIcon({ size = 16, className }) {
+    return (
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className={className}
+        >
+            <rect x="3" y="3" width="8" height="8" rx="1.5" />
+            <rect x="13" y="3" width="8" height="8" rx="1.5" />
+            <rect x="3" y="13" width="8" height="8" rx="1.5" />
+            <rect x="13" y="13" width="8" height="8" rx="1.5" />
+        </svg>
+    );
+}
+
 export function CheckIcon({ size = 16, className }) {
     return (
         <svg width={size} height={size} className={className} {...base}>
