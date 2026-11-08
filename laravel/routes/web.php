@@ -13,6 +13,7 @@ use App\Http\Controllers\Web\PomodoroController;
 use App\Http\Controllers\Web\PomodoroPresetController;
 use App\Http\Controllers\Web\RecurringTransactionController;
 use App\Http\Controllers\Web\WorkoutEntryController;
+use App\Http\Controllers\Web\WorkoutPresetController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -52,6 +53,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->except(['show']);
 
     // Workout
+    Route::post('workouts/presets', [WorkoutPresetController::class, 'store'])->name('workouts.presets.store');
+    Route::delete('workouts/presets/{workoutPreset}', [WorkoutPresetController::class, 'destroy'])->name('workouts.presets.destroy');
     Route::resource('workouts', WorkoutEntryController::class)->except(['show']);
 
     // History — immutable entries: add and remove only, no edit.

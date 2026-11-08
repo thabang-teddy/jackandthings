@@ -9,6 +9,7 @@ import com.jackandthings.model.RecurringTransaction
 import com.jackandthings.model.ReminderState
 import com.jackandthings.model.TokenPayload
 import com.jackandthings.model.WorkoutEntry
+import com.jackandthings.model.WorkoutPreset
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -103,16 +104,38 @@ class JackApi(private val client: ApiClient) {
     /** Reminder state for this device to act on; the server sends nothing. */
     suspend fun reminderState(): ReminderState = client.get("workout-entries/due").decode()
 
-    suspend fun createWorkoutEntry(activity: String, notes: String?): WorkoutEntry =
+    /** [loggedAt] is an optional ISO datetime; the server defaults to now. */
+    suspend fun createWorkoutEntry(
+        activity: String,
+        notes: String?,
+        loggedAt: String? = null,
+    ): WorkoutEntry =
         client.post(
             "workout-entries",
             buildJsonObject {
                 put("activity", activity)
                 put("notes", notes ?: "")
+                if (loggedAt != null) {
+                    put("logged_at", loggedAt)
+                }
             },
         ).decode()
 
     suspend fun deleteWorkoutEntry(id: String) = client.delete("workout-entries/$id")
+
+    suspend fun workoutPresets(): List<WorkoutPreset> =
+        client.get("workout-presets").decodeList()
+
+    suspend fun createWorkoutPreset(name: String, activity: String): WorkoutPreset =
+        client.post(
+            "workout-presets",
+            buildJsonObject {
+                put("name", name)
+                put("activity", activity)
+            },
+        ).decode()
+
+    suspend fun deleteWorkoutPreset(id: String) = client.delete("workout-presets/$id")
 
     // ── Budget ─────────────────────────────────────────────────────────────
 

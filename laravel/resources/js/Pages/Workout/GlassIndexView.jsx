@@ -2,14 +2,100 @@ import GlassCard from '@/Components/Glass/GlassCard';
 import GlassPagination from '@/Components/Glass/GlassPagination';
 import PillButton from '@/Components/Glass/PillButton';
 import TxRow from '@/Components/Glass/TxRow';
+import {
+    GlassButton,
+    GlassError,
+    GlassInput,
+    GlassLabel,
+} from '@/Components/Glass/GlassFormControls';
 import { BellIcon, HeartIcon } from '@/Components/Glass/icons';
-import { Link } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
+
+function PresetManager({ presets, onDestroyPreset }) {
+    const { data, setData, post, processing, errors, reset } = useForm({
+        name: '',
+        activity: '',
+    });
+
+    const submit = (event) => {
+        event.preventDefault();
+        post(route('workouts.presets.store'), {
+            preserveScroll: true,
+            onSuccess: () => reset(),
+        });
+    };
+
+    return (
+        <GlassCard id="presets" title="Preset workouts">
+            {presets.length > 0 && (
+                <div className="mb-3 flex flex-col gap-2">
+                    {presets.map((preset) => (
+                        <div
+                            key={preset.id}
+                            className="flex items-center justify-between rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-2"
+                        >
+                            <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold">
+                                    {preset.name}
+                                </p>
+                                <p className="truncate text-xs text-[var(--muted)]">
+                                    {preset.activity}
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => onDestroyPreset(preset)}
+                                className="shrink-0 text-xs text-[var(--muted)] hover:text-[var(--neg)]"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+            <form
+                onSubmit={submit}
+                className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]"
+            >
+                <div>
+                    <GlassLabel htmlFor="preset_name">Name</GlassLabel>
+                    <GlassInput
+                        id="preset_name"
+                        value={data.name}
+                        onChange={(e) => setData('name', e.target.value)}
+                        placeholder="Leg day"
+                        required
+                    />
+                    <GlassError message={errors.name} />
+                </div>
+                <div>
+                    <GlassLabel htmlFor="preset_activity">Activity</GlassLabel>
+                    <GlassInput
+                        id="preset_activity"
+                        value={data.activity}
+                        onChange={(e) => setData('activity', e.target.value)}
+                        placeholder="Squats, lunges, calf raises"
+                        required
+                    />
+                    <GlassError message={errors.activity} />
+                </div>
+                <div className="flex items-end">
+                    <GlassButton type="submit" disabled={processing}>
+                        Add
+                    </GlassButton>
+                </div>
+            </form>
+        </GlassCard>
+    );
+}
 
 export default function WorkoutGlassIndexView({
     entries,
+    presets = [],
     dueForReminder,
     lastLoggedAt,
     onDestroy,
+    onDestroyPreset,
 }) {
     return (
         <div className="flex h-full min-h-0 flex-col gap-4">
@@ -64,6 +150,11 @@ export default function WorkoutGlassIndexView({
                     </GlassCard>
                 )}
             </div>
+
+            <PresetManager
+                presets={presets}
+                onDestroyPreset={onDestroyPreset}
+            />
 
             <GlassCard
                 id="overview"

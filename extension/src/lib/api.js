@@ -126,14 +126,28 @@ export const api = {
     // Workout
     workoutEntries: async () => data(await request('workout-entries')) ?? [],
     reminderState: async () => data(await request('workout-entries/due')),
-    createWorkoutEntry: async (activity, notes) =>
+    createWorkoutEntry: async (activity, notes, loggedAt) =>
         data(
             await request('workout-entries', {
                 method: 'POST',
-                body: { activity, notes: notes ?? '' },
+                body: {
+                    activity,
+                    notes: notes ?? '',
+                    ...(loggedAt ? { logged_at: loggedAt } : {}),
+                },
             }),
         ),
     deleteWorkoutEntry: (id) => request(`workout-entries/${id}`, { method: 'DELETE' }),
+
+    workoutPresets: async () => data(await request('workout-presets')) ?? [],
+    createWorkoutPreset: async (name, activity) =>
+        data(
+            await request('workout-presets', {
+                method: 'POST',
+                body: { name, activity },
+            }),
+        ),
+    deleteWorkoutPreset: (id) => request(`workout-presets/${id}`, { method: 'DELETE' }),
 
     // Budget
     budgetAccounts: async () => data(await request('budget-accounts')) ?? [],

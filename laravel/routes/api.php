@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\NoteController;
 use App\Http\Controllers\Api\V1\PomodoroPresetController;
 use App\Http\Controllers\Api\V1\RecurringTransactionController;
 use App\Http\Controllers\Api\V1\WorkoutEntryController;
+use App\Http\Controllers\Api\V1\WorkoutPresetController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -37,6 +38,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         // Reminder state a client polls; the server sends no notifications.
         Route::get('workout-entries/due', [WorkoutEntryController::class, 'due'])->name('workout-entries.due');
         Route::apiResource('workout-entries', WorkoutEntryController::class)->parameters(['workout-entries' => 'workout']);
+        Route::apiResource('workout-presets', WorkoutPresetController::class)
+            ->parameters(['workout-presets' => 'workoutPreset'])
+            ->only(['index', 'store', 'destroy']);
 
         Route::apiResource('history-entries', HistoryEntryController::class)
             ->parameters(['history-entries' => 'history'])

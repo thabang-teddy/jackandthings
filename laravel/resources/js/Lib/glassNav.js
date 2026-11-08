@@ -77,6 +77,7 @@ export const SUBMENUS = {
     workout: [
         { label: 'Overview', type: 'anchor', target: 'overview' },
         { label: 'Log entry', type: 'link', target: 'workouts.create' },
+        { label: 'Presets', type: 'anchor', target: 'presets' },
         { label: 'Reminders', type: 'anchor', target: 'reminders' },
     ],
     clipboard: [

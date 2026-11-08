@@ -71,6 +71,13 @@ data class WorkoutEntry(
     @SerialName("logged_at") val loggedAt: String? = null,
 )
 
+@Serializable
+data class WorkoutPreset(
+    val id: String,
+    val name: String,
+    val activity: String,
+)
+
 /** Reply from `workout-entries/due`. The server never sends a notification. */
 @Serializable
 data class ReminderState(

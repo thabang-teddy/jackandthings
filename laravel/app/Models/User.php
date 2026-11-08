@@ -66,6 +66,11 @@ class User extends Authenticatable
         return $this->hasMany(WorkoutEntry::class);
     }
 
+    public function workoutPresets(): HasMany
+    {
+        return $this->hasMany(WorkoutPreset::class);
+    }
+
     public function clipboardItems(): HasMany
     {
         return $this->hasMany(ClipboardItem::class);

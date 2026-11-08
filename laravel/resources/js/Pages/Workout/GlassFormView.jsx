@@ -1,9 +1,11 @@
 import GlassCard from '@/Components/Glass/GlassCard';
+import GlassDateTimePicker from '@/Components/Glass/GlassDateTimePicker';
 import {
     GlassButton,
     GlassError,
     GlassInput,
     GlassLabel,
+    GlassSelect,
     GlassTextarea,
 } from '@/Components/Glass/GlassFormControls';
 import { Link } from '@inertiajs/react';
@@ -15,6 +17,7 @@ export default function WorkoutGlassFormView({
     errors,
     processing,
     onSubmit,
+    presets = [],
 }) {
     return (
         <GlassCard
@@ -22,6 +25,32 @@ export default function WorkoutGlassFormView({
             className="max-w-xl"
         >
             <form onSubmit={onSubmit} className="space-y-4">
+                {presets.length > 0 && (
+                    <div>
+                        <GlassLabel htmlFor="glass_preset">
+                            Preset (optional)
+                        </GlassLabel>
+                        <GlassSelect
+                            id="glass_preset"
+                            value=""
+                            onChange={(e) => {
+                                const preset = presets.find(
+                                    (p) => p.id === e.target.value,
+                                );
+                                if (preset) {
+                                    setData('activity', preset.activity);
+                                }
+                            }}
+                        >
+                            <option value="">Pick a preset…</option>
+                            {presets.map((preset) => (
+                                <option key={preset.id} value={preset.id}>
+                                    {preset.name}
+                                </option>
+                            ))}
+                        </GlassSelect>
+                    </div>
+                )}
                 <div>
                     <GlassLabel htmlFor="glass_activity">Activity</GlassLabel>
                     <GlassInput
@@ -37,11 +66,10 @@ export default function WorkoutGlassFormView({
                     <GlassLabel htmlFor="glass_logged_at">
                         When (defaults to now)
                     </GlassLabel>
-                    <GlassInput
+                    <GlassDateTimePicker
                         id="glass_logged_at"
-                        type="datetime-local"
                         value={data.logged_at}
-                        onChange={(e) => setData('logged_at', e.target.value)}
+                        onChange={(next) => setData('logged_at', next)}
                     />
                     <GlassError message={errors.logged_at} />
                 </div>

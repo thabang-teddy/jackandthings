@@ -12,6 +12,7 @@ use App\Models\Note;
 use App\Models\PomodoroPreset;
 use App\Models\RecurringTransaction;
 use App\Models\WorkoutEntry;
+use App\Models\WorkoutPreset;
 use App\Policies\BudgetAccountPolicy;
 use App\Policies\BudgetTransactionPolicy;
 use App\Policies\ClipboardItemPolicy;
@@ -20,6 +21,7 @@ use App\Policies\NotePolicy;
 use App\Policies\PomodoroPresetPolicy;
 use App\Policies\RecurringTransactionPolicy;
 use App\Policies\WorkoutEntryPolicy;
+use App\Policies\WorkoutPresetPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -39,6 +41,7 @@ class AuthServiceProvider extends ServiceProvider
         BudgetTransaction::class => BudgetTransactionPolicy::class,
         RecurringTransaction::class => RecurringTransactionPolicy::class,
         WorkoutEntry::class => WorkoutEntryPolicy::class,
+        WorkoutPreset::class => WorkoutPresetPolicy::class,
         ClipboardItem::class => ClipboardItemPolicy::class,
         HistoryEntry::class => HistoryEntryPolicy::class,
     ];

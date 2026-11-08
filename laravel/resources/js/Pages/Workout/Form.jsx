@@ -3,7 +3,7 @@ import { getSubmenuForSecondaryPage } from '@/Lib/glassNav';
 import WorkoutGlassFormView from './GlassFormView';
 import { useForm } from '@inertiajs/react';
 
-export default function Form({ entry }) {
+export default function Form({ entry, presets = [] }) {
     const isEdit = Boolean(entry);
 
     const { data, setData, post, put, processing, errors } = useForm({
@@ -30,6 +30,7 @@ export default function Form({ entry }) {
             errors={errors}
             processing={processing}
             onSubmit={submit}
+            presets={presets}
         />
     );
 }

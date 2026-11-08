@@ -7,10 +7,13 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Concerns\AuthorizesOwnership;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\WorkoutEntryRequest;
+use App\Models\User;
 use App\Models\WorkoutEntry;
+use App\Models\WorkoutPreset;
 use App\Services\WorkoutReminderStatus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -36,6 +39,7 @@ class WorkoutEntryController extends Controller
 
         return Inertia::render('Workout/Index', [
             'entries' => $entries,
+            'presets' => $this->presetsFor($user),
             // Rendered as an in-page banner. Nothing is sent anywhere: see
             // WorkoutReminderStatus for why delivery is not built yet.
             'dueForReminder' => $this->reminderStatus->isDue($user),
@@ -43,9 +47,12 @@ class WorkoutEntryController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
-        return Inertia::render('Workout/Form', ['entry' => null]);
+        return Inertia::render('Workout/Form', [
+            'entry' => null,
+            'presets' => $this->presetsFor($request->user()),
+        ]);
     }
 
     public function store(WorkoutEntryRequest $request): RedirectResponse
@@ -55,7 +62,7 @@ class WorkoutEntryController extends Controller
         return to_route('workouts.index')->with('status', 'Workout logged.');
     }
 
-    public function edit(WorkoutEntry $workout): Response
+    public function edit(Request $request, WorkoutEntry $workout): Response
     {
         $this->authorizeOwned('view', $workout);
 
@@ -66,6 +73,7 @@ class WorkoutEntryController extends Controller
                 'notes' => $workout->notes,
                 'logged_at' => $workout->logged_at?->format('Y-m-d\TH:i'),
             ],
+            'presets' => $this->presetsFor($request->user()),
         ]);
     }
 
@@ -85,5 +93,20 @@ class WorkoutEntryController extends Controller
         $workout->delete();
 
         return to_route('workouts.index')->with('status', 'Workout deleted.');
+    }
+
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function presetsFor(User $user)
+    {
+        return $user->workoutPresets()
+            ->oldest()
+            ->get()
+            ->map(fn (WorkoutPreset $preset): array => [
+                'id' => $preset->id,
+                'name' => $preset->name,
+                'activity' => $preset->activity,
+            ]);
     }
 }

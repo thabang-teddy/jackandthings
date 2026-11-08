@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Security;
 
 use App\Models\BudgetAccount;
-use App\Models\BudgetTransaction;
 use App\Models\ClipboardItem;
 use App\Models\HistoryEntry;
 use App\Models\Note;
@@ -13,6 +12,7 @@ use App\Models\PomodoroPreset;
 use App\Models\RecurringTransaction;
 use App\Models\User;
 use App\Models\WorkoutEntry;
+use App\Models\WorkoutPreset;
 use App\Services\BudgetService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Route as RoutingRoute;
@@ -66,6 +66,7 @@ class CrossTenantAccessTest extends TestCase
             'preset' => PomodoroPreset::factory()->for($this->victim)->create(),
             'item' => ClipboardItem::factory()->for($this->victim)->create(),
             'workout' => WorkoutEntry::factory()->for($this->victim)->create(),
+            'workoutPreset' => WorkoutPreset::factory()->for($this->victim)->create(),
             'history' => HistoryEntry::factory()->for($this->victim)->create(),
             'account' => $account,
             'transaction' => $transaction,
@@ -117,6 +118,8 @@ class CrossTenantAccessTest extends TestCase
             'web workouts.update' => ['PUT', '/workouts/{workout}', ['activity' => 'x']],
             'web workouts.destroy' => ['DELETE', '/workouts/{workout}', []],
 
+            'web workout-presets.destroy' => ['DELETE', '/workouts/presets/{workoutPreset}', []],
+
             'web history.destroy' => ['DELETE', '/history/{history}', []],
 
             'web budget.accounts.update' => ['PUT', '/budget/accounts/{account}', ['name' => 'renamed']],
@@ -144,6 +147,8 @@ class CrossTenantAccessTest extends TestCase
             'api workouts.show' => ['GET', '/api/v1/workout-entries/{workout}', []],
             'api workouts.update' => ['PUT', '/api/v1/workout-entries/{workout}', ['activity' => 'x']],
             'api workouts.destroy' => ['DELETE', '/api/v1/workout-entries/{workout}', []],
+
+            'api workout-presets.destroy' => ['DELETE', '/api/v1/workout-presets/{workoutPreset}', []],
 
             'api history.show' => ['GET', '/api/v1/history-entries/{history}', []],
             'api history.destroy' => ['DELETE', '/api/v1/history-entries/{history}', []],
@@ -207,6 +212,7 @@ class CrossTenantAccessTest extends TestCase
             '/api/v1/pomodoro-presets',
             '/api/v1/clipboard-items',
             '/api/v1/workout-entries',
+            '/api/v1/workout-presets',
             '/api/v1/history-entries',
             '/api/v1/budget-accounts',
             '/api/v1/budget-transactions',
