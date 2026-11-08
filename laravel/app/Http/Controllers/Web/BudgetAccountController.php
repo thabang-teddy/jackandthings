@@ -18,7 +18,7 @@ class BudgetAccountController extends Controller
     {
         $request->user()->budgetAccounts()->create($request->validated());
 
-        return to_route('budget.index')->with('status', 'Account added.');
+        return back()->with('status', 'Account added.');
     }
 
     public function update(BudgetAccountRequest $request, BudgetAccount $account): RedirectResponse
@@ -27,7 +27,7 @@ class BudgetAccountController extends Controller
 
         $account->update($request->validated());
 
-        return to_route('budget.index')->with('status', 'Account renamed.');
+        return back()->with('status', 'Account renamed.');
     }
 
     public function destroy(BudgetAccount $account): RedirectResponse
@@ -37,6 +37,6 @@ class BudgetAccountController extends Controller
         // Transactions on this account cascade with it (see the migration).
         $account->delete();
 
-        return to_route('budget.index')->with('status', 'Account deleted.');
+        return back()->with('status', 'Account deleted.');
     }
 }

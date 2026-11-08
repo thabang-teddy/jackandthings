@@ -5,6 +5,7 @@ import com.jackandthings.model.BudgetTransaction
 import com.jackandthings.model.ClipboardItem
 import com.jackandthings.model.Note
 import com.jackandthings.model.PomodoroPreset
+import com.jackandthings.model.RecurringTransaction
 import com.jackandthings.model.ReminderState
 import com.jackandthings.model.TokenPayload
 import com.jackandthings.model.WorkoutEntry
@@ -164,6 +165,36 @@ class JackApi(private val client: ApiClient) {
             },
         )
     }
+
+    // ── Recurring ──────────────────────────────────────────────────────────
+
+    suspend fun recurringTransactions(): List<RecurringTransaction> =
+        client.get("recurring-transactions").decodeList()
+
+    /**
+     * [nextRunAt] is an ISO date (yyyy-MM-dd); [cadence] is daily/weekly/monthly.
+     * The server converts [amount] text to cents, as with one-off transactions.
+     */
+    suspend fun createRecurring(
+        accountId: String,
+        type: String,
+        amount: String,
+        cadence: String,
+        nextRunAt: String,
+        description: String?,
+    ): RecurringTransaction = client.post(
+        "recurring-transactions",
+        buildJsonObject {
+            put("account_id", accountId)
+            put("type", type)
+            put("amount", amount)
+            put("cadence", cadence)
+            put("next_run_at", nextRunAt)
+            put("description", description ?: "")
+        },
+    ).decode()
+
+    suspend fun deleteRecurring(id: String) = client.delete("recurring-transactions/$id")
 
     // ── Decoding ───────────────────────────────────────────────────────────
 

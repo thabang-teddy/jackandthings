@@ -31,7 +31,7 @@ class BudgetTransactionController extends Controller
             $this->budget->withdraw($user, $account, $amountCents, $description);
         }
 
-        return to_route('budget.index')->with('status', 'Transaction posted.');
+        return back()->with('status', 'Transaction posted.');
     }
 
     public function destroy(BudgetTransaction $transaction): RedirectResponse
@@ -41,6 +41,6 @@ class BudgetTransactionController extends Controller
         // Removes the counterpart leg too when this is part of a transfer.
         $this->budget->deleteTransaction($transaction);
 
-        return to_route('budget.index')->with('status', 'Transaction removed.');
+        return back()->with('status', 'Transaction removed.');
     }
 }

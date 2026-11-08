@@ -11,6 +11,7 @@ use App\Http\Controllers\Web\HomeController;
 use App\Http\Controllers\Web\NoteController;
 use App\Http\Controllers\Web\PomodoroController;
 use App\Http\Controllers\Web\PomodoroPresetController;
+use App\Http\Controllers\Web\RecurringTransactionController;
 use App\Http\Controllers\Web\WorkoutEntryController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -58,14 +59,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('history', [HistoryEntryController::class, 'store'])->name('history.store');
     Route::delete('history/{history}', [HistoryEntryController::class, 'destroy'])->name('history.destroy');
 
-    // Budget
+    // Budget — Overview is the index; Cards, Transfer, Transactions and
+    // Recurring are their own pages.
     Route::get('budget', [BudgetController::class, 'index'])->name('budget.index');
+    Route::get('budget/cards', [BudgetController::class, 'cards'])->name('budget.cards');
+    Route::get('budget/transfer', [BudgetController::class, 'transfer'])->name('budget.transfer');
+    Route::get('budget/transactions', [BudgetController::class, 'transactions'])->name('budget.transactions');
+    Route::get('budget/recurring', [BudgetController::class, 'recurring'])->name('budget.recurring');
+
     Route::post('budget/accounts', [BudgetAccountController::class, 'store'])->name('budget.accounts.store');
     Route::put('budget/accounts/{account}', [BudgetAccountController::class, 'update'])->name('budget.accounts.update');
     Route::delete('budget/accounts/{account}', [BudgetAccountController::class, 'destroy'])->name('budget.accounts.destroy');
     Route::post('budget/transactions', [BudgetTransactionController::class, 'store'])->name('budget.transactions.store');
     Route::delete('budget/transactions/{transaction}', [BudgetTransactionController::class, 'destroy'])->name('budget.transactions.destroy');
     Route::post('budget/transfers', [BudgetTransferController::class, 'store'])->name('budget.transfers.store');
+
+    Route::post('budget/recurring', [RecurringTransactionController::class, 'store'])->name('budget.recurring.store');
+    Route::put('budget/recurring/{recurring}', [RecurringTransactionController::class, 'update'])->name('budget.recurring.update');
+    Route::delete('budget/recurring/{recurring}', [RecurringTransactionController::class, 'destroy'])->name('budget.recurring.destroy');
 });
 
 require __DIR__.'/auth.php';

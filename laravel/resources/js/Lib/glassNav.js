@@ -64,11 +64,11 @@ export const SUBMENUS = {
         { label: 'Stats', type: 'disabled' },
     ],
     budget: [
-        { label: 'Overview', type: 'anchor', target: 'overview' },
-        { label: 'Cards', type: 'disabled' },
-        { label: 'Transfer', type: 'anchor', target: 'transfer' },
-        { label: 'Recurring', type: 'disabled' },
-        { label: 'Transactions', type: 'anchor', target: 'transactions' },
+        { label: 'Overview', type: 'link', target: 'budget.index' },
+        { label: 'Cards', type: 'link', target: 'budget.cards' },
+        { label: 'Transfer', type: 'link', target: 'budget.transfer' },
+        { label: 'Recurring', type: 'link', target: 'budget.recurring' },
+        { label: 'Transactions', type: 'link', target: 'budget.transactions' },
     ],
     notes: [
         { label: 'All Notes', type: 'anchor', target: 'notes' },

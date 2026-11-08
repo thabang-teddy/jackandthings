@@ -10,6 +10,7 @@ use App\Models\ClipboardItem;
 use App\Models\HistoryEntry;
 use App\Models\Note;
 use App\Models\PomodoroPreset;
+use App\Models\RecurringTransaction;
 use App\Models\User;
 use App\Models\WorkoutEntry;
 use App\Services\BudgetService;
@@ -68,6 +69,9 @@ class CrossTenantAccessTest extends TestCase
             'history' => HistoryEntry::factory()->for($this->victim)->create(),
             'account' => $account,
             'transaction' => $transaction,
+            'recurring' => RecurringTransaction::factory()
+                ->for($this->victim)
+                ->create(['account_id' => $account->getKey()]),
         ];
 
         // Without this, a typo in the fixture would make every request below
@@ -119,6 +123,9 @@ class CrossTenantAccessTest extends TestCase
             'web budget.accounts.destroy' => ['DELETE', '/budget/accounts/{account}', []],
             'web budget.transactions.destroy' => ['DELETE', '/budget/transactions/{transaction}', []],
 
+            'web recurring.update' => ['PUT', '/budget/recurring/{recurring}', ['active' => false]],
+            'web recurring.destroy' => ['DELETE', '/budget/recurring/{recurring}', []],
+
             // ── API ───────────────────────────────────────────────────────
             'api notes.show' => ['GET', '/api/v1/notes/{note}', []],
             'api notes.update' => ['PUT', '/api/v1/notes/{note}', ['title' => 'x']],
@@ -146,6 +153,10 @@ class CrossTenantAccessTest extends TestCase
             'api accounts.destroy' => ['DELETE', '/api/v1/budget-accounts/{account}', []],
 
             'api transactions.destroy' => ['DELETE', '/api/v1/budget-transactions/{transaction}', []],
+
+            'api recurring.show' => ['GET', '/api/v1/recurring-transactions/{recurring}', []],
+            'api recurring.update' => ['PUT', '/api/v1/recurring-transactions/{recurring}', ['active' => false]],
+            'api recurring.destroy' => ['DELETE', '/api/v1/recurring-transactions/{recurring}', []],
         ];
     }
 
@@ -199,6 +210,7 @@ class CrossTenantAccessTest extends TestCase
             '/api/v1/history-entries',
             '/api/v1/budget-accounts',
             '/api/v1/budget-transactions',
+            '/api/v1/recurring-transactions',
         ];
 
         foreach ($endpoints as $endpoint) {

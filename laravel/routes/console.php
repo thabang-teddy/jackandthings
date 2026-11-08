@@ -13,3 +13,9 @@ Artisan::command('inspire', function () {
  * The retention window itself is still a placeholder — see config/history.php.
  */
 Schedule::command('history:prune')->daily()->withoutOverlapping();
+
+/*
+ * Daily: post any recurring budget transactions that have fallen due and
+ * advance their schedules. See App\Console\Commands\RunRecurringTransactions.
+ */
+Schedule::command('budget:run-recurring')->daily()->withoutOverlapping();

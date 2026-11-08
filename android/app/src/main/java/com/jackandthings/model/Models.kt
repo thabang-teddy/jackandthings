@@ -51,6 +51,19 @@ data class ClipboardItem(
 )
 
 @Serializable
+data class RecurringTransaction(
+    val id: String,
+    @SerialName("account_id") val accountId: String,
+    val type: String,
+    @SerialName("amount_cents") val amountCents: Long,
+    val description: String? = null,
+    val cadence: String,
+    @SerialName("next_run_at") val nextRunAt: String? = null,
+    val active: Boolean = true,
+    val account: AccountRef? = null,
+)
+
+@Serializable
 data class WorkoutEntry(
     val id: String,
     val activity: String,

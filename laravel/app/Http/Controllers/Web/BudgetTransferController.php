@@ -23,6 +23,6 @@ class BudgetTransferController extends Controller
             $request->input('description'),
         );
 
-        return to_route('budget.index')->with('status', 'Transfer complete.');
+        return back()->with('status', 'Transfer complete.');
     }
 }

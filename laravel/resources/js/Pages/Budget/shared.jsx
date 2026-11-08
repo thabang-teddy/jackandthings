@@ -1,8 +1,4 @@
-import GlassCard from '@/Components/Glass/GlassCard';
-import Sparkline from '@/Components/Glass/Sparkline';
-import StatPill from '@/Components/Glass/StatPill';
-import TxRow from '@/Components/Glass/TxRow';
-import { ArrowDownIcon, ArrowUpIcon, SwapIcon } from '@/Components/Glass/icons';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {
     GlassButton,
     GlassError,
@@ -10,13 +6,12 @@ import {
     GlassLabel,
     GlassSelect,
 } from '@/Components/Glass/GlassFormControls';
-import { formatZar } from '@/Lib/formatZar';
-import { TYPE_LABELS } from '@/Lib/budgetTypeLabels';
+import { ArrowDownIcon, ArrowUpIcon, SwapIcon } from '@/Components/Glass/icons';
 import { useForm } from '@inertiajs/react';
 
-const INCOME_TYPES = new Set(['deposit', 'transfer_in']);
+export const INCOME_TYPES = new Set(['deposit', 'transfer_in']);
 
-function buildBalanceTrend(transactions) {
+export function buildBalanceTrend(transactions) {
     const chronological = [...transactions].reverse();
     let running = 0;
 
@@ -29,7 +24,7 @@ function buildBalanceTrend(transactions) {
     });
 }
 
-function summarizeInOut(transactions) {
+export function summarizeInOut(transactions) {
     return transactions.reduce(
         (totals, transaction) => {
             if (INCOME_TYPES.has(transaction.type)) {
@@ -43,7 +38,7 @@ function summarizeInOut(transactions) {
     );
 }
 
-function txIcon(type) {
+export function txIcon(type) {
     if (type === 'transfer_in' || type === 'transfer_out') {
         return { icon: <SwapIcon size={14} />, color: '#8B5CF6' };
     }
@@ -53,7 +48,12 @@ function txIcon(type) {
     return { icon: <ArrowUpIcon size={14} />, color: '#D4537E' };
 }
 
-function GlassAccountForm() {
+/** Shared layout for every Budget page — the module rail plus budget submenu. */
+export function budgetLayout(page) {
+    return <AuthenticatedLayout module="budget">{page}</AuthenticatedLayout>;
+}
+
+export function GlassAccountForm() {
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
     });
@@ -88,7 +88,7 @@ function GlassAccountForm() {
     );
 }
 
-function GlassTransactionForm({ accounts }) {
+export function GlassTransactionForm({ accounts }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         account_id: accounts[0]?.id ?? '',
         type: 'deposit',
@@ -165,7 +165,7 @@ function GlassTransactionForm({ accounts }) {
     );
 }
 
-function GlassTransferForm({ accounts }) {
+export function GlassTransferForm({ accounts }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         from_account_id: accounts[0]?.id ?? '',
         to_account_id: accounts[1]?.id ?? '',
@@ -234,154 +234,5 @@ function GlassTransferForm({ accounts }) {
                 Transfer
             </GlassButton>
         </form>
-    );
-}
-
-export default function BudgetGlassView({
-    accounts,
-    transactions,
-    totalCents,
-    onDeleteAccount,
-    onDeleteTransaction,
-}) {
-    const trend = buildBalanceTrend(transactions);
-    const { inCents, outCents } = summarizeInOut(transactions);
-
-    return (
-        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-3">
-            <div id="overview" className="flex flex-col gap-4">
-                <GlassCard title="Total balance">
-                    <div className="text-3xl font-bold">
-                        {formatZar(totalCents)}
-                    </div>
-                    <p className="mb-2 mt-1 text-xs text-[var(--muted)]">
-                        Across {accounts.length} account
-                        {accounts.length === 1 ? '' : 's'}
-                    </p>
-                    <Sparkline values={trend} />
-                    <div className="mt-3 flex gap-2">
-                        <StatPill
-                            label="Recent in"
-                            value={formatZar(inCents)}
-                            dotColor="#1D9E75"
-                        />
-                        <StatPill
-                            label="Recent out"
-                            value={formatZar(outCents)}
-                            dotColor="#D4537E"
-                        />
-                    </div>
-                </GlassCard>
-
-                <GlassCard title="New account">
-                    <GlassAccountForm />
-                </GlassCard>
-            </div>
-
-            <div className="flex flex-col gap-4">
-                {accounts.length === 0 ? (
-                    <GlassCard>
-                        <p className="text-sm text-[var(--muted)]">
-                            No accounts yet — add one to get started.
-                        </p>
-                    </GlassCard>
-                ) : (
-                    accounts.map((account) => (
-                        <GlassCard key={account.id}>
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-semibold">
-                                        {account.name}
-                                    </p>
-                                    <p className="mt-1 text-xl font-bold tabular-nums">
-                                        {formatZar(account.balance_cents)}
-                                    </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => onDeleteAccount(account)}
-                                    className="text-xs text-[var(--neg)] hover:underline"
-                                >
-                                    Delete
-                                </button>
-                            </div>
-                        </GlassCard>
-                    ))
-                )}
-
-                <GlassCard id="transfer" title="Transfer money">
-                    {accounts.length < 2 ? (
-                        <p className="text-sm text-[var(--muted)]">
-                            Two accounts are needed to transfer between them.
-                        </p>
-                    ) : (
-                        <GlassTransferForm accounts={accounts} />
-                    )}
-                </GlassCard>
-            </div>
-
-            <div className="flex min-h-0 flex-col gap-4">
-                <GlassCard title="Add transaction">
-                    {accounts.length === 0 ? (
-                        <p className="text-sm text-[var(--muted)]">
-                            Add an account first.
-                        </p>
-                    ) : (
-                        <GlassTransactionForm accounts={accounts} />
-                    )}
-                </GlassCard>
-
-                <GlassCard
-                    id="transactions"
-                    title="Recent activity"
-                    className="min-h-0 flex-1 overflow-y-auto"
-                >
-                    {transactions.length === 0 ? (
-                        <p className="text-sm text-[var(--muted)]">
-                            Deposits, withdrawals and transfers show up here.
-                        </p>
-                    ) : (
-                        transactions.map((transaction) => {
-                            const { icon, color } = txIcon(transaction.type);
-                            return (
-                                <TxRow
-                                    key={transaction.id}
-                                    icon={icon}
-                                    iconColor={color}
-                                    title={
-                                        TYPE_LABELS[transaction.type] ??
-                                        transaction.type
-                                    }
-                                    subtitle={
-                                        transaction.related_account
-                                            ? `${transaction.account} ↔ ${transaction.related_account}`
-                                            : transaction.account
-                                    }
-                                    trailing={formatZar(
-                                        transaction.amount_cents,
-                                    )}
-                                    trailingTone={
-                                        INCOME_TYPES.has(transaction.type)
-                                            ? 'pos'
-                                            : 'neg'
-                                    }
-                                    action={
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                onDeleteTransaction(transaction)
-                                            }
-                                            className="ml-2 shrink-0 text-xs text-[var(--muted)] hover:text-[var(--neg)]"
-                                        >
-                                            Remove
-                                        </button>
-                                    }
-                                />
-                            );
-                        })
-                    )}
-                </GlassCard>
-            </div>
-        </div>
     );
 }

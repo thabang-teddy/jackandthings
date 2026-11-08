@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\ClipboardItemController;
 use App\Http\Controllers\Api\V1\HistoryEntryController;
 use App\Http\Controllers\Api\V1\NoteController;
 use App\Http\Controllers\Api\V1\PomodoroPresetController;
+use App\Http\Controllers\Api\V1\RecurringTransactionController;
 use App\Http\Controllers\Api\V1\WorkoutEntryController;
 use Illuminate\Support\Facades\Route;
 
@@ -46,5 +47,6 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             ->parameters(['budget-transactions' => 'transaction'])
             ->only(['index', 'store', 'destroy']);
         Route::post('budget-transfers', [BudgetTransferController::class, 'store'])->name('budget-transfers.store');
+        Route::apiResource('recurring-transactions', RecurringTransactionController::class)->parameters(['recurring-transactions' => 'recurring']);
     });
 });

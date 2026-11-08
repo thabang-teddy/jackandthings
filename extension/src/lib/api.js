@@ -163,6 +163,25 @@ export const api = {
             },
         }),
 
+    // Recurring budget transactions
+    recurringTransactions: async () =>
+        data(await request('recurring-transactions')) ?? [],
+    createRecurring: async (accountId, type, amount, cadence, nextRunAt, description) =>
+        data(
+            await request('recurring-transactions', {
+                method: 'POST',
+                body: {
+                    account_id: accountId,
+                    type,
+                    amount,
+                    cadence,
+                    next_run_at: nextRunAt,
+                    description: description ?? '',
+                },
+            }),
+        ),
+    deleteRecurring: (id) => request(`recurring-transactions/${id}`, { method: 'DELETE' }),
+
     // History
     /** Returns both the rows and the server's retention window. */
     async historyEntries() {
