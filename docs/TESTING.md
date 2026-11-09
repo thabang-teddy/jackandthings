@@ -5,10 +5,10 @@ A suite now exists on all three surfaces and **all of it passes**. Figures below
 
 | Surface | Framework | Tests | Command |
 | --- | --- | --- | --- |
-| Laravel | PHPUnit 12.5 | **138** (1332 assertions) | `php artisan test` |
+| Laravel | PHPUnit 12.5 | **168** (2184 assertions) | `php artisan test` |
 | Android | JUnit 4 + `kotlinx-coroutines-test` | **77** | `.\gradlew.bat :app:testDebugUnitTest` |
 | Add-on | `node --test` (no dependencies) | **27** | `npm test` in `extension/` |
-| | | **242 total** | |
+| | | **272 total** | |
 
 **Every Android ViewModel is covered.** That was only possible after the five repositories and `AuthStore` were put behind interfaces, which is why that refactor counts as test work rather than tidying.
 
@@ -89,7 +89,7 @@ Scope it to the six modules (PRD.md F-01…F-06) plus the SECURITY.md requiremen
 
 ## Verified commands
 All run successfully:
-- Server: `php artisan test` (from `laravel/`) — 138 passed. Also `--testsuite=Unit` / `--testsuite=Feature`. Note the batch wrapper eats `|`, so `--filter="A|B"` fails; filter one class at a time or run a suite.
+- Server: `php artisan test` (from `laravel/`) — 168 passed. Also `--testsuite=Unit` / `--testsuite=Feature`. Note the batch wrapper eats `|`, so `--filter="A|B"` fails; filter one class at a time or run a suite. No `npm run build` is needed first: `tests/TestCase.php` swaps in an empty Vite handler, so page-rendering tests pass on a fresh clone with no `public/build`. The bundle itself is still proven by `npm run build` (the `js` CI job).
 - Android: `.\gradlew.bat :app:testDebugUnitTest` (from `android/`, `JAVA_HOME` set to Android Studio's JBR) — 77 passed.
 - Add-on: `npm test` (from `extension/`) — 27 passed. No install step; it uses Node's built-in runner.
 - Coverage: **Not available** — no Xdebug or pcov.
