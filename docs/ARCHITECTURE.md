@@ -9,7 +9,7 @@ Versions below are what is actually installed in `laravel/` (from `composer.lock
 | Layer | Selected technology | Reason | Constraints |
 | --- | --- | --- | --- |
 | Frontend (web) | Inertia + React 18, Tailwind CSS (built) | Matches the sibling project `fiyobra/laravel`; Tailwind is the Breeze React default and pairs with DESIGN_SYSTEM.md's CSS-custom-property tokens | `@inertiajs/react` ^2.0, `inertiajs/inertia-laravel` v3.7.0 (newer major than fiyobra's v2 — verified working with Breeze 2.4 scaffolding) |
-| Backend/API | Laravel v13.40.0 on PHP 8.4.20 (built) | Owner chose "like fiyobra" | Local PHP is 8.4 via Herd; `composer.json` requires `^8.3` |
+| Backend/API | Laravel v13.40.0 on PHP 8.4.20 (built) | Owner chose "like fiyobra" | Local PHP is 8.4 via Herd; `composer.json` says `^8.3` but the lock's Symfony 8.1 packages need 8.4.1+ |
 | Database | MySQL 8.0.46 (confirmed and running) | Matches fiyobra's `DB_CONNECTION=mysql`; owner approved locking in the proposal | Local instance is Herd's bundled service on `127.0.0.1:3306`; database `jackandthings` |
 | Authentication | Laravel Breeze (session) + Sanctum v4.3.3 tokens, email+password (built) | Owner's explicit choice. Breeze used instead of hand-rolling (fiyobra hand-rolled only for column-encryption/2FA/multi-domain needs that do not apply here) | Web uses the session guard; Android/add-ons use bearer tokens from `POST /api/v1/auth/token` |
 | Route helper | Ziggy v2.6.5 | Breeze's React stack calls `route()` in JS, same as fiyobra | — |

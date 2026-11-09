@@ -93,6 +93,11 @@ still worth avoiding.
 
 Per stage, once:
 
+- **PHP 8.4.1 or newer** selected for the account in cPanel's MultiPHP/PHP
+  Selector. This is not optional: `composer.lock` pins the Symfony 8.1 line and
+  every package in it requires ≥ 8.4.1. The deploy script reads the version
+  through the same selector wrapper that serves web requests, so a cron job and
+  a web request can never disagree about which engine runs the app.
 - A **read-only** deploy key on the GitHub repository, added to the account.
 - A checkout of the artefact branch at `~/staging/jackandthings` or
   `~/production/jackandthings`, checked out **on** `deploy/staging` /

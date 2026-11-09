@@ -3,7 +3,7 @@
 Reflects the Laravel app as built in `laravel/`. Conventions follow the sibling project `C:\Users\Teddy\projects\fiyobra\laravel` except where noted.
 
 ## Languages and conventions
-- PHP 8.4 locally (`composer.json` requires `^8.3`), Laravel v13.40.0. Plain JavaScript + React 18 via Inertia — **no TypeScript**, matching fiyobra.
+- PHP 8.4 locally. `composer.json` says `^8.3`, but the lock pins the Symfony 8.1 line, every package of which requires **PHP ≥ 8.4.1** — that, not `composer.json`, is the real floor, and CI plus `deploy/cpanel-deploy.sh` both enforce it. Laravel v13.40.0. Plain JavaScript + React 18 via Inertia — **no TypeScript**, matching fiyobra.
 - Kotlin 2.2.21 + Jetpack Compose for the Android app, JVM target 17, official Kotlin code style.
 - `declare(strict_types=1);` at the top of every hand-written PHP file (matches fiyobra, which uses it throughout `app/`). Framework-generated files (Breeze controllers, the default `User` model shell) are left as generated.
 - Typed properties, parameter types, and return types on all new code. Constructor property promotion with `private readonly` for injected services.

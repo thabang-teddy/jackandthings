@@ -61,8 +61,12 @@ APP="${REPO_ROOT}"
 # .github/workflows/ci.yml). If you change one, change the other — that pairing
 # is the whole contract between the machine that builds and the machine that
 # runs.
+#
+# 80401, not the ^8.3 composer.json advertises: the lock pins the Symfony 8.1
+# line, every package in it requires PHP >= 8.4.1, and 8.3 cannot even run
+# `composer install`. Refusing here is the honest version of that fact.
 PHP="${JACK_PHP:-/usr/local/bin/php}"
-MIN_PHP_ID=80300
+MIN_PHP_ID=80401
 
 # Named after the tree, not the application. Two stages run from one account and
 # must not share a lock: staging deploying is no reason for production to skip

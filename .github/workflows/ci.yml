@@ -40,13 +40,16 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  # composer.json allows ^8.3 and deploy/cpanel-deploy.sh refuses anything below
-  # PHP_VERSION_ID 80300. Until the hosting account's real PHP version is known,
-  # the floor is the only defensible value: passing here proves the artefact
-  # runs on the oldest interpreter the deploy script will accept. If the account
-  # turns out to run 8.4, raise this AND MIN_PHP_ID together — that pairing is
-  # the contract between the machine that builds and the machine that runs.
-  PHP_VERSION: '8.3'
+  # composer.json says ^8.3, but composer.lock does not: the Symfony 8.1 line it
+  # pins requires >= 8.4.1 (16 packages), so `composer install` cannot succeed on
+  # 8.3 at all — the first CI run proved exactly that. The lock is the real
+  # floor, so this matches it, and deploy/cpanel-deploy.sh refuses anything below
+  # PHP_VERSION_ID 80401.
+  #
+  # If the hosting account turns out to run 8.3, the fix is to re-resolve the
+  # lock against that version (config.platform.php, then composer update) and
+  # lower both numbers — not to lower them first and hope.
+  PHP_VERSION: '8.4'
   NODE_VERSION: '20'
   JAVA_VERSION: '17'
 
