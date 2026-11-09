@@ -59,6 +59,12 @@ class WorkoutEntryController extends Controller
     {
         $request->user()->workoutEntries()->create($request->validatedWithDefaults());
 
+        // The home page's quick log popup saves without leaving the page;
+        // every other create form still lands on the workout list.
+        if ($request->input('return_to') === 'home') {
+            return to_route('home')->with('status', 'Workout logged.');
+        }
+
         return to_route('workouts.index')->with('status', 'Workout logged.');
     }
 

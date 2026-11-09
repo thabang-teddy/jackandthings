@@ -13,6 +13,13 @@
 
 export const MODULES = [
     {
+        key: 'home',
+        label: 'Home',
+        route: 'home',
+        match: 'home.*',
+        icon: 'home',
+    },
+    {
         key: 'dashboard',
         label: 'Dashboard',
         route: 'dashboard',
@@ -77,10 +84,7 @@ export const SUBMENUS = {
         { label: 'Recurring', type: 'link', target: 'budget.recurring' },
         { label: 'Transactions', type: 'link', target: 'budget.transactions' },
     ],
-    notes: [
-        { label: 'All Notes', type: 'anchor', target: 'notes' },
-        { label: 'New Note', type: 'anchor', target: 'note-form' },
-    ],
+    notes: [],
     workout: [
         { label: 'Overview', type: 'anchor', target: 'overview' },
         { label: 'Log entry', type: 'link', target: 'workouts.create' },

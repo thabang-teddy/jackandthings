@@ -8,9 +8,11 @@ import {
     HeartIcon,
     HistoryIcon,
     ListIcon,
+    HomeIcon,
 } from '@/Components/Glass/icons';
 
 const ICONS = {
+    home: HomeIcon,
     grid: GridIcon,
     clock: ClockIcon,
     document: DocumentIcon,

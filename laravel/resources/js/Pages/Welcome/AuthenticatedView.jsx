@@ -1,6 +1,8 @@
-import { Link } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import GlassCard from '@/Components/Glass/GlassCard';
+import GlassDateTimePicker from '@/Components/Glass/GlassDateTimePicker';
+import GlassModal from '@/Components/Glass/GlassModal';
 import LiveClock from '@/Components/Glass/LiveClock';
 import PillButton from '@/Components/Glass/PillButton';
 import {
@@ -10,6 +12,14 @@ import {
     PlusIcon,
     TimerIcon,
 } from '@/Components/Glass/icons';
+import {
+    GlassButton,
+    GlassError,
+    GlassInput,
+    GlassLabel,
+    GlassSelect,
+    GlassTextarea,
+} from '@/Components/Glass/GlassFormControls';
 import { formatClock } from '@/Lib/formatClock';
 import { useCountdown } from '@/Lib/useCountdown';
 
@@ -103,25 +113,107 @@ function PomodoroDisplay({ timer, defaultPreset }) {
 
 export default function AuthenticatedView({
     notes,
+    presets = [],
     dueForReminder,
     lastLoggedAt,
     defaultPreset,
 }) {
     const [mode, setMode] = useState('clock');
+    const [noteOpen, setNoteOpen] = useState(false);
+    const [editingNote, setEditingNote] = useState(null);
+    const [workoutOpen, setWorkoutOpen] = useState(false);
     const timer = useCountdown();
+
+    // `return_to` tells NoteController@store/@update to come back here rather
+    // than sending the user to the Notes module; NoteRequest ignores the field.
+    const noteForm = useForm({ title: '', body: '', return_to: 'home' });
+
+    const openNewNote = () => {
+        setEditingNote(null);
+        noteForm.reset();
+        noteForm.clearErrors();
+        setNoteOpen(true);
+    };
+
+    const openNote = (note) => {
+        setEditingNote(note);
+        noteForm.setData({
+            title: note.title,
+            body: note.body ?? '',
+            return_to: 'home',
+        });
+        noteForm.clearErrors();
+        setNoteOpen(true);
+    };
+
+    const closeNote = () => {
+        setNoteOpen(false);
+        setEditingNote(null);
+        noteForm.reset();
+    };
+
+    const submitNote = (event) => {
+        event.preventDefault();
+
+        const options = {
+            preserveScroll: true,
+            // Keep the clock/mode and a running Pomodoro untouched by the
+            // reload this save triggers.
+            preserveState: true,
+            onSuccess: closeNote,
+        };
+
+        if (editingNote) {
+            noteForm.put(route('notes.update', editingNote.id), options);
+        } else {
+            noteForm.post(route('notes.store'), options);
+        }
+    };
+
+    // Same `return_to` handshake as the note popup: WorkoutEntryController@store
+    // comes back here so the popup closes and the "last workout" line refreshes.
+    const workoutForm = useForm({
+        activity: '',
+        logged_at: '',
+        notes: '',
+        return_to: 'home',
+    });
+
+    const openWorkout = () => {
+        workoutForm.reset();
+        workoutForm.clearErrors();
+        setWorkoutOpen(true);
+    };
+
+    const closeWorkout = () => {
+        setWorkoutOpen(false);
+        workoutForm.reset();
+    };
+
+    const submitWorkout = (event) => {
+        event.preventDefault();
+
+        workoutForm.post(route('workouts.store'), {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: closeWorkout,
+        });
+    };
 
     return (
         <div className="relative z-10 flex min-h-screen flex-col items-center justify-center gap-6 p-6 lg:flex-row">
             <GlassCard
                 title="Quick notes"
                 action={
-                    <Link
-                        href={route('notes.create')}
+                    <button
+                        type="button"
+                        onClick={openNewNote}
                         aria-label="New note"
-                        className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-ink)]"
+                        title="New note"
+                        className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-ink)] transition hover:opacity-90"
                     >
                         <PlusIcon size={12} />
-                    </Link>
+                    </button>
                 }
                 className="w-full lg:w-64"
             >
@@ -130,13 +222,15 @@ export default function AuthenticatedView({
                 ) : (
                     <div className="flex flex-col">
                         {notes.map((note) => (
-                            <Link
+                            <button
                                 key={note.id}
-                                href={route('notes.edit', note.id)}
-                                className="truncate py-1.5 text-sm text-[var(--ink)] hover:text-[var(--accent)]"
+                                type="button"
+                                onClick={() => openNote(note)}
+                                title={`Edit ${note.title}`}
+                                className="w-full truncate py-1.5 text-left text-sm text-[var(--ink)] hover:text-[var(--accent)]"
                             >
                                 {note.title}
-                            </Link>
+                            </button>
                         ))}
                     </div>
                 )}
@@ -166,12 +260,14 @@ export default function AuthenticatedView({
                             ? 'Nothing logged this hour'
                             : `Last workout: ${lastLoggedAt ?? 'none yet'}`}
                     </span>
-                    <Link
-                        href={route('workouts.create')}
+                    <button
+                        type="button"
+                        onClick={openWorkout}
+                        aria-haspopup="dialog"
                         className="font-semibold text-[var(--accent)] hover:underline"
                     >
                         Add Workout
-                    </Link>
+                    </button>
                 </div>
             </div>
 
@@ -199,6 +295,149 @@ export default function AuthenticatedView({
                     label="Dashboard"
                 />
             </div>
+
+            <GlassModal
+                show={noteOpen}
+                onClose={closeNote}
+                title={editingNote ? 'Edit note' : 'New note'}
+            >
+                <form onSubmit={submitNote} className="grid gap-3">
+                    <div>
+                        <GlassLabel htmlFor="home_note_title">Title</GlassLabel>
+                        <GlassInput
+                            id="home_note_title"
+                            autoFocus
+                            maxLength={255}
+                            value={noteForm.data.title}
+                            onChange={(event) =>
+                                noteForm.setData('title', event.target.value)
+                            }
+                            placeholder="Shopping list"
+                        />
+                        <GlassError message={noteForm.errors.title} />
+                    </div>
+                    <div>
+                        <GlassLabel htmlFor="home_note_body">
+                            Note (optional)
+                        </GlassLabel>
+                        <GlassTextarea
+                            id="home_note_body"
+                            rows={4}
+                            value={noteForm.data.body}
+                            onChange={(event) =>
+                                noteForm.setData('body', event.target.value)
+                            }
+                            placeholder="Milk, bread, coffee"
+                        />
+                        <GlassError message={noteForm.errors.body} />
+                    </div>
+                    <div className="mt-1 flex items-center justify-end gap-2">
+                        <PillButton onClick={closeNote}>Cancel</PillButton>
+                        <GlassButton
+                            type="submit"
+                            disabled={noteForm.processing}
+                        >
+                            {editingNote ? 'Save changes' : 'Save note'}
+                        </GlassButton>
+                    </div>
+                </form>
+            </GlassModal>
+
+            <GlassModal
+                show={workoutOpen}
+                onClose={closeWorkout}
+                title="Log workout"
+            >
+                <form onSubmit={submitWorkout} className="grid gap-3">
+                    {presets.length > 0 && (
+                        <div>
+                            <GlassLabel htmlFor="home_workout_preset">
+                                Preset (optional)
+                            </GlassLabel>
+                            <GlassSelect
+                                id="home_workout_preset"
+                                value=""
+                                onChange={(event) => {
+                                    const preset = presets.find(
+                                        (candidate) =>
+                                            candidate.id === event.target.value,
+                                    );
+                                    if (preset) {
+                                        workoutForm.setData(
+                                            'activity',
+                                            preset.activity,
+                                        );
+                                    }
+                                }}
+                            >
+                                <option value="">Pick a preset…</option>
+                                {presets.map((preset) => (
+                                    <option key={preset.id} value={preset.id}>
+                                        {preset.name}
+                                    </option>
+                                ))}
+                            </GlassSelect>
+                        </div>
+                    )}
+                    <div>
+                        <GlassLabel htmlFor="home_workout_activity">
+                            Activity
+                        </GlassLabel>
+                        <GlassInput
+                            id="home_workout_activity"
+                            autoFocus
+                            maxLength={100}
+                            value={workoutForm.data.activity}
+                            onChange={(event) =>
+                                workoutForm.setData(
+                                    'activity',
+                                    event.target.value,
+                                )
+                            }
+                            placeholder="Push-ups, 5km run, gym session…"
+                        />
+                        <GlassError message={workoutForm.errors.activity} />
+                    </div>
+                    <div>
+                        <GlassLabel htmlFor="home_workout_logged_at">
+                            When (defaults to now)
+                        </GlassLabel>
+                        <GlassDateTimePicker
+                            id="home_workout_logged_at"
+                            value={workoutForm.data.logged_at}
+                            onChange={(next) =>
+                                workoutForm.setData('logged_at', next)
+                            }
+                        />
+                        <GlassError message={workoutForm.errors.logged_at} />
+                    </div>
+                    <div>
+                        <GlassLabel htmlFor="home_workout_notes">
+                            Notes (optional)
+                        </GlassLabel>
+                        <GlassTextarea
+                            id="home_workout_notes"
+                            rows={3}
+                            maxLength={1000}
+                            value={workoutForm.data.notes}
+                            onChange={(event) =>
+                                workoutForm.setData('notes', event.target.value)
+                            }
+                            placeholder="Felt strong, 3 sets of 12"
+                        />
+                        <GlassError message={workoutForm.errors.notes} />
+                    </div>
+                    <div className="mt-1 flex items-center justify-end gap-2">
+                        <PillButton onClick={closeWorkout}>Cancel</PillButton>
+                        <GlassButton
+                            type="submit"
+                            disabled={workoutForm.processing}
+                        >
+                            Log it
+                        </GlassButton>
+                    </div>
+                </form>
+            </GlassModal>
         </div>
     );
 }

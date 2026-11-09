@@ -41,6 +41,12 @@ class NoteController extends Controller
     {
         $request->user()->notes()->create($request->validated());
 
+        // The home page's quick-note popup saves without leaving the page;
+        // every other create form still lands on the notes list.
+        if ($request->input('return_to') === 'home') {
+            return to_route('home')->with('status', 'Note saved.');
+        }
+
         return to_route('notes.index')->with('status', 'Note saved.');
     }
 
@@ -62,6 +68,12 @@ class NoteController extends Controller
         $this->authorizeOwned('update', $note);
 
         $note->update($request->validated());
+
+        // The home page's note popup edits in place; every other edit form
+        // still lands on the notes list.
+        if ($request->input('return_to') === 'home') {
+            return to_route('home')->with('status', 'Note updated.');
+        }
 
         return to_route('notes.index')->with('status', 'Note updated.');
     }

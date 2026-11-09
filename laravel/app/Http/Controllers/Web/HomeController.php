@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Note;
+use App\Models\WorkoutPreset;
 use App\Services\WorkoutReminderStatus;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -33,14 +34,25 @@ class HomeController extends Controller
             ->map(fn (Note $note): array => [
                 'id' => $note->id,
                 'title' => $note->title,
+                'body' => $note->body,
             ]);
 
         $defaultPreset = $user->pomodoroPresets()
             ->where('is_default', true)
             ->first();
 
+        $presets = $user->workoutPresets()
+            ->oldest()
+            ->get()
+            ->map(fn (WorkoutPreset $preset): array => [
+                'id' => $preset->id,
+                'name' => $preset->name,
+                'activity' => $preset->activity,
+            ]);
+
         return Inertia::render('Welcome', [
             'notes' => $notes,
+            'presets' => $presets,
             'dueForReminder' => $this->reminderStatus->isDue($user),
             'lastLoggedAt' => $this->reminderStatus->lastLoggedAt($user)?->toDayDateTimeString(),
             'defaultPreset' => $defaultPreset === null ? null : [

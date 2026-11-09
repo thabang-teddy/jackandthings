@@ -13,15 +13,7 @@ export default function NotesGlassIndexView({
 }) {
     return (
         <div id="notes" className="flex h-full min-h-0 flex-col gap-4">
-            <div className="flex items-center justify-between">
-                <p className="text-sm text-[var(--muted)]">
-                    {notes.data.length} note{notes.data.length === 1 ? '' : 's'}
-                </p>
-                <PillButton onClick={onNew} primary>
-                    + New note
-                </PillButton>
-            </div>
-
+            
             <GlassCard className="min-h-0 flex-1 overflow-y-auto">
                 {notes.data.length === 0 ? (
                     <div className="py-8 text-center">

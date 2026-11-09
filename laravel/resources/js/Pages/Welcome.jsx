@@ -8,6 +8,7 @@ export default function Welcome({
     auth,
     canLogin,
     notes,
+    presets = [],
     dueForReminder,
     lastLoggedAt,
     defaultPreset,
@@ -44,6 +45,7 @@ export default function Welcome({
                 {auth?.user ? (
                     <AuthenticatedView
                         notes={notes}
+                        presets={presets}
                         dueForReminder={dueForReminder}
                         lastLoggedAt={lastLoggedAt}
                         defaultPreset={defaultPreset}
