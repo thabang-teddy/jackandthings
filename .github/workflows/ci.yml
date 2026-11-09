@@ -1,0 +1,537 @@
+# Jack & Things CI.
+#
+# Four checks, then two publishers:
+#
+#   php        Pint, the PHPUnit suite, a rehearsal of the release caches, and
+#              `composer audit`. Runs on the PHP version the cPanel account is
+#              expected to have — see PHP_VERSION below.
+#   js         The Vite build. laravel/public/build is git-ignored, so nothing
+#              else produces the bundle the server runs.
+#   android    The Kotlin unit suite in android/.
+#   extension  The add-on's node --test suite. No install step: the add-on has
+#              no dependencies, by design.
+#   cpanel     Builds the Laravel-only artefact and publishes it to
+#              deploy/staging or deploy/production, which the account polls.
+#   apk        Signs and publishes an Android APK as a GitHub Release. main only.
+#
+# Pull requests run the four checks. Pushes to main/staging run them again and
+# then publish — a publisher needs the checks in its OWN run, so "PR was green"
+# is not something this file can act on.
+#
+# Nothing here uses continue-on-error. A check that cannot fail the build is
+# not a check.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main, staging]
+  push:
+    branches: [main, staging]
+
+permissions:
+  contents: read
+
+# A pull request is disposable, so a new push cancels the old run. A push is
+# not: cancelling mid-publish could leave the artefact branch pointing at a
+# half-built tree. The publishers additionally serialise on their own group.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # composer.json allows ^8.3 and deploy/cpanel-deploy.sh refuses anything below
+  # PHP_VERSION_ID 80300. Until the hosting account's real PHP version is known,
+  # the floor is the only defensible value: passing here proves the artefact
+  # runs on the oldest interpreter the deploy script will accept. If the account
+  # turns out to run 8.4, raise this AND MIN_PHP_ID together — that pairing is
+  # the contract between the machine that builds and the machine that runs.
+  PHP_VERSION: '8.3'
+  NODE_VERSION: '20'
+  JAVA_VERSION: '17'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # The guard.
+  #
+  # deploy/staging and deploy/production are ARTEFACTS, force-pushed by the
+  # cpanel job below. They contain no android/, extension/, docs/ or tests/ and
+  # they commit vendor/ and public/build, which source ignores.
+  #
+  # A pull request opened FROM one of them cannot pass the checks below — the
+  # php job dies on a missing tests/Unit. That red looks like broken code and is
+  # not. Worse, merging such a pull request would delete android/, extension/
+  # and docs/ from the target branch and commit vendor/ into source history.
+  #
+  # So this says why, in one place. It deliberately does not gate the other jobs
+  # with `needs`: a skipped check can count as a passing one, and an artefact
+  # branch must never look mergeable.
+  # ---------------------------------------------------------------------------
+  guard:
+    name: Guard — reject artefact-branch pull requests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      # github.head_ref is empty on a push, so this step is skipped there and
+      # the job passes in a few seconds. It only ever speaks on a pull request.
+      - name: Refuse a pull request opened from a deploy branch
+        if: startsWith(github.head_ref, 'deploy/')
+        run: |
+          echo "::error::${{ github.head_ref }} is a deploy artefact branch, not a source branch."
+          echo "It is force-pushed on every build, and the cpanel job strips"
+          echo "android/, extension/, docs/ and tests/ from it before pushing."
+          echo "Merging it into ${{ github.base_ref }} would delete those from source"
+          echo "and commit vendor/ and public/build into history."
+          echo
+          echo "Close this pull request. To deploy, push to staging or main and let"
+          echo "the cpanel job publish the artefact; the server pulls it from there."
+          exit 1
+
+  # ---------------------------------------------------------------------------
+  # Checks.
+  # ---------------------------------------------------------------------------
+  php:
+    name: PHP — format, test, and the release caches
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: laravel
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, pdo_sqlite, sqlite3, zip, bcmath, intl
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --no-ansi --prefer-dist
+
+      - name: Prepare the environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Pint
+        run: ./vendor/bin/pint --test
+
+      # phpunit.xml pins DB_DATABASE to :memory:, so this never touches a file.
+      - name: Test
+        run: php artisan test
+
+      # The release path, rehearsed. deploy/cpanel-deploy.sh caches config,
+      # routes and views on the server; a closure in a route file or a config
+      # value that cannot be serialised fails there, in maintenance mode, on the
+      # account. Failing here instead costs ten seconds.
+      #
+      # `route:list` after `config:cache` is the part that matters: it proves
+      # the application still boots when Laravel is no longer reading .env.
+      - name: Smoke the release caches
+        # .env.example ships CACHE_STORE=database, so `optimize:clear` at the
+        # end of this step would try to reach MySQL that the runner does not
+        # have — a red build for an environmental reason, on a step whose point
+        # is the config/route/view caches. phpunit.xml already pins
+        # CACHE_STORE=array for the suite; this is the same pin, for the same
+        # reason. Nothing here asserts anything about the cache backend.
+        env:
+          CACHE_STORE: array
+        run: |
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          php artisan route:list > /dev/null
+          php artisan optimize:clear
+
+      - name: Audit dependencies
+        run: composer audit --no-interaction
+
+  js:
+    name: JS — build the bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: laravel/package-lock.json
+
+      - name: Install
+        working-directory: laravel
+        run: npm ci
+
+      # There is no lint step, and that is a known gap rather than an oversight:
+      # `npm run lint` currently reports three errors in
+      # resources/js/Pages/Notes/GlassIndexView.jsx (two unused bindings and a
+      # Prettier line break). Adding it as a gate today would make every pull
+      # request red for a reason unrelated to the change under test. Fix those
+      # three, then add `npm run lint` here — without --fix, which would let CI
+      # modify the tree it is checking.
+      - name: Build
+        working-directory: laravel
+        run: npm run build
+
+  android:
+    name: Android — unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: android
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      # `bash gradlew`, not `./gradlew`: the wrapper is committed mode 644
+      # (this repository was built on Windows), so the executable bit cannot be
+      # relied on.
+      - name: Test
+        run: bash gradlew :app:testDebugUnitTest --console=plain
+
+  extension:
+    name: Add-on — tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    defaults:
+      run:
+        working-directory: extension
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # node --test on the committed sources. No install step exists because
+      # the add-on has no dependencies — that is the point of it.
+      - name: Test
+        run: npm test
+
+  # ---------------------------------------------------------------------------
+  # The Laravel-only artefact.
+  #
+  #   staging -> deploy/staging    -> the staging account's checkout
+  #   main    -> deploy/production -> the production account's checkout
+  #
+  # The branch is not history. It is the Laravel app FLATTENED to the branch
+  # root — `artisan`, `app/`, `public/`, `vendor/` and `public/build/` at the
+  # top level — plus `deploy/`, which holds the deploy script the account runs. No
+  # android/, extension/, docs/ or tests/.
+  #
+  # vendor/ and public/build/ are committed because the account has neither
+  # Composer nor Node. That is also why .env is absent: the account writes its
+  # own, and it is git-ignored so `git reset --hard` never touches it.
+  #
+  # Force-pushed on every build. Never branch off one.
+  #
+  # No cPanel credential appears here by design: the account polls for its own
+  # branch and derives its own paths, so CI never learns where the app lives.
+  # deploy/cpanel-deploy.sh explains why that direction was chosen.
+  # ---------------------------------------------------------------------------
+  cpanel:
+    name: cPanel — build and publish the deploy artefact
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # THE GATE. Without this edge this is a deployment pipeline with no tests in
+    # front of it. All four are required: "if staging is successful" means the
+    # whole suite, not just the part that ships.
+    needs: [php, js, android, extension]
+
+    # The `push` clause is not decoration: without it a pull request targeting
+    # main would publish the PR head as production. That is the most expensive
+    # mistake available in this file.
+    if: |
+      github.event_name == 'push'
+      && contains(fromJSON('["main", "staging"]'), github.ref_name)
+
+    # Keyed on the branch: two pushes a minute apart must not interleave their
+    # pushes to the artefact branch, but a staging deploy must never block a
+    # production one. Not cancelled in flight — a half-published artefact is
+    # worse than a slow one.
+    concurrency:
+      group: cpanel-${{ github.ref_name }}
+      cancel-in-progress: false
+
+    # Overrides the workflow-level `contents: read`. Force-pushing the artefact
+    # branch is the only write this pipeline performs.
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Resolve the target environment
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "DEPLOY_BRANCH=deploy/production" >> "$GITHUB_ENV"
+            echo "ENVIRONMENT=production"          >> "$GITHUB_ENV"
+          else
+            echo "DEPLOY_BRANCH=deploy/staging"    >> "$GITHUB_ENV"
+            echo "ENVIRONMENT=staging"             >> "$GITHUB_ENV"
+          fi
+          echo "RELEASE_SHA=$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, pdo_sqlite, sqlite3, zip, bcmath, intl
+          coverage: none
+
+      # --no-dev is what makes this an artefact rather than a checkout. It also
+      # means the artefact cannot run the suite, which is correct: tests ran in
+      # the jobs this one depends on.
+      - name: Install PHP dependencies for release
+        working-directory: laravel
+        run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress --no-ansi
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: laravel/package-lock.json
+
+      # public/build is git-ignored, so the checkout has no bundle at all and
+      # this step is the only thing that produces one. That is the point: the
+      # artefact can never ship whatever was last built on a laptop.
+      - name: Build the front-end bundle
+        working-directory: laravel
+        run: |
+          npm ci
+          npm run build
+
+      # Flatten `laravel/` onto the branch root and drop every other surface.
+      #
+      # dotglob is load-bearing: .env.example, .gitignore, .gitattributes and
+      # .editorconfig all have to move, and a plain `mv laravel/*` would leave
+      # them behind. `.git` is excluded from the sweep because deleting it
+      # would delete the branch being built.
+      #
+      # `git add -Af` is required for vendor/ and public/build precisely
+      # BECAUSE the .gitignore that just moved to the root excludes them.
+      - name: Publish the artefact branch
+        run: |
+          set -euo pipefail
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          rm -rf laravel/node_modules laravel/tests
+
+          git checkout -B "$DEPLOY_BRANCH"
+
+          shopt -s dotglob nullglob
+          for entry in *; do
+            case "$entry" in
+              laravel|deploy|.git) ;;
+              *) rm -rf "$entry" ;;
+            esac
+          done
+
+          mv laravel/* .
+          rmdir laravel
+
+          git add -Af vendor public/build
+          git add -A
+          git commit -m "build ${RELEASE_SHA} for ${ENVIRONMENT} from ${GITHUB_SHA}"
+          git push --force origin "$DEPLOY_BRANCH"
+
+      - name: Summarise
+        run: |
+          {
+            echo "### Artefact published for ${ENVIRONMENT}"
+            echo
+            echo "- Source: \`${{ github.ref_name }}\` @ \`${RELEASE_SHA}\`"
+            echo "- Artefact branch: \`${DEPLOY_BRANCH}\` (Laravel app at the branch root)"
+            echo
+            echo "**Not deployed yet.** The cPanel account polls this branch and"
+            echo "applies it. A green tick here means the artefact is ready, not that"
+            echo "it is live — the account's deploy log is the record of that."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # The Android APK, published as a GitHub Release.
+  #
+  # main only, and only after every check has passed — this is a download link
+  # on a public page, so it gets the same gate as the web release.
+  #
+  # There is no Android self-updater in this app (unlike the sibling project),
+  # but a debug-signed APK is still a trap: each CI runner generates its own
+  # debug key, so version N+1 could not install over version N. The keystore is
+  # therefore REQUIRED here rather than optional, and the build is told to fail
+  # rather than fall back. See docs/DEPLOYMENT.md for the one-time keytool
+  # command and the four secrets.
+  #
+  # Version: <major>.<minor>.<run number>, from jackVersionName in
+  # android/app/build.gradle.kts — the same scheme as the sibling project.
+  # ---------------------------------------------------------------------------
+  apk:
+    name: Android — sign and publish the APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    needs: [php, js, android, extension]
+
+    if: github.event_name == 'push' && github.ref_name == 'main'
+
+    # Two merges a minute apart must not race for the same tag or release.
+    concurrency:
+      group: release-main
+      cancel-in-progress: false
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      # Reads the default off the `val jackVersionName` line in the module build
+      # file. That literal is the single source of truth for the series; the run
+      # number is the patch, so the tag rises on every release.
+      - name: Resolve the version
+        run: |
+          VERSION=$(sed -n 's/^val jackVersionName = .*?: "\([^"]*\)".*$/\1/p' android/app/build.gradle.kts)
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not read jackVersionName from android/app/build.gradle.kts."
+            exit 1
+          fi
+          SERIES=$(echo "$VERSION" | cut -d. -f1,2)
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "TAG=${SERIES}.${{ github.run_number }}" >> "$GITHUB_ENV"
+          echo "Resolved tag: ${SERIES}.${{ github.run_number }}"
+
+      # The failure here is deliberate and happens BEFORE anything is published,
+      # so the first public APK already carries the key every later one must
+      # match. Base64 so the binary survives a repository secret.
+      - name: Write the release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 is not set."
+            echo "Publishing an APK signed with a throwaway debug key would produce"
+            echo "a download that cannot install over the one before it, and no"
+            echo "future release could fix that for anyone who installed it."
+            echo "Create the key once and add the four secrets — docs/DEPLOYMENT.md:"
+            echo
+            echo "  keytool -genkeypair -v -keystore jack-release.jks \\"
+            echo "    -alias jack -keyalg RSA -keysize 2048 -validity 10000"
+            echo "  base64 -w0 jack-release.jks   # ANDROID_KEYSTORE_BASE64"
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "${RUNNER_TEMP}/jack-release.jks"
+          echo "Keystore written to ${RUNNER_TEMP}/jack-release.jks"
+
+      # ANDROID_API_BASE_URL is a repository VARIABLE, not a secret: it is a
+      # public URL that also ships inside the APK. When it is unset the build
+      # falls back to the app's own release default, which is a placeholder —
+      # the warning is there so a placeholder URL never reaches the download
+      # page unnoticed.
+      - name: Build the APK
+        working-directory: android
+        env:
+          JACK_KEYSTORE_FILE: ${{ runner.temp }}/jack-release.jks
+          JACK_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          JACK_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          JACK_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          API_BASE_URL: ${{ vars.ANDROID_API_BASE_URL }}
+        run: |
+          if [ -z "$API_BASE_URL" ]; then
+            API_BASE_URL="https://localhost/api/v1/"
+            echo "::warning::ANDROID_API_BASE_URL is not set — this APK points at the"
+            echo "app's placeholder default (${API_BASE_URL}). Set the repository"
+            echo "variable before handing the download to anyone."
+          fi
+
+          bash gradlew :app:assembleRelease \
+            "-PjackVersionName=${TAG}" \
+            "-PjackVersionCode=${{ github.run_number }}" \
+            "-PjackApiBaseUrl=${API_BASE_URL}" \
+            -PjackRequireSigning=true \
+            --console=plain
+
+          cp app/build/outputs/apk/release/app-release.apk "jackandthings-${TAG}.apk"
+
+      # The belt to the build script's braces. -PjackRequireSigning=true makes
+      # Gradle refuse to fall back to debug keys, and this proves it did: a
+      # debug certificate always carries CN=Android Debug.
+      - name: Prove the APK is not debug-signed
+        working-directory: android
+        run: |
+          keytool -printcert -jarfile "jackandthings-${TAG}.apk" > certificate.txt
+          if grep -q "CN=Android Debug" certificate.txt; then
+            echo "::error::The APK is signed with a debug key and must not be published."
+            cat certificate.txt
+            exit 1
+          fi
+          SHA256=$(grep -m1 "SHA256:" certificate.txt | sed -E 's/.*SHA256:[[:space:]]*//')
+          echo "SIGNING_SHA256=${SHA256}" >> "$GITHUB_ENV"
+          echo "Certificate SHA-256: ${SHA256}"
+
+      # Whatever happens above, the key does not outlive the job.
+      - name: Remove the keystore
+        if: always()
+        run: rm -f "${RUNNER_TEMP}/jack-release.jks"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-${{ github.run_number }}
+          path: android/jackandthings-*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      # Re-runs are normal (a flaky deploy, a re-requested review), and a tag
+      # that already exists would fail `gh release create`. Upload over it
+      # instead of failing the pipeline on the second attempt.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "android/jackandthings-${TAG}.apk" --clobber
+          else
+            gh release create "$TAG" "android/jackandthings-${TAG}.apk" \
+              --target "${{ github.sha }}" \
+              --title "Jack & Things ${TAG}" \
+              --generate-notes
+          fi
+
+      - name: Summarise
+        run: |
+          {
+            echo "### Released ${TAG}"
+            echo
+            echo "- Tag: \`${TAG}\` @ \`${{ github.sha }}\`"
+            echo "- Download: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${TAG}"
+            echo "- APK signing key: \`${SIGNING_SHA256}\`"
+            echo
+            echo "That fingerprint must be identical on every release: Android"
+            echo "refuses an install signed with a different key."
+          } >> "$GITHUB_STEP_SUMMARY"

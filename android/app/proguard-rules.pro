@@ -26,3 +26,12 @@
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
+
+# Guava — pulled in by androidx.security:security-crypto — is annotated with
+# Error Prone's annotations, which are compile-time only and never packaged.
+# R8 in full mode treats the missing annotation classes as an error, so a
+# release build fails until they are named here. Dropping them is safe: nothing
+# reads them at runtime.
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn com.google.j2objc.annotations.**
+-dontwarn org.checkerframework.**

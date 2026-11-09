@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+#
+# Run the GitHub Actions workflow locally, with `act`, before anything leaves
+# this machine.
+#
+# Enable it once per clone (hooks are not cloned):
+#
+#   git config core.hooksPath .githooks
+#
+# Requires: act (winget install nektos.act) and a running Docker daemon.
+#
+# --------------------------------------------------------------------------
+# Two deliberate limits.
+#
+# 1. It runs `php` and `js` only. NEVER `cpanel`: that job force-pushes the
+#    artefact branch, and running it locally would publish a release built on
+#    a laptop. `flutter` is skipped because act would download the whole SDK
+#    into the container on every run — minutes, for a job that does not gate
+#    the web release anyway.
+#
+# 2. It BLOCKS only on protected branches. A feature branch gets the same
+#    checks and the same output, but a failure is a warning: work in progress
+#    is allowed to be in progress.
+# --------------------------------------------------------------------------
+
+set -uo pipefail
+
+PROTECTED_RE='^(master|main|staging)$'
+JOBS=(php js)
+
+# `git push --no-verify` skips this hook entirely; SKIP_PREPUSH=1 is the same
+# escape for tools that do not pass the flag through.
+if [ "${SKIP_PREPUSH:-0}" = "1" ]; then
+    echo "pre-push: skipped (SKIP_PREPUSH=1)"
+    exit 0
+fi
+
+# WinGet puts act here and only adds it to PATH for shells started afterwards.
+# A hook inherits git's environment, which may predate that.
+if ! command -v act > /dev/null 2>&1; then
+    if [ -x "${LOCALAPPDATA:-}/Microsoft/WinGet/Links/act.exe" ]; then
+        PATH="${PATH}:${LOCALAPPDATA}/Microsoft/WinGet/Links"
+    else
+        echo "pre-push: act not found. Install it with: winget install nektos.act"
+        echo "pre-push: allowing the push rather than blocking on a missing tool."
+        exit 0
+    fi
+fi
+
+if ! docker info > /dev/null 2>&1; then
+    echo "pre-push: Docker is not running — act cannot run without it."
+    echo "pre-push: allowing the push. Start Docker Desktop to get these checks back."
+    exit 0
+fi
+
+# git feeds the hook one line per ref: <local ref> <local sha> <remote ref> <remote sha>
+protected=0
+while read -r _local_ref local_sha remote_ref _remote_sha; do
+    # All-zero local sha means the ref is being DELETED. Nothing to test.
+    case "$local_sha" in *[!0]*) ;; *) continue ;; esac
+
+    branch="${remote_ref#refs/heads/}"
+
+    # The deploy/* branches are build artefacts that CI force-pushes. A push
+    # from a laptop overwrites a release with whatever is checked out here, and
+    # the server pulls it within five minutes.
+    case "$branch" in
+        deploy/*)
+            echo "pre-push: REFUSING to push ${branch}."
+            echo "pre-push: deploy/* branches are built and force-pushed by CI only."
+            echo "pre-push: if you really mean it: git push --no-verify"
+            exit 1 ;;
+    esac
+
+    if [[ "$branch" =~ $PROTECTED_RE ]]; then
+        protected=1
+    fi
+done
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT" || exit 0
+
+if [ "$protected" -eq 1 ]; then
+    echo "pre-push: protected branch — a failing check will BLOCK the push."
+else
+    echo "pre-push: feature branch — checks run, but a failure will not block."
+fi
+
+failed=()
+for job in "${JOBS[@]}"; do
+    echo ""
+    echo "pre-push: act push -j ${job}"
+    if ! act push -j "$job" -W .github/workflows/ci.yml; then
+        failed+=("$job")
+    fi
+done
+
+if [ ${#failed[@]} -eq 0 ]; then
+    echo ""
+    echo "pre-push: ${JOBS[*]} passed."
+    exit 0
+fi
+
+echo ""
+echo "pre-push: FAILED — ${failed[*]}"
+
+if [ "$protected" -eq 1 ]; then
+    echo "pre-push: push blocked. Fix, or override with: git push --no-verify"
+    exit 1
+fi
+
+echo "pre-push: not a protected branch, so the push continues anyway."
+exit 0
