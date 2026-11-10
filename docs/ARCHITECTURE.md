@@ -10,7 +10,7 @@ Versions below are what is actually installed in `laravel/` (from `composer.lock
 | --- | --- | --- | --- |
 | Frontend (web) | Inertia + React 18, Tailwind CSS (built) | Matches the sibling project `fiyobra/laravel`; Tailwind is the Breeze React default and pairs with DESIGN_SYSTEM.md's CSS-custom-property tokens | `@inertiajs/react` ^2.0, `inertiajs/inertia-laravel` v3.7.0 (newer major than fiyobra's v2 — verified working with Breeze 2.4 scaffolding) |
 | Backend/API | Laravel v13.40.0 on PHP 8.4.20 (built) | Owner chose "like fiyobra" | Local PHP is 8.4 via Herd; `composer.json` says `^8.3` but the lock's Symfony 8.1 packages need 8.4.1+ |
-| Database | MySQL 8.0.46 (confirmed and running) | Matches fiyobra's `DB_CONNECTION=mysql`; owner approved locking in the proposal | Local instance is Herd's bundled service on `127.0.0.1:3306`; database `jackandthings` |
+| Database | SQLite (built) | Owner's choice: a single file with no database service to install, start or credential | File is `laravel/database/database.sqlite`, git-ignored; tests run on `:memory:`; a deployment must point `DB_DATABASE` at an absolute path outside the checkout (see DEPLOYMENT.md) |
 | Authentication | Laravel Breeze (session) + Sanctum v4.3.3 tokens, email+password (built) | Owner's explicit choice. Breeze used instead of hand-rolling (fiyobra hand-rolled only for column-encryption/2FA/multi-domain needs that do not apply here) | Web uses the session guard; Android/add-ons use bearer tokens from `POST /api/v1/auth/token` |
 | Route helper | Ziggy v2.6.5 | Breeze's React stack calls `route()` in JS, same as fiyobra | — |
 | Hosting | Existing server already hosting `fiyobra` (confirmed) | Owner's explicit choice | Specific provisioning, domain, and environment separation from `fiyobra`'s production environment — **unresolved** |
@@ -86,7 +86,7 @@ extension/               MV3 add-on (five modules + the history add-on)
 ```
 
 ## Operations
-- Local development: Herd (PHP 8.4 + bundled MySQL). `php artisan serve` + `npm run dev`, or `composer run dev` for the concurrent server/queue/log/vite setup.
+- Local development: Herd (PHP 8.4) with SQLite; there is no database service to start. `php artisan serve` + `npm run dev`, or `composer run dev` for the concurrent server/queue/log/vite setup.
 - Loading the add-on: Chrome — `chrome://extensions`, enable Developer mode, "Load unpacked", pick `extension/`. Firefox — `about:debugging#/runtime/this-firefox`, "Load Temporary Add-on", pick `extension/manifest.json`. Then open its options page and sign in. Note Chrome 156 refuses the `--load-extension` command-line switch, so loading it from the UI is the only route.
 - Environments, configuration, deployment, rollback: **unresolved**. Flagging a risk again: sharing infrastructure with `fiyobra`'s production environment means environment separation (so a jackandthings bug/outage can't affect fiyobra, and vice versa) needs an explicit decision before any deployment. Nothing has been deployed.
 - Logs, monitoring, scale limits: **unresolved**. `fiyobra` uses `sentry/sentry-laravel`; not installed here. Laravel's default `stack`/`single` log channel only.
@@ -95,7 +95,7 @@ extension/               MV3 add-on (five modules + the history add-on)
 **Confirmed and built (web + API):**
 - Multi-tenant, per-user account isolation — enforced by relation-scoped queries, explicit policies, and 404-on-foreign-record.
 - All six modules, as both Inertia web pages and a versioned token API.
-- Laravel 13 + Inertia + React + Tailwind, Breeze auth scaffolding, MySQL, Sanctum tokens.
+- Laravel 13 + Inertia + React + Tailwind, Breeze auth scaffolding, SQLite, Sanctum tokens.
 - Budget: multiple accounts per user, fixed ZAR, integer-cent storage, derived balances, atomic two-leg transfers, overdraft rejection.
 - History: hard-delete model plus a daily `history:prune` with a clearly-marked placeholder retention window.
 - Workout: reminder *state* only, polled via API; no delivery.

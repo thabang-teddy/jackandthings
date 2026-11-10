@@ -1,13 +1,18 @@
 # Database
 
 ## Storage model
-- Database/provider: **MySQL 8.0** (confirmed and built). Database `jackandthings`, dedicated `jackandthings` user. Local instance is Herd's bundled MySQL on `127.0.0.1:3306`.
+- Database/provider: **SQLite** via Laravel's `sqlite` driver (built). One file at `laravel/database/database.sqlite`, git-ignored (`database/.gitignore`) and created by `composer.json`'s post-create-project script. It is the connection for local development and for the PHPUnit suite (`phpunit.xml` pins `:memory:`); nothing in the schema or queries is engine-specific.
 - Ownership model: Multi-tenant — each row is owned by exactly one user account; no shared/family ownership (confirmed via owner's answer: "Multi-tenant, separate accounts per user").
 - Key types: `users.id` stays Laravel's `bigIncrements` (so Breeze's `sessions` table and Sanctum's `tokenable` morphs work unchanged). **All seven module tables use UUIDv7 primary keys** (`HasUuids`) so record ids in URLs and API responses are not enumerable; their `user_id` is a `foreignId` to `users`.
 - Data classification:
   - Sensitive: Budget accounts/transactions (financial), Clipboard contents (may contain passwords or other sensitive text), auth credentials.
   - Personal: Notes, Workout entries, History/URLs.
   - Internal: Pomodoro presets/sessions.
+
+## SQLite specifics
+- Connection settings: `config/database.php` opens the file with `busy_timeout` 5000 ms, `journal_mode` WAL and `synchronous` NORMAL, each overridable with `DB_BUSY_TIMEOUT`, `DB_JOURNAL_MODE` and `DB_SYNCHRONOUS`. The app writes from three places at once (web requests, the queue worker, the scheduler's `history:prune`), so a writer waits for the lock instead of failing with "database is locked". WAL keeps recent commits in `database.sqlite-wal` next to the file, which is why `database/.gitignore` ignores `*.sqlite*`.
+- Case sensitivity: SQLite compares `TEXT` with the binary collation, where MySQL's default collation was case-insensitive. Names are therefore unique per user only when they match exactly — `Cash` and `cash` are two different accounts or watch lists — and a sign-in attempt must type an email's case as stored (registration only accepts lowercase, so stored emails are lowercase). This is the one semantic difference of the switch and is not worked around in code.
+- The rest of the schema is ordinary Laravel: UUIDv7 keys are stored as `TEXT`, money as integer cents, timestamps as `datetime`. No query in `app/` uses engine-specific SQL.
 
 ## Entities
 As built (migrations in `laravel/database/migrations`).

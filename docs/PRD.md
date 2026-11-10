@@ -51,7 +51,7 @@ All three surfaces now exist: the Laravel server (web UI + `api/v1`), the Kotlin
 - Accessibility/performance requirements: **unresolved**.
 
 ## Open decisions
-**Settled since the first draft:** build order (server first, then Android and add-ons), currency (fixed ZAR), stack and auth (Laravel 13 + Inertia/React + MySQL + Breeze/Sanctum), and Budget's multi-account model.
+**Settled since the first draft:** build order (server first, then Android and add-ons), currency (fixed ZAR), stack and auth (Laravel 13 + Inertia/React + SQLite + Breeze/Sanctum), and Budget's multi-account model.
 
 **Still open:**
 - Workout reminders in the *web app*. Android and the add-on both poll due-state hourly and raise their own local notification, so the server still pushes nothing — that design is settled. Only the web page, which can only show an in-page banner, is undecided.

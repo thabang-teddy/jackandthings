@@ -103,9 +103,9 @@ Per stage, once:
   `~/production/jackandthings`, checked out **on** `deploy/staging` /
   `deploy/production` so the tree IS the application.
 - A `.env` written by hand, containing at minimum `APP_ENV`, `APP_KEY`,
-  `APP_URL`, and the database settings. `DB_DATABASE` must be absolute and
-  **outside** the checkout when `DB_CONNECTION=sqlite`; `deploy/cpanel-deploy.sh`
-  refuses to run otherwise.
+  `APP_URL`, and the database settings. `DB_CONNECTION=sqlite` is now the
+  default, and then `DB_DATABASE` must be absolute and **outside** the
+  checkout; `deploy/cpanel-deploy.sh` refuses to run otherwise.
 - A cron entry, every five minutes, invoking `deploy/cpanel-deploy.sh` with
   `bash`. That is the whole entry point: it takes a lock, fetches the artefact
   branch, hard-resets the tree and applies it. Run it by hand with

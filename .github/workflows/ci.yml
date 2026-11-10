@@ -136,12 +136,13 @@ jobs:
       # `route:list` after `config:cache` is the part that matters: it proves
       # the application still boots when Laravel is no longer reading .env.
       - name: Smoke the release caches
-        # .env.example ships CACHE_STORE=database, so `optimize:clear` at the
-        # end of this step would try to reach MySQL that the runner does not
-        # have — a red build for an environmental reason, on a step whose point
-        # is the config/route/view caches. phpunit.xml already pins
-        # CACHE_STORE=array for the suite; this is the same pin, for the same
-        # reason. Nothing here asserts anything about the cache backend.
+        # .env.example ships CACHE_STORE=database and leaves DB_DATABASE unset,
+        # so `optimize:clear` at the end of this step would try to open a
+        # database/database.sqlite file the runner never created — a red build
+        # for an environmental reason, on a step whose point is the
+        # config/route/view caches. phpunit.xml already pins CACHE_STORE=array
+        # for the suite; this is the same pin, for the same reason. Nothing
+        # here asserts anything about the cache backend.
         env:
           CACHE_STORE: array
         run: |
