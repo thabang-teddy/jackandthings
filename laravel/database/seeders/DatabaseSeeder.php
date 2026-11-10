@@ -14,6 +14,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(AdminUserSeeder::class);
+
         // Demo data is local-only; production seeding should stay empty.
         if (app()->environment('local')) {
             $this->call(DemoDataSeeder::class);
