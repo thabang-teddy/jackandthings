@@ -143,6 +143,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# `cleanup` reports whether the application was taken down, but not where the
+# run died. This prints the line so a failure that produces no FATAL message is
+# still diagnosable instead of just "FAILED at exit 1". It fires exactly where
+# `set -e` would exit, so it cannot add noise to a handled failure.
+trap 'log "ERROR: unhandled failure at line ${LINENO} (exit $?). Re-run with: bash -x $0"' ERR
+
 mkdir -p "$(dirname "$LOCK_FILE")"
 
 if command -v flock > /dev/null 2>&1; then
@@ -173,13 +179,33 @@ fi
 cd "$REPO_ROOT"
 
 if [ "$MODE" = "poll" ]; then
-    branch="$(git rev-parse --abbrev-ref HEAD)"
-    remote_ref="$(git rev-parse --abbrev-ref '@{u}' 2>/dev/null || echo "origin/${branch}")"
+    branch="$(git rev-parse --abbrev-ref HEAD 2> /dev/null || true)"
+    if [ -z "$branch" ] || [ "$branch" = "HEAD" ]; then
+        log "FATAL: ${REPO_ROOT} is not on a branch. Check it out on its deploy branch."
+        exit 1
+    fi
+
+    # `%(upstream:short)` prints nothing when a branch has no upstream. The
+    # obvious alternative, `git rev-parse '@{u}' || echo origin/x`, is a trap:
+    # on failure rev-parse writes the literal `@{u}` to STDOUT before exiting
+    # non-zero, so the `|| echo` append produces a two-line value that looks
+    # like a ref name and fails only later, at the reset.
+    remote_ref="$(git for-each-ref --format='%(upstream:short)' "refs/heads/${branch}" 2> /dev/null || true)"
+    [ -n "$remote_ref" ] || remote_ref="origin/${branch}"
 
     git fetch --quiet origin "$branch"
 
-    local_sha="$(git rev-parse HEAD)"
-    remote_sha="$(git rev-parse "$remote_ref")"
+    # --verify --quiet: no output at all on failure, so a bad ref cannot leave
+    # a plausible-looking string in the variable.
+    local_sha="$(git rev-parse --verify --quiet HEAD || true)"
+    remote_sha="$(git rev-parse --verify --quiet "${remote_ref}^{commit}" || true)"
+
+    # A read-only deploy key that lost access, or a fetch that brought nothing.
+    [ -n "$remote_sha" ] || {
+        log "FATAL: cannot resolve ${remote_ref} after fetching."
+        log '       Check the deploy key has read access to the repository.'
+        exit 1
+    }
 
     if [ "$local_sha" = "$remote_sha" ]; then
         # Deliberately quiet. This runs 288 times a day and all but a few are
@@ -231,12 +257,34 @@ log "Deploying ${sha} into ${APP} using PHP ${php_version} (${PHP})"
 # Any other connection is a server this script cannot touch, so it only has to
 # be configured. Applying the absolute-path rule to MySQL would refuse to
 # deploy a perfectly good stage for no reason.
+#
+# The `|| true` on the reads below is load-bearing. `grep` exits 1 when it
+# matches nothing, and under `set -e` a failing command substitution ends the
+# script immediately — silently, before any of the FATAL messages can run. The
+# first production deploy died exactly that way: "FAILED at exit 1, before the
+# application was taken down", with no reason given. A key absent from .env is
+# an expected condition, so the read returns empty and the checks name the key.
 # ---------------------------------------------------------------------------
-db_connection="$(grep -E '^DB_CONNECTION=' "${APP}/.env" | tail -1 | cut -d= -f2- | tr -d '"'"'"'\r ')"
+db_connection="$(grep -E '^DB_CONNECTION=' "${APP}/.env" | tail -1 | cut -d= -f2- | tr -d '"'"'"'\r ' || true)"
+
+# dotenv tolerates `DB_CONNECTION = mysql`; the greps here do not. Say so,
+# because the symptom is otherwise "it thinks my MySQL stage is sqlite".
+if [ -z "$db_connection" ] && grep -qE '^[[:space:]]*DB_CONNECTION[[:space:]]*=' "${APP}/.env"; then
+    log 'NOTE: DB_CONNECTION is in .env but not written as `DB_CONNECTION=value`.'
+    log '      This script reads .env strictly; rewrite the line with no spaces.'
+fi
+
 db_connection="${db_connection:-sqlite}"
 
 if [ "$db_connection" = "sqlite" ]; then
-    db_path="$(grep -E '^DB_DATABASE=' "${APP}/.env" | tail -1 | cut -d= -f2- | tr -d '"'"'"'\r')"
+    db_path="$(grep -E '^DB_DATABASE=' "${APP}/.env" | tail -1 | cut -d= -f2- | tr -d '"'"'"'\r' || true)"
+
+    [ -n "$db_path" ] || {
+        log "FATAL: DB_DATABASE is unset and DB_CONNECTION is sqlite (the default)."
+        log "       Set DB_DATABASE to an ABSOLUTE path outside the checkout,"
+        log "       e.g. DB_DATABASE=${HOME}/shared/jackandthings.sqlite"
+        exit 1
+    }
 
     case "$db_path" in
         /*) : ;;
@@ -262,7 +310,7 @@ if [ "$db_connection" = "sqlite" ]; then
     db_dir="$(dirname "$db_path")"
     [ -w "$db_dir" ] || { log "FATAL: ${db_dir} is not writable. SQLite needs to write its journal there."; exit 1; }
 else
-    db_name="$(grep -E '^DB_DATABASE=' "${APP}/.env" | tail -1 | cut -d= -f2- | tr -d '"'"'"'\r')"
+    db_name="$(grep -E '^DB_DATABASE=' "${APP}/.env" | tail -1 | cut -d= -f2- | tr -d '"'"'"'\r' || true)"
     [ -n "$db_name" ] || { log "FATAL: DB_CONNECTION is '${db_connection}' but DB_DATABASE is unset."; exit 1; }
     log "Database connection: ${db_connection} (${db_name}) — untouched by the reset."
 fi
@@ -286,7 +334,7 @@ fi
 # MustVerifyEmail), so nothing here depends on mail to work; refusing to deploy
 # would be its own outage. It is still almost certainly a misconfiguration.
 # ---------------------------------------------------------------------------
-mail_mailer="$(grep -E '^MAIL_MAILER=' "${APP}/.env" | tail -1 | cut -d= -f2- | tr -d '"'"'"'\r ')"
+mail_mailer="$(grep -E '^MAIL_MAILER=' "${APP}/.env" | tail -1 | cut -d= -f2- | tr -d '"'"'"'\r ' || true)"
 
 case "${mail_mailer:-}" in
     log|array|"")
