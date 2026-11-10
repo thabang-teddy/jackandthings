@@ -20,14 +20,14 @@ import com.jackandthings.ui.auth.LoginScreen
 import com.jackandthings.ui.auth.LoginViewModel
 import com.jackandthings.ui.budget.BudgetScreen
 import com.jackandthings.ui.budget.BudgetViewModel
-import com.jackandthings.ui.clipboard.ClipboardScreen
-import com.jackandthings.ui.clipboard.ClipboardViewModel
 import com.jackandthings.ui.home.HomeScreen
 import com.jackandthings.ui.notes.NotesScreen
 import com.jackandthings.ui.notes.NotesViewModel
 import com.jackandthings.ui.pomodoro.PomodoroScreen
 import com.jackandthings.ui.pomodoro.PomodoroViewModel
 import com.jackandthings.ui.settings.SettingsScreen
+import com.jackandthings.ui.watchlist.WatchListScreen
+import com.jackandthings.ui.watchlist.WatchListViewModel
 import com.jackandthings.ui.workout.WorkoutScreen
 import com.jackandthings.ui.workout.WorkoutViewModel
 import com.jackandthings.work.WorkoutReminders
@@ -37,8 +37,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 /**
  * Chooses between sign-in and the module tree, and owns navigation.
  *
- * [sharedText] carries text handed over by Android's share sheet, which opens
- * the Clipboard composer pre-filled instead of landing on the hub.
+ * [sharedText] carries text handed over by Android's share sheet, which jumps
+ * to the Watch list rather than landing on the hub.
  */
 @Composable
 fun JackApp(container: AppContainer, sharedText: String?) {
@@ -69,10 +69,10 @@ private fun SignedInApp(container: AppContainer, sharedText: String?) {
 
     RequestNotificationPermissionOnce()
 
-    // Shared text is only useful once: jump to Clipboard so the snippet can be
-    // saved, rather than leaving the user to find the screen themselves.
+    // Shared text jumps to the Watch list rather than leaving the user to find
+    // the screen themselves.
     LaunchedEffect(sharedText) {
-        if (!sharedText.isNullOrBlank()) navController.navigate("clipboard")
+        if (!sharedText.isNullOrBlank()) navController.navigate("watchlist")
     }
 
     NavHost(navController = navController, startDestination = "home") {
@@ -113,16 +113,11 @@ private fun SignedInApp(container: AppContainer, sharedText: String?) {
             )
         }
 
-        composable("clipboard") {
-            val clipboardViewModel: ClipboardViewModel =
-                viewModel(factory = ClipboardViewModel.factory(container.clipboard))
-
-            LaunchedEffect(sharedText) {
-                if (!sharedText.isNullOrBlank()) clipboardViewModel.startNew(sharedText)
-            }
-
-            ClipboardScreen(
-                viewModel = clipboardViewModel,
+        composable("watchlist") {
+            WatchListScreen(
+                viewModel = viewModel(
+                    factory = WatchListViewModel.factory(container.watchList),
+                ),
                 onBack = navController::popBackStack,
             )
         }

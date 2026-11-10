@@ -112,16 +112,30 @@ export const api = {
         ),
     deletePreset: (id) => request(`pomodoro-presets/${id}`, { method: 'DELETE' }),
 
-    // Clipboard
-    clipboardItems: async () => data(await request('clipboard-items')) ?? [],
-    createClipboardItem: async (title, content, sourceDevice) =>
+    // Watch list — named lists, each holding items.
+    watchLists: async () => data(await request('watch-lists')) ?? [],
+    createWatchList: async (name) =>
+        data(await request('watch-lists', { method: 'POST', body: { name } })),
+    deleteWatchList: (id) => request(`watch-lists/${id}`, { method: 'DELETE' }),
+    createWatchListItem: async (watchListId, title, note) =>
         data(
-            await request('clipboard-items', {
+            await request('watch-list-items', {
                 method: 'POST',
-                body: { title: title ?? '', content, source_device: sourceDevice },
+                body: {
+                    watch_list_id: watchListId,
+                    title,
+                    note: note ?? '',
+                },
             }),
         ),
-    deleteClipboardItem: (id) => request(`clipboard-items/${id}`, { method: 'DELETE' }),
+    updateWatchListItem: (id, fields) =>
+        data(
+            request(`watch-list-items/${id}`, {
+                method: 'PUT',
+                body: fields,
+            }),
+        ),
+    deleteWatchListItem: (id) => request(`watch-list-items/${id}`, { method: 'DELETE' }),
 
     // Workout
     workoutEntries: async () => data(await request('workout-entries')) ?? [],

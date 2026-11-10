@@ -42,12 +42,19 @@ data class PomodoroPreset(
 )
 
 @Serializable
-data class ClipboardItem(
+data class WatchList(
     val id: String,
-    val title: String? = null,
-    val content: String,
-    @SerialName("source_device") val sourceDevice: String? = null,
-    @SerialName("created_at") val createdAt: String? = null,
+    val name: String,
+    val items: List<WatchListItem> = emptyList(),
+)
+
+@Serializable
+data class WatchListItem(
+    val id: String,
+    @SerialName("watch_list_id") val watchListId: String? = null,
+    val title: String,
+    val note: String? = null,
+    val done: Boolean = false,
 )
 
 @Serializable

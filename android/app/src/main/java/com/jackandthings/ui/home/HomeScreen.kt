@@ -36,7 +36,7 @@ private val modules = listOf(
     HomeModule("notes", "Notes", "Write and keep notes."),
     HomeModule("budget", "Budget", "Accounts, transactions and transfers in ZAR."),
     HomeModule("workout", "Workout", "Log workouts and get an hourly nudge."),
-    HomeModule("clipboard", "Clipboard", "Save snippets to pick up elsewhere."),
+    HomeModule("watchlist", "Watch list", "Keep lists of things to watch or read."),
 )
 
 @Composable

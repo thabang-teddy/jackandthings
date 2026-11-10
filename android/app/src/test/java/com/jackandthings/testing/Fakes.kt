@@ -3,16 +3,17 @@ package com.jackandthings.testing
 import com.jackandthings.model.AuthUser
 import com.jackandthings.model.BudgetAccount
 import com.jackandthings.model.BudgetTransaction
-import com.jackandthings.model.ClipboardItem
 import com.jackandthings.model.Note
 import com.jackandthings.model.PomodoroPreset
 import com.jackandthings.model.ReminderState
+import com.jackandthings.model.WatchList
+import com.jackandthings.model.WatchListItem
 import com.jackandthings.model.WorkoutEntry
 import com.jackandthings.repo.AuthStore
 import com.jackandthings.repo.BudgetRepository
-import com.jackandthings.repo.ClipboardRepository
 import com.jackandthings.repo.NotesRepository
 import com.jackandthings.repo.PomodoroRepository
+import com.jackandthings.repo.WatchListRepository
 import com.jackandthings.repo.WorkoutRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -107,37 +108,59 @@ class FakeNotesRepository(
     }
 }
 
-class FakeClipboardRepository(
-    var items: MutableList<ClipboardItem> = mutableListOf(),
-) : ClipboardRepository {
+class FakeWatchListRepository(
+    var lists: MutableList<WatchList> = mutableListOf(),
+) : WatchListRepository {
 
     var failure: Throwable? = null
 
-    /** Each saved snippet as (title, content, sourceDevice). */
-    val created: MutableList<Triple<String?, String, String?>> = mutableListOf()
+    val createdLists: MutableList<String> = mutableListOf()
+    val addedItems: MutableList<Triple<String, String, String?>> = mutableListOf()
+    val toggledIds: MutableList<Pair<String, Boolean>> = mutableListOf()
     val deletedIds: MutableList<String> = mutableListOf()
 
-    override suspend fun list(): Result<List<ClipboardItem>> =
-        failure?.let { Result.failure(it) } ?: Result.success(items.toList())
+    override suspend fun lists(): Result<List<WatchList>> =
+        failure?.let { Result.failure(it) } ?: Result.success(lists.toList())
 
-    override suspend fun create(
-        title: String?,
-        content: String,
-        sourceDevice: String?,
-    ): Result<ClipboardItem> {
+    override suspend fun createList(name: String): Result<WatchList> {
         failure?.let { return Result.failure(it) }
 
-        created.add(Triple(title, content, sourceDevice))
-        val item = ClipboardItem("clip-${items.size + 1}", title, content, sourceDevice)
-        items.add(item)
-        return Result.success(item)
+        createdLists.add(name)
+        val list = WatchList("list-${lists.size + 1}", name)
+        lists.add(list)
+        return Result.success(list)
     }
 
-    override suspend fun delete(id: String): Result<Unit> {
+    override suspend fun deleteList(id: String): Result<Unit> {
         failure?.let { return Result.failure(it) }
 
         deletedIds.add(id)
-        items.removeAll { it.id == id }
+        lists.removeAll { it.id == id }
+        return Result.success(Unit)
+    }
+
+    override suspend fun addItem(
+        watchListId: String,
+        title: String,
+        note: String?,
+    ): Result<WatchListItem> {
+        failure?.let { return Result.failure(it) }
+
+        addedItems.add(Triple(watchListId, title, note))
+        return Result.success(WatchListItem("item-${addedItems.size}", watchListId, title, note))
+    }
+
+    override suspend fun updateItem(id: String, done: Boolean): Result<WatchListItem> {
+        failure?.let { return Result.failure(it) }
+
+        toggledIds.add(id to done)
+        return Result.success(WatchListItem(id, title = "x", done = done))
+    }
+
+    override suspend fun deleteItem(id: String): Result<Unit> {
+        failure?.let { return Result.failure(it) }
+
+        deletedIds.add(id)
         return Result.success(Unit)
     }
 }

@@ -7,15 +7,15 @@ import com.jackandthings.data.remote.ApiClient
 import com.jackandthings.data.remote.JackApi
 import com.jackandthings.repo.ApiAuthStore
 import com.jackandthings.repo.ApiBudgetRepository
-import com.jackandthings.repo.ApiClipboardRepository
 import com.jackandthings.repo.ApiNotesRepository
 import com.jackandthings.repo.ApiPomodoroRepository
+import com.jackandthings.repo.ApiWatchListRepository
 import com.jackandthings.repo.ApiWorkoutRepository
 import com.jackandthings.repo.AuthStore
 import com.jackandthings.repo.BudgetRepository
-import com.jackandthings.repo.ClipboardRepository
 import com.jackandthings.repo.NotesRepository
 import com.jackandthings.repo.PomodoroRepository
+import com.jackandthings.repo.WatchListRepository
 import com.jackandthings.repo.WorkoutRepository
 
 /**
@@ -42,7 +42,7 @@ class AppContainer(context: Context) {
     // API-backed implementations.
     val notes: NotesRepository = ApiNotesRepository(api)
     val pomodoro: PomodoroRepository = ApiPomodoroRepository(api)
-    val clipboard: ClipboardRepository = ApiClipboardRepository(api)
+    val watchList: WatchListRepository = ApiWatchListRepository(api)
     val workout: WorkoutRepository = ApiWorkoutRepository(api)
     val budget: BudgetRepository = ApiBudgetRepository(api)
 

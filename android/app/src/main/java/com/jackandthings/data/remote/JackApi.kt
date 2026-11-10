@@ -2,12 +2,13 @@ package com.jackandthings.data.remote
 
 import com.jackandthings.model.BudgetAccount
 import com.jackandthings.model.BudgetTransaction
-import com.jackandthings.model.ClipboardItem
 import com.jackandthings.model.Note
 import com.jackandthings.model.PomodoroPreset
 import com.jackandthings.model.RecurringTransaction
 import com.jackandthings.model.ReminderState
 import com.jackandthings.model.TokenPayload
+import com.jackandthings.model.WatchList
+import com.jackandthings.model.WatchListItem
 import com.jackandthings.model.WorkoutEntry
 import com.jackandthings.model.WorkoutPreset
 import kotlinx.serialization.json.JsonElement
@@ -76,25 +77,37 @@ class JackApi(private val client: ApiClient) {
 
     suspend fun deletePreset(id: String) = client.delete("pomodoro-presets/$id")
 
-    // ── Clipboard ──────────────────────────────────────────────────────────
+    // ── Watch list ─────────────────────────────────────────────────────────
 
-    suspend fun clipboardItems(): List<ClipboardItem> =
-        client.get("clipboard-items").decodeList()
+    /** Lists come back with their items nested (the index eager-loads them). */
+    suspend fun watchLists(): List<WatchList> =
+        client.get("watch-lists").decodeList()
 
-    suspend fun createClipboardItem(
-        title: String?,
-        content: String,
-        sourceDevice: String?,
-    ): ClipboardItem = client.post(
-        "clipboard-items",
+    suspend fun createWatchList(name: String): WatchList =
+        client.post("watch-lists", buildJsonObject { put("name", name) }).decode()
+
+    suspend fun deleteWatchList(id: String) = client.delete("watch-lists/$id")
+
+    suspend fun createWatchListItem(
+        watchListId: String,
+        title: String,
+        note: String?,
+    ): WatchListItem = client.post(
+        "watch-list-items",
         buildJsonObject {
-            put("title", title ?: "")
-            put("content", content)
-            sourceDevice?.let { put("source_device", it) }
+            put("watch_list_id", watchListId)
+            put("title", title)
+            note?.let { put("note", it) }
         },
     ).decode()
 
-    suspend fun deleteClipboardItem(id: String) = client.delete("clipboard-items/$id")
+    suspend fun updateWatchListItem(id: String, done: Boolean): WatchListItem =
+        client.put(
+            "watch-list-items/$id",
+            buildJsonObject { put("done", done) },
+        ).decode()
+
+    suspend fun deleteWatchListItem(id: String) = client.delete("watch-list-items/$id")
 
     // ── Workout ────────────────────────────────────────────────────────────
 

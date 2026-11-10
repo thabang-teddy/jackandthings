@@ -4,7 +4,7 @@ import { renderPomodoro } from './views/pomodoro.js';
 import { renderNotes } from './views/notes.js';
 import { renderBudget } from './views/budget.js';
 import { renderWorkout } from './views/workout.js';
-import { renderClipboard } from './views/clipboard.js';
+import { renderWatchList } from './views/watchlist.js';
 import { renderHistory } from './views/history.js';
 
 const VIEWS = {
@@ -12,7 +12,7 @@ const VIEWS = {
     notes: renderNotes,
     budget: renderBudget,
     workout: renderWorkout,
-    clipboard: renderClipboard,
+    watchlist: renderWatchList,
     history: renderHistory,
 };
 
