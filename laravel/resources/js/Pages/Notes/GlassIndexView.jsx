@@ -1,6 +1,5 @@
 import GlassCard from '@/Components/Glass/GlassCard';
 import GlassPagination from '@/Components/Glass/GlassPagination';
-import PillButton from '@/Components/Glass/PillButton';
 import TxRow from '@/Components/Glass/TxRow';
 import { DocumentIcon } from '@/Components/Glass/icons';
 
@@ -8,12 +7,10 @@ export default function NotesGlassIndexView({
     notes,
     editingId,
     onEdit,
-    onNew,
     onDestroy,
 }) {
     return (
         <div id="notes" className="flex h-full min-h-0 flex-col gap-4">
-            
             <GlassCard className="min-h-0 flex-1 overflow-y-auto">
                 {notes.data.length === 0 ? (
                     <div className="py-8 text-center">
