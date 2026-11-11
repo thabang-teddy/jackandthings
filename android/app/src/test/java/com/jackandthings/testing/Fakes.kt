@@ -9,6 +9,7 @@ import com.jackandthings.model.ReminderState
 import com.jackandthings.model.WatchList
 import com.jackandthings.model.WatchListItem
 import com.jackandthings.model.WorkoutEntry
+import com.jackandthings.model.WorkoutPreset
 import com.jackandthings.repo.AuthStore
 import com.jackandthings.repo.BudgetRepository
 import com.jackandthings.repo.NotesRepository
@@ -168,6 +169,7 @@ class FakeWatchListRepository(
 class FakeWorkoutRepository(
     var entries: MutableList<WorkoutEntry> = mutableListOf(),
     var reminder: ReminderState = ReminderState(due = true, lastLoggedAt = null),
+    var presets: MutableList<WorkoutPreset> = mutableListOf(),
 ) : WorkoutRepository {
 
     var failure: Throwable? = null
@@ -183,6 +185,9 @@ class FakeWorkoutRepository(
 
     override suspend fun reminderState(): Result<ReminderState> =
         reminderFailure?.let { Result.failure(it) } ?: Result.success(reminder)
+
+    override suspend fun presets(): Result<List<WorkoutPreset>> =
+        failure?.let { Result.failure(it) } ?: Result.success(presets.toList())
 
     override suspend fun create(activity: String, notes: String?): Result<WorkoutEntry> {
         failure?.let { return Result.failure(it) }
@@ -246,6 +251,12 @@ class FakeBudgetRepository(
     var transactionsFailure: Throwable? = null
     var writeFailure: Throwable? = null
 
+    /**
+     * Lets account creation through but fails everything that depends on it,
+     * which is the awkward half-done state a sync has to survive.
+     */
+    var failAfterAccounts: Boolean = false
+
     var postedAmounts: MutableList<String> = mutableListOf()
     var transfers: MutableList<Triple<String, String, String>> = mutableListOf()
 
@@ -277,6 +288,7 @@ class FakeBudgetRepository(
         description: String?,
     ): Result<BudgetTransaction> {
         writeFailure?.let { return Result.failure(it) }
+        if (failAfterAccounts) return Result.failure(RuntimeException("posting failed"))
 
         postedAmounts.add(amount)
         return Result.success(
@@ -298,6 +310,7 @@ class FakeBudgetRepository(
         description: String?,
     ): Result<Unit> {
         writeFailure?.let { return Result.failure(it) }
+        if (failAfterAccounts) return Result.failure(RuntimeException("transfer failed"))
 
         transfers.add(Triple(fromAccountId, toAccountId, amount))
         return Result.success(Unit)

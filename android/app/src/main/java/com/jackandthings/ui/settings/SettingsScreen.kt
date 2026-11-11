@@ -31,10 +31,12 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onRemindersChanged: (Boolean) -> Unit,
     onSignOut: () -> Unit,
+    onSignIn: () -> Unit,
 ) {
     val storedUrl by container.prefs.baseUrl.collectAsStateWithLifecycle()
     val remindersEnabled by container.prefs.remindersEnabled.collectAsStateWithLifecycle()
     val user by container.auth.user.collectAsStateWithLifecycle()
+    val signedIn by container.auth.signedIn.collectAsStateWithLifecycle()
 
     var url by remember(storedUrl) { mutableStateOf(storedUrl) }
 
@@ -43,8 +45,16 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            user?.let {
-                Text("Signed in as ${it.email}", style = MaterialTheme.typography.bodyMedium)
+            if (signedIn) {
+                user?.let {
+                    Text("Signed in as ${it.email}", style = MaterialTheme.typography.bodyMedium)
+                }
+            } else {
+                Text(
+                    "Not signed in — your data is saved on this device only.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             HorizontalDivider()
@@ -84,8 +94,14 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
-            Button(onClick = onSignOut, modifier = Modifier.fillMaxWidth()) {
-                Text("Sign out")
+            if (signedIn) {
+                Button(onClick = onSignOut, modifier = Modifier.fillMaxWidth()) {
+                    Text("Sign out")
+                }
+            } else {
+                Button(onClick = onSignIn, modifier = Modifier.fillMaxWidth()) {
+                    Text("Sign in")
+                }
             }
         }
     }
