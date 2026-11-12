@@ -5,10 +5,10 @@ A suite now exists on all three surfaces and **all of it passes**. Figures below
 
 | Surface | Framework | Tests | Command |
 | --- | --- | --- | --- |
-| Laravel | PHPUnit 12.5 | **168** (2184 assertions) | `php artisan test` |
-| Android | JUnit 4 + `kotlinx-coroutines-test` | **136** | `.\gradlew.bat :app:testDebugUnitTest` |
+| Laravel | PHPUnit 12.5 | **181** (2248 assertions) | `php artisan test` |
+| Android | JUnit 4 + `kotlinx-coroutines-test` | **183** | `.\gradlew.bat :app:testDebugUnitTest` |
 | Add-on | `node --test` (no dependencies) | **33** | `npm test` in `extension/` |
-| | | **337 total** | |
+| | | **397 total** | |
 
 **Every Android ViewModel is covered.** That was only possible after the five repositories and `AuthStore` were put behind interfaces, which is why that refactor counts as test work rather than tidying.
 
@@ -81,7 +81,11 @@ Two defects were found this way and fixed: transfer rows displayed the money flo
 
 **Not verified, and the gap is significant:** the extension has never been loaded as an actual extension. Chrome 156 refuses the `--load-extension` command-line switch, and loading from `chrome://extensions` needs a native file dialog that cannot be driven here. So the manifest has never been accepted by a browser, and **the service worker, `chrome.alarms`, notifications, the real permission prompts, `history.onVisited` recording and the auto-delete path are all unexercised**. The harness proves the views and the API client; it proves nothing about the extension host. Load it by hand (see ARCHITECTURE.md "Operations") before trusting any of it.
 
-Also still uncovered: the web app in a real browser (clicks, the countdown advancing, `navigator.clipboard`, dark mode, responsive layouts); on Android, the hourly reminder actually firing (a one-hour WorkManager period — never observed), the share-sheet path, permission refusal, rotation, offline behaviour, and real hardware; and concurrency on transfers.
+Also still uncovered: the web app in a real browser (clicks, the countdown advancing, `navigator.clipboard`, dark mode, responsive layouts); on Android, the hourly reminder actually firing (a one-hour WorkManager period — never observed), the share-sheet path, permission refusal, rotation, and real hardware; and concurrency on transfers.
+
+Android's **offline behaviour is covered as logic but not as behaviour**. `OfflineTest`, `OutboxTest`, `OfflineRepositoriesTest` and `OutboxDrainerTest` pin down the parts that are decidable without a device — what counts as unreachable, the queue's order and JSON round trip, the optimistic cache writes, and the drainer's replay order and local→server id remapping. What no unit test reaches: a connection actually dropping mid-request, `OutboxSyncWorker` being woken by WorkManager when the network returns, and the queue surviving a process death. Those need a device with aeroplane mode.
+
+The web app's **desktop alerts** are likewise unverified as delivered notifications. Both paths (the hourly nudge and Pomodoro phase changes) were driven in a browser with `window.Notification` replaced by a recorder, which proves the app calls it with the right content at the right moment; the browser actually drawing one, and the permission prompt itself, were not exercised.
 
 ## When the suite is written
 Scope it to the six modules (PRD.md F-01…F-06) plus the SECURITY.md requirements, with these layers:
@@ -94,8 +98,8 @@ Scope it to the six modules (PRD.md F-01…F-06) plus the SECURITY.md requiremen
 
 ## Verified commands
 All run successfully:
-- Server: `php artisan test` (from `laravel/`) — 168 passed. Also `--testsuite=Unit` / `--testsuite=Feature`. Note the batch wrapper eats `|`, so `--filter="A|B"` fails; filter one class at a time or run a suite. No `npm run build` is needed first: `tests/TestCase.php` swaps in an empty Vite handler, so page-rendering tests pass on a fresh clone with no `public/build`. The bundle itself is still proven by `npm run build` (the `js` CI job).
-- Android: `.\gradlew.bat :app:testDebugUnitTest` (from `android/`, `JAVA_HOME` set to Android Studio's JBR) — 136 passed.
+- Server: `php artisan test` (from `laravel/`) — 181 passed. Also `--testsuite=Unit` / `--testsuite=Feature`. Note the batch wrapper eats `|`, so `--filter="A|B"` fails; filter one class at a time or run a suite. No `npm run build` is needed first: `tests/TestCase.php` swaps in an empty Vite handler, so page-rendering tests pass on a fresh clone with no `public/build`. The bundle itself is still proven by `npm run build` (the `js` CI job).
+- Android: `.\gradlew.bat :app:testDebugUnitTest` (from `android/`, `JAVA_HOME` set to Android Studio's JBR) — 183 passed.
 - Add-on: `npm test` (from `extension/`) — 33 passed. No install step; it uses Node's built-in runner.
 - Coverage: **Not available** — no Xdebug or pcov.
 - End-to-end: **Not configured** — Playwright not installed.

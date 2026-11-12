@@ -93,7 +93,9 @@ class SyncManager(
         val remaining = mutableListOf<WorkoutEntry>()
         var pushed = 0
         for (entry in stores.workoutEntries.read()) {
-            remoteWorkout.create(entry.activity, entry.notes)
+            // The local row already knows when it happened; without passing
+            // it the server would stamp the entry with the sign-in time.
+            remoteWorkout.create(entry.activity, entry.notes, entry.loggedAt)
                 .onSuccess { pushed++ }
                 .onFailure {
                     remaining += entry

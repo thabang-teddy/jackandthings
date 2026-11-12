@@ -4,6 +4,7 @@ import android.app.Application
 import com.jackandthings.pomodoro.PomodoroTimerEngine
 import com.jackandthings.pomodoro.PomodoroTimerService
 import com.jackandthings.update.AppUpdateChecker
+import com.jackandthings.work.OutboxSync
 import com.jackandthings.work.WorkoutReminders
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +33,14 @@ class JackApplication : Application() {
         if (container.prefs.remindersEnabled.value && container.auth.signedIn.value) {
             WorkoutReminders.schedule(this)
         }
+
+        // Writes made while the server was unreachable go up as soon as
+        // there is a connection: once now, and on a slow loop after that in
+        // case the app is never reopened.
+        if (container.auth.signedIn.value) {
+            OutboxSync.syncNow(this)
+        }
+        OutboxSync.schedule(this)
 
         // PomodoroTimerEngine itself has no notion of Context or Services -
         // it only tracks whether a session is active - so this is what turns

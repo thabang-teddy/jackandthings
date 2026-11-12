@@ -54,7 +54,8 @@ class SwitchingWorkoutRepository(
     override suspend fun list(): Result<List<WorkoutEntry>> = active.list()
     override suspend fun reminderState(): Result<ReminderState> = active.reminderState()
     override suspend fun presets(): Result<List<WorkoutPreset>> = active.presets()
-    override suspend fun create(activity: String, notes: String?) = active.create(activity, notes)
+    override suspend fun create(activity: String, notes: String?, loggedAt: String?) =
+        active.create(activity, notes, loggedAt)
     override suspend fun delete(id: String) = active.delete(id)
 }
 

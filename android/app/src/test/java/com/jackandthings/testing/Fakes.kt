@@ -199,11 +199,15 @@ class FakeWorkoutRepository(
     override suspend fun presets(): Result<List<WorkoutPreset>> =
         failure?.let { Result.failure(it) } ?: Result.success(presets.toList())
 
-    override suspend fun create(activity: String, notes: String?): Result<WorkoutEntry> {
+    override suspend fun create(
+        activity: String,
+        notes: String?,
+        loggedAt: String?,
+    ): Result<WorkoutEntry> {
         failure?.let { return Result.failure(it) }
 
         created.add(activity to notes)
-        val entry = WorkoutEntry("w-${entries.size + 1}", activity, notes)
+        val entry = WorkoutEntry("w-${entries.size + 1}", activity, notes, loggedAt)
         entries.add(entry)
         // Logging something clears the nudge, the way the server would.
         reminder = ReminderState(due = false, lastLoggedAt = "now")
@@ -268,6 +272,9 @@ class FakeBudgetRepository(
     var failAfterAccounts: Boolean = false
 
     var postedAmounts: MutableList<String> = mutableListOf()
+
+    /** Which account each post landed on, for checking id remapping. */
+    var postedAccountIds: MutableList<String> = mutableListOf()
     var transfers: MutableList<Triple<String, String, String>> = mutableListOf()
 
     override suspend fun accounts(): Result<List<BudgetAccount>> =
@@ -301,6 +308,7 @@ class FakeBudgetRepository(
         if (failAfterAccounts) return Result.failure(RuntimeException("posting failed"))
 
         postedAmounts.add(amount)
+        postedAccountIds.add(accountId)
         return Result.success(
             BudgetTransaction("tx-${postedAmounts.size}", type, 0, description),
         )
