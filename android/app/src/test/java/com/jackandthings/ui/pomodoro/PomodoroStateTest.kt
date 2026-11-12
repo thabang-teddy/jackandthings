@@ -1,15 +1,15 @@
 package com.jackandthings.ui.pomodoro
 
 import com.jackandthings.model.PomodoroPreset
+import com.jackandthings.pomodoro.TimerPhase
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
  * Clock formatting, which is what the full-screen countdown actually shows.
  *
- * The ViewModel's own ticking is not covered here: it would need the
- * repositories behind an interface so a fake could stand in, and they are
- * concrete classes today. That refactor is noted in docs/TESTING.md.
+ * The ticking itself is covered where it actually lives now, in
+ * `PomodoroTimerEngineTest`.
  */
 class PomodoroStateTest {
 

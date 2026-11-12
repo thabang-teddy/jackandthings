@@ -3,14 +3,17 @@ package com.jackandthings.ui.welcome
 import com.jackandthings.model.PomodoroPreset
 import com.jackandthings.model.ReminderState
 import com.jackandthings.model.WorkoutPreset
+import com.jackandthings.pomodoro.PomodoroTimerEngine
+import com.jackandthings.pomodoro.TimerPhase
 import com.jackandthings.testing.FakePomodoroRepository
 import com.jackandthings.testing.FakeWorkoutRepository
 import com.jackandthings.testing.MainDispatcherRule
-import com.jackandthings.ui.pomodoro.TimerPhase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -33,6 +36,11 @@ class DashboardViewModelTest {
         presets: MutableList<PomodoroPreset> = mutableListOf(defaultPreset),
         workout: FakeWorkoutRepository = FakeWorkoutRepository(),
     ) = DashboardViewModel(FakePomodoroRepository(presets), workout)
+
+    @After
+    fun tearDown() {
+        PomodoroTimerEngine.resetForTesting()
+    }
 
     @Test
     fun `the preset flagged default is the one offered`() =
@@ -147,6 +155,11 @@ class DashboardViewModelTest {
         }
 
     // ── Countdown ──────────────────────────────────────────────────────────
+    //
+    // This is the same shared PomodoroTimerEngine the Pomodoro screen uses -
+    // see PomodoroTimerEngineTest for the tick-by-tick behaviour. What is
+    // specific to this ViewModel is that it mirrors the engine's state at
+    // all, and that `idle` reads correctly off it.
 
     @Test
     fun `starting runs the focus phase down`() =
@@ -155,8 +168,10 @@ class DashboardViewModelTest {
             advanceUntilIdle()
 
             model.start(defaultPreset)
+            runCurrent()
             assertEquals(25 * 60, model.state.value.secondsLeft)
             assertTrue(model.state.value.running)
+            assertFalse(model.state.value.idle)
 
             advanceTimeBy(3_100)
 
@@ -188,36 +203,6 @@ class DashboardViewModelTest {
         }
 
     @Test
-    fun `focus rolls into the break`() =
-        runTest(mainDispatcherRule.dispatcher.scheduler) {
-            val short = PomodoroPreset("p-3", "Short", focusMinutes = 1, breakMinutes = 2)
-            val model = model()
-            advanceUntilIdle()
-
-            model.start(short)
-            advanceTimeBy(60_100)
-
-            assertEquals(TimerPhase.Break, model.state.value.phase)
-            assertEquals(2 * 60, model.state.value.secondsLeft)
-            assertTrue(model.state.value.running)
-        }
-
-    @Test
-    fun `a preset with no break stops when focus runs out`() =
-        runTest(mainDispatcherRule.dispatcher.scheduler) {
-            val noBreak = PomodoroPreset("p-4", "Solo", focusMinutes = 1, breakMinutes = 0)
-            val model = model()
-            advanceUntilIdle()
-
-            model.start(noBreak)
-            advanceTimeBy(60_100)
-
-            assertFalse(model.state.value.running)
-            assertEquals(0, model.state.value.secondsLeft)
-            assertEquals(TimerPhase.Focus, model.state.value.phase)
-        }
-
-    @Test
     fun `stopping clears the timer back to idle`() =
         runTest(mainDispatcherRule.dispatcher.scheduler) {
             val model = model()
@@ -226,6 +211,7 @@ class DashboardViewModelTest {
             model.start(defaultPreset)
             advanceTimeBy(5_100)
             model.stop()
+            runCurrent()
 
             assertTrue(model.state.value.idle)
             assertFalse(model.state.value.running)

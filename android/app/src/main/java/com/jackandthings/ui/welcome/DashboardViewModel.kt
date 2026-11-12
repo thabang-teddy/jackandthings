@@ -1,6 +1,5 @@
 package com.jackandthings.ui.welcome
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
@@ -60,7 +59,6 @@ data class DashboardState(
 class DashboardViewModel(
     private val pomodoro: PomodoroRepository,
     private val workout: WorkoutRepository,
-    private val appContext: Context,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DashboardState())
@@ -134,7 +132,7 @@ class DashboardViewModel(
 
     // ── Countdown ──────────────────────────────────────────────────────────
 
-    fun start(preset: PomodoroPreset) = PomodoroTimerEngine.start(appContext, preset)
+    fun start(preset: PomodoroPreset) = PomodoroTimerEngine.start(preset)
     fun pause() = PomodoroTimerEngine.pause()
     fun resume() = PomodoroTimerEngine.resume()
     fun stop() = PomodoroTimerEngine.stop()
@@ -145,9 +143,8 @@ class DashboardViewModel(
         fun factory(
             pomodoro: PomodoroRepository,
             workout: WorkoutRepository,
-            appContext: Context,
         ) = viewModelFactory {
-            initializer { DashboardViewModel(pomodoro, workout, appContext) }
+            initializer { DashboardViewModel(pomodoro, workout) }
         }
     }
 }

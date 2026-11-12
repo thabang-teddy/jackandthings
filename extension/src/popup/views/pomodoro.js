@@ -50,16 +50,20 @@ async function stop() {
     await ext.runtime.sendMessage({ type: 'cancel-pomodoro' });
 }
 
+/**
+ * The pure half of `restart`/`skip`: what the stored `pomodoro` object
+ * should become, with no side effects, so this part is unit-testable without
+ * a browser. `null` from `skipPatch` means "no break to skip into, so stop
+ * the session" rather than a phase change.
+ */
+
 /** Back to the top of the focus phase, paused - mirrors Lib/useCountdown.js's `restart`. */
-async function restart(pomodoro) {
-    await writeSettings({
-        pomodoro: {
-            ...pomodoro,
-            phase: 'focus',
-            pausedRemaining: pomodoro.focusMinutes * 60,
-        },
-    });
-    await ext.runtime.sendMessage({ type: 'cancel-pomodoro' });
+export function restartPatch(pomodoro) {
+    return {
+        ...pomodoro,
+        phase: 'focus',
+        pausedRemaining: pomodoro.focusMinutes * 60,
+    };
 }
 
 /**
@@ -67,28 +71,39 @@ async function restart(pomodoro) {
  * out, keeping whatever running/paused state it was already in. Mirrors the
  * natural roll-over when there is no break to skip into.
  */
-async function skip(pomodoro) {
+export function skipPatch(pomodoro, now = Date.now()) {
     const running = pomodoro.pausedRemaining == null;
 
     if (pomodoro.phase === 'focus') {
-        if (pomodoro.breakMinutes > 0) {
-            await toPhase(pomodoro, 'break', pomodoro.breakMinutes, running);
-        } else {
-            await stop();
-        }
+        if (pomodoro.breakMinutes <= 0) return null;
+        return phasePatch(pomodoro, 'break', pomodoro.breakMinutes, running, now);
+    }
+
+    return phasePatch(pomodoro, 'focus', pomodoro.focusMinutes, running, now);
+}
+
+function phasePatch(pomodoro, phase, minutes, running, now) {
+    if (running) {
+        return { ...pomodoro, phase, endsAt: now + minutes * 60_000, pausedRemaining: null };
+    }
+    return { ...pomodoro, phase, pausedRemaining: minutes * 60 };
+}
+
+async function restart(pomodoro) {
+    await writeSettings({ pomodoro: restartPatch(pomodoro) });
+    await ext.runtime.sendMessage({ type: 'cancel-pomodoro' });
+}
+
+async function skip(pomodoro) {
+    const patch = skipPatch(pomodoro);
+    if (patch === null) {
+        await stop();
         return;
     }
 
-    await toPhase(pomodoro, 'focus', pomodoro.focusMinutes, running);
-}
-
-async function toPhase(pomodoro, phase, minutes, running) {
-    if (running) {
-        const endsAt = Date.now() + minutes * 60_000;
-        await writeSettings({ pomodoro: { ...pomodoro, phase, endsAt, pausedRemaining: null } });
-        await ext.runtime.sendMessage({ type: 'schedule-pomodoro', endsAt });
-    } else {
-        await writeSettings({ pomodoro: { ...pomodoro, phase, pausedRemaining: minutes * 60 } });
+    await writeSettings({ pomodoro: patch });
+    if (patch.pausedRemaining == null) {
+        await ext.runtime.sendMessage({ type: 'schedule-pomodoro', endsAt: patch.endsAt });
     }
 }
 

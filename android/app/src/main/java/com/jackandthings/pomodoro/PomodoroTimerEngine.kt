@@ -1,6 +1,5 @@
 package com.jackandthings.pomodoro
 
-import android.content.Context
 import com.jackandthings.model.PomodoroPreset
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,16 +34,24 @@ data class PomodoroTimerState(
  * no session table, by design, so a timer still only lives as long as the
  * process does - this just makes "the process" mean the whole app rather
  * than one screen's ViewModel.
+ *
+ * Deliberately Context-free: [JackApplication] is the one that notices
+ * [state] going from idle to active and boots [PomodoroTimerService] for it,
+ * which keeps this object plain Kotlin and unit-testable without Robolectric
+ * or a mocked Context. `Dispatchers.Main` rather than `Default` for the same
+ * reason from the other direction - it is what `MainDispatcherRule` already
+ * swaps for every other ViewModel test in this project, so the ticker comes
+ * under a test's virtual-time control for free.
  */
 object PomodoroTimerEngine {
 
     private val _state = MutableStateFlow(PomodoroTimerState())
     val state: StateFlow<PomodoroTimerState> = _state.asStateFlow()
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var ticker: Job? = null
 
-    fun start(context: Context, preset: PomodoroPreset) {
+    fun start(preset: PomodoroPreset) {
         ticker?.cancel()
         _state.value = PomodoroTimerState(
             activePreset = preset,
@@ -53,7 +60,6 @@ object PomodoroTimerEngine {
             running = true,
         )
         restartTicker()
-        PomodoroTimerService.start(context)
     }
 
     fun pause() {
@@ -120,6 +126,13 @@ object PomodoroTimerEngine {
     /** Stops a timer whose preset no longer exists, called when that preset is deleted. */
     fun stopIfPreset(presetId: String) {
         if (_state.value.activePreset?.id == presetId) stop()
+    }
+
+    /** A singleton otherwise leaks state between tests, which don't share a process the way screens do. */
+    internal fun resetForTesting() {
+        ticker?.cancel()
+        ticker = null
+        _state.value = PomodoroTimerState()
     }
 
     private fun restartTicker() {

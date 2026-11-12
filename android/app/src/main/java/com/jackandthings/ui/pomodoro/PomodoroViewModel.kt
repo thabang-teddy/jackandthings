@@ -1,6 +1,5 @@
 package com.jackandthings.ui.pomodoro
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
@@ -39,7 +38,6 @@ data class PomodoroState(
  */
 class PomodoroViewModel(
     private val repo: PomodoroRepository,
-    private val appContext: Context,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PomodoroState())
@@ -102,7 +100,7 @@ class PomodoroViewModel(
         }
     }
 
-    fun start(preset: PomodoroPreset) = PomodoroTimerEngine.start(appContext, preset)
+    fun start(preset: PomodoroPreset) = PomodoroTimerEngine.start(preset)
     fun pause() = PomodoroTimerEngine.pause()
     fun resume() = PomodoroTimerEngine.resume()
     fun stop() = PomodoroTimerEngine.stop()
@@ -112,8 +110,8 @@ class PomodoroViewModel(
     fun dismissError() = _state.update { it.copy(error = null) }
 
     companion object {
-        fun factory(repo: PomodoroRepository, appContext: Context) = viewModelFactory {
-            initializer { PomodoroViewModel(repo, appContext) }
+        fun factory(repo: PomodoroRepository) = viewModelFactory {
+            initializer { PomodoroViewModel(repo) }
         }
     }
 }
