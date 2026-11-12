@@ -1,5 +1,8 @@
 import { useEffect } from 'react';
-import { ALERT_TAGS, alertsEnabled, notify } from '@/Lib/desktopAlerts';
+// Relative rather than the usual `@/Lib/...`: Vite resolves that alias but
+// `node --test` does not, and the dedupe below is covered by a plain Node
+// test. Both resolve this form.
+import { ALERT_TAGS, alertsEnabled, notify } from './desktopAlerts.js';
 
 // The server's due-check is per clock hour, so polling faster only costs
 // requests. Fifteen minutes keeps the nudge within a quarter hour of the
@@ -7,8 +10,12 @@ import { ALERT_TAGS, alertsEnabled, notify } from '@/Lib/desktopAlerts';
 const POLL_MS = 15 * 60 * 1000;
 const STORAGE_KEY = 'jackandthings:workout-nudged-hour';
 
-function currentHour() {
-    const now = new Date();
+/**
+ * The dedupe is exported as plain functions so it can be tested without a
+ * renderer, the way the add-on exposes its Pomodoro helpers. The hook below
+ * is the only caller in the app.
+ */
+export function currentHour(now = new Date()) {
     return `${now.toDateString()}:${now.getHours()}`;
 }
 
@@ -18,7 +25,7 @@ function currentHour() {
  * different components, so moving between them remounts it and a value held
  * in a ref would nudge again on every navigation.
  */
-function alreadyNudged(hour) {
+export function alreadyNudged(hour) {
     try {
         return window.localStorage.getItem(STORAGE_KEY) === hour;
     } catch {
@@ -27,7 +34,7 @@ function alreadyNudged(hour) {
     }
 }
 
-function markNudged(hour) {
+export function markNudged(hour) {
     try {
         window.localStorage.setItem(STORAGE_KEY, hour);
     } catch {
