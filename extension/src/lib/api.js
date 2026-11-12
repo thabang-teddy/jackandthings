@@ -94,6 +94,10 @@ export const api = {
         data(await request('notes', { method: 'POST', body: { title, body: body ?? '' } })),
     updateNote: async (id, title, body) =>
         data(await request(`notes/${id}`, { method: 'PUT', body: { title, body: body ?? '' } })),
+    // The server validates only the fields present, so the star travels on
+    // its own rather than round-tripping the whole note.
+    starNote: async (id, isStarred) =>
+        data(await request(`notes/${id}`, { method: 'PUT', body: { is_starred: isStarred } })),
     deleteNote: (id) => request(`notes/${id}`, { method: 'DELETE' }),
 
     // Pomodoro

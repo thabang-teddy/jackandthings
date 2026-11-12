@@ -42,7 +42,7 @@ All three surfaces now exist: the Laravel server (web UI + `api/v1`), the Kotlin
 | F-01 | As a user, I need to run a Pomodoro timer | Save presets (name, focus/break minutes); start one; timer counts focus then rolls into the break | **Built (web + API + Android).** Android gives it the full-screen countdown `init.txt` asked for. Nothing about a running timer is persisted on either client | Must |
 | F-02 | As a user, I need to manage notes | Create, read, update, delete notes (title, body) | **Built (web + API + Android)** | Must |
 | F-03 | As a user, I need to track a budget | Multiple accounts; deposit/withdraw; transfer between own accounts; dashboard with per-account and total balances | **Built (web + API + Android).** Fixed ZAR, integer cents, derived balances, atomic two-leg transfers, overdrafts rejected. No categories | Must |
-| F-04 | As a user, I need to track workouts | Log entries (activity, when, notes); know when an hour has passed without one | **Built on Android; partial on web.** The server reports due-state only and sends nothing; the Android app polls it hourly (WorkManager) and raises a local notification. The web app shows an in-page banner with no notification | Must |
+| F-04 | As a user, I need to track workouts | Log entries (activity, when, notes); know when an hour has passed without one | **Built (web + API + Android + add-on).** The server reports due-state only and sends nothing; each client polls it and raises its own local notification — Android hourly via WorkManager, the add-on via alarms, the web page while a tab is open (it also keeps the in-page banner) | Must |
 | F-05 | As a user, I need to share clipboard content across apps | Save snippets; copy them back | **Built on all three.** Android reads/writes the system clipboard and accepts share-sheet text; the add-on can paste from and copy to the clipboard. Both stamp `source_device`, so a snippet saved on the phone is one click away in the browser — the cross-device sync `init.txt` asked for | Must |
 | F-06 | As a user, I need to manage browsing history | View history list; auto-delete old URLs | **Built (server + add-on).** The add-on records visits to the server and clears browser history past the retention window, both opt-in behind an optional permission; the server keeps the records and runs `history:prune`. Deliberately absent from Android. The retention rule itself is still a placeholder | Must |
 
@@ -53,8 +53,15 @@ All three surfaces now exist: the Laravel server (web UI + `api/v1`), the Kotlin
 ## Open decisions
 **Settled since the first draft:** build order (server first, then Android and add-ons), currency (fixed ZAR), stack and auth (Laravel 13 + Inertia/React + SQLite + Breeze/Sanctum), and Budget's multi-account model.
 
+**Settled since:** workout reminders in the *web app*. The page now follows the
+same design as the other two clients — it polls due-state (`GET /workouts/due`,
+session-guarded) and raises its own desktop notification, so the server still
+pushes nothing. Pomodoro phase changes notify the same way. The known limit is
+that a page can only notify while one of its tabs is open; delivering to a
+closed browser would need Web Push, which means a server that sends, and that
+is still ruled out.
+
 **Still open:**
-- Workout reminders in the *web app*. Android and the add-on both poll due-state hourly and raise their own local notification, so the server still pushes nothing — that design is settled. Only the web page, which can only show an in-page banner, is undecided.
 - History auto-delete rule: schedule, which browsers/profiles, per-domain exceptions — needed before F-06 is complete. A 90-day placeholder is in `config/history.php`, clearly marked as not approved.
 - Clipboard sensitivity: snippets are stored in plaintext and may contain passwords. Decide on a retention window and/or encryption at rest — see SECURITY.md.
 - Sanctum token expiry (currently none) and whether a password change should revoke all tokens.

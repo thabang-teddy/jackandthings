@@ -36,12 +36,16 @@ class LocalWorkoutRepository(private val store: JsonFileStore<WorkoutEntry>) : W
      */
     override suspend fun presets(): Result<List<WorkoutPreset>> = Result.success(emptyList())
 
-    override suspend fun create(activity: String, notes: String?): Result<WorkoutEntry> {
+    override suspend fun create(
+        activity: String,
+        notes: String?,
+        loggedAt: String?,
+    ): Result<WorkoutEntry> {
         val entry = WorkoutEntry(
             id = UUID.randomUUID().toString(),
             activity = activity,
             notes = notes,
-            loggedAt = Instant.now().toString(),
+            loggedAt = loggedAt ?: Instant.now().toString(),
         )
         store.write(store.read() + entry)
         return Result.success(entry)

@@ -2,6 +2,7 @@ import GlassCard from '@/Components/Glass/GlassCard';
 import GlassPagination from '@/Components/Glass/GlassPagination';
 import TxRow from '@/Components/Glass/TxRow';
 import { HistoryIcon } from '@/Components/Glass/icons';
+import { formatWhen } from '@/Lib/formatWhen';
 import {
     GlassButton,
     GlassError,
@@ -78,7 +79,7 @@ export default function HistoryGlassView({
                                 iconColor="#5F6B5F"
                                 title={entry.title || entry.url}
                                 subtitle={
-                                    entry.visited_at +
+                                    formatWhen(entry.visited_at) +
                                     (entry.source ? ` · ${entry.source}` : '')
                                 }
                                 action={

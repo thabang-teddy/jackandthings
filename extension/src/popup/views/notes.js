@@ -47,6 +47,20 @@ export async function renderNotes(view, rerender) {
                             : null,
                     ]),
                     h('button', {
+                        class: 'btn-link',
+                        type: 'button',
+                        text: note.is_starred ? '★' : '☆',
+                        title: note.is_starred
+                            ? 'Starred — shows on the home page'
+                            : 'Star to pin to the home page',
+                        'aria-pressed': String(Boolean(note.is_starred)),
+                        onClick: () =>
+                            guard(view, async () => {
+                                await api.starNote(note.id, !note.is_starred);
+                                await rerender();
+                            }),
+                    }),
+                    h('button', {
                         class: 'btn-link btn-danger',
                         type: 'button',
                         text: 'Delete',

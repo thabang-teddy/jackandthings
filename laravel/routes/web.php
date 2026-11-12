@@ -59,6 +59,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Workout
     Route::post('workouts/presets', [WorkoutPresetController::class, 'store'])->name('workouts.presets.store');
     Route::delete('workouts/presets/{workoutPreset}', [WorkoutPresetController::class, 'destroy'])->name('workouts.presets.destroy');
+    // Polled by the open page for its hourly desktop nudge; declared before
+    // the resource so "due" is not read as a {workout} id.
+    Route::get('workouts/due', [WorkoutEntryController::class, 'due'])->name('workouts.due');
     Route::resource('workouts', WorkoutEntryController::class)->except(['show']);
 
     // History — immutable entries: add and remove only, no edit.

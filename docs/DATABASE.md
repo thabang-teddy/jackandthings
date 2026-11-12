@@ -20,7 +20,7 @@ As built (migrations in `laravel/database/migrations`).
 | --- | --- | --- | --- |
 | User | Account identity/auth | System | Indefinite; deleting a user cascades every row below |
 | PomodoroPreset | Saved timer preset | User | Indefinite. No session/run history is stored — a running timer is ephemeral client state |
-| Note | CRUD notes | User | Indefinite |
+| Note | CRUD notes; may be starred to pin it to the home page | User | Indefinite |
 | BudgetAccount | One of a user's accounts/wallets | User | Indefinite |
 | BudgetTransaction | An immutable ledger entry (deposit/withdrawal/transfer leg) | User | Indefinite; no update path |
 | WorkoutEntry | A logged workout | User | Indefinite |
@@ -30,7 +30,7 @@ As built (migrations in `laravel/database/migrations`).
 ## Schema
 As built. Every table: `id` UUIDv7 primary key, `user_id` → `users.id` with `cascadeOnDelete`, plus `timestamps()`.
 - `pomodoro_presets`: name (60), focus_minutes (uint16), break_minutes (uint16). Index `(user_id, created_at)`.
-- `notes`: title (255), body (text, nullable). Index `(user_id, created_at)`.
+- `notes`: title (255), body (text, nullable), is_starred (bool, default false — a starred note is pinned to the home page, and only starred ones appear there). Indexes `(user_id, created_at)` and `(user_id, is_starred, created_at)`, the second serving the home page's filtered read.
 - `budget_accounts`: name (60). **Unique `(user_id, name)`** so one user cannot have two accounts of the same name. Index `(user_id, created_at)`.
 - `budget_transactions`: account_id → budget_accounts (cascade), type (20: `deposit`/`withdrawal`/`transfer_in`/`transfer_out`), amount_cents (uint64), related_account_id → budget_accounts (nullable, **nullOnDelete** so a past transfer survives deletion of the counterpart account), transfer_group_id (uuid, nullable — links the two legs of one transfer), description (255, nullable). Indexes `(user_id, created_at)`, `(account_id, created_at)`, `transfer_group_id`.
 - `workout_entries`: activity (100), logged_at (timestamp), notes (text, nullable). Index `(user_id, logged_at)` — serves both the list and the hourly due-check.

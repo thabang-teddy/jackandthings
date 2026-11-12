@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\WorkoutEntry;
 use App\Models\WorkoutPreset;
 use App\Services\WorkoutReminderStatus;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -34,16 +35,31 @@ class WorkoutEntryController extends Controller
                 'id' => $entry->id,
                 'activity' => $entry->activity,
                 'notes' => $entry->notes,
-                'logged_at' => $entry->logged_at?->toDayDateTimeString(),
+                'logged_at' => $entry->logged_at?->toIso8601String(),
             ]);
 
         return Inertia::render('Workout/Index', [
             'entries' => $entries,
             'presets' => $this->presetsFor($user),
-            // Rendered as an in-page banner. Nothing is sent anywhere: see
-            // WorkoutReminderStatus for why delivery is not built yet.
+            // Rendered as an in-page banner, and polled separately by
+            // resources/js/Lib/useWorkoutNudge.js for the desktop alert.
             'dueForReminder' => $this->reminderStatus->isDue($user),
-            'lastLoggedAt' => $this->reminderStatus->lastLoggedAt($user)?->toDayDateTimeString(),
+            'lastLoggedAt' => $this->reminderStatus->lastLoggedAt($user)?->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Reminder state for the open page to act on, mirroring api.v1
+     * workout-entries.due for the session guard. The server still sends
+     * nothing itself; the page decides whether to raise a notification.
+     */
+    public function due(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'due' => $this->reminderStatus->isDue($user),
+            'last_logged_at' => $this->reminderStatus->lastLoggedAt($user)?->toIso8601String(),
         ]);
     }
 
@@ -77,7 +93,7 @@ class WorkoutEntryController extends Controller
                 'id' => $workout->id,
                 'activity' => $workout->activity,
                 'notes' => $workout->notes,
-                'logged_at' => $workout->logged_at?->format('Y-m-d\TH:i'),
+                'logged_at' => $workout->logged_at?->toIso8601String(),
             ],
             'presets' => $this->presetsFor($request->user()),
         ]);

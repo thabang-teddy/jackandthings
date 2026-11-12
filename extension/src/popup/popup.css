@@ -56,7 +56,15 @@ body {
 }
 
 .brand {
+    display: flex;
+    align-items: center;
+    gap: 7px;
     font-size: 14px;
+}
+
+.brand-mark {
+    display: block;
+    flex: none;
 }
 
 .tabs {

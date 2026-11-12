@@ -48,6 +48,13 @@ class JackApi(private val client: ApiClient) {
     suspend fun updateNote(id: String, title: String, body: String?): Note =
         client.put("notes/$id", noteBody(title, body)).decode()
 
+    /**
+     * The server validates only the fields present, so the star travels on
+     * its own rather than round-tripping a title and body this does not own.
+     */
+    suspend fun starNote(id: String, isStarred: Boolean): Note =
+        client.put("notes/$id", buildJsonObject { put("is_starred", isStarred) }).decode()
+
     suspend fun deleteNote(id: String) = client.delete("notes/$id")
 
     private fun noteBody(title: String, body: String?) = buildJsonObject {

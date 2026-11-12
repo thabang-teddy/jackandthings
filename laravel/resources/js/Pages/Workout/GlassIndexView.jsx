@@ -9,6 +9,7 @@ import {
     GlassLabel,
 } from '@/Components/Glass/GlassFormControls';
 import { BellIcon, HeartIcon } from '@/Components/Glass/icons';
+import { formatWhen } from '@/Lib/formatWhen';
 import { Link, useForm } from '@inertiajs/react';
 
 function PresetManager({ presets, onDestroyPreset }) {
@@ -135,7 +136,7 @@ export default function WorkoutGlassIndexView({
                                     style={{ color: 'var(--warn-muted)' }}
                                 >
                                     {lastLoggedAt
-                                        ? `Last workout: ${lastLoggedAt}.`
+                                        ? `Last workout: ${formatWhen(lastLoggedAt)}.`
                                         : 'No workouts logged yet.'}
                                 </p>
                             </div>
@@ -145,7 +146,10 @@ export default function WorkoutGlassIndexView({
                     <GlassCard>
                         <p className="text-sm text-[var(--muted)]">
                             You're up to date — last workout:{' '}
-                            {lastLoggedAt ?? 'none yet'}.
+                            {lastLoggedAt
+                                ? formatWhen(lastLoggedAt)
+                                : 'none yet'}
+                            .
                         </p>
                     </GlassCard>
                 )}
@@ -174,7 +178,7 @@ export default function WorkoutGlassIndexView({
                             title={entry.activity}
                             subtitle={
                                 (entry.notes ? `${entry.notes} · ` : '') +
-                                entry.logged_at
+                                formatWhen(entry.logged_at)
                             }
                             action={
                                 <div className="ml-2 flex shrink-0 items-center gap-3 text-xs">

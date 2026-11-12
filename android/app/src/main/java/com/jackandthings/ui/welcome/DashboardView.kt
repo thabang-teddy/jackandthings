@@ -43,13 +43,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jackandthings.model.PomodoroPreset
 import com.jackandthings.pomodoro.TimerPhase
+import com.jackandthings.ui.common.formatWhen
 import com.jackandthings.ui.theme.GlassCircleButton
 import com.jackandthings.ui.theme.PillButton
 import com.jackandthings.ui.theme.glassFieldColors
 import com.jackandthings.ui.theme.glassTokens
-import java.time.OffsetDateTime
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 /**
  * The welcome page as a signed-in user sees it, ported from
@@ -147,7 +145,7 @@ fun DashboardView(
                         reminder.due -> "Nothing logged this hour"
                         else ->
                             "Last workout: " +
-                                (reminder.lastLoggedAt?.let(::formatLoggedAt) ?: "none yet")
+                                (reminder.lastLoggedAt?.let(::formatWhen) ?: "none yet")
                     },
                     color = tokens.muted,
                     fontSize = 13.sp,
@@ -258,17 +256,6 @@ fun DashboardView(
         )
     }
 }
-
-/**
- * The reminder endpoint sends ISO-8601, where the web page prints Carbon's
- * day-date-time string. Match the page rather than showing the raw stamp,
- * and fall back to it if this is ever handed something unparseable.
- */
-private fun formatLoggedAt(raw: String): String = runCatching {
-    OffsetDateTime.parse(raw)
-        .atZoneSameInstant(ZoneId.systemDefault())
-        .format(DateTimeFormatter.ofPattern("EEE, MMM d, yyyy h:mm a"))
-}.getOrDefault(raw)
 
 /**
  * The countdown half of the centre column. With no default preset there is

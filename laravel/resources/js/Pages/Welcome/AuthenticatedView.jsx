@@ -1,5 +1,6 @@
 import { Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import AlertsBell from '@/Components/Glass/AlertsBell';
 import GlassCard from '@/Components/Glass/GlassCard';
 import GlassDateTimePicker from '@/Components/Glass/GlassDateTimePicker';
 import GlassModal from '@/Components/Glass/GlassModal';
@@ -14,6 +15,8 @@ import {
     PlayIcon,
     PlusIcon,
     RepeatIcon,
+    StarIcon,
+    StarOutlineIcon,
     StopIcon,
     TimerIcon,
 } from '@/Components/Glass/icons';
@@ -26,7 +29,9 @@ import {
     GlassTextarea,
 } from '@/Components/Glass/GlassFormControls';
 import { formatClock } from '@/Lib/formatClock';
+import { formatWhen } from '@/Lib/formatWhen';
 import { usePomodoroTimer } from '@/Lib/PomodoroTimerContext';
+import { useWorkoutNudge } from '@/Lib/useWorkoutNudge';
 
 function QuickLink({ href, icon: Icon, label }) {
     return (
@@ -144,9 +149,20 @@ export default function AuthenticatedView({
     const [workoutOpen, setWorkoutOpen] = useState(false);
     const timer = usePomodoroTimer();
 
+    // This page sits outside AuthenticatedLayout, which is where every other
+    // page picks the hourly nudge up.
+    useWorkoutNudge(route('workouts.due'));
+
     // `return_to` tells NoteController@store/@update to come back here rather
     // than sending the user to the Notes module; NoteRequest ignores the field.
-    const noteForm = useForm({ title: '', body: '', return_to: 'home' });
+    // A note written on this card starts starred, because this card shows
+    // starred notes only - an unstarred one would vanish the moment it saved.
+    const noteForm = useForm({
+        title: '',
+        body: '',
+        is_starred: true,
+        return_to: 'home',
+    });
 
     const openNewNote = () => {
         setEditingNote(null);
@@ -160,6 +176,7 @@ export default function AuthenticatedView({
         noteForm.setData({
             title: note.title,
             body: note.body ?? '',
+            is_starred: note.is_starred ?? true,
             return_to: 'home',
         });
         noteForm.clearErrors();
@@ -223,7 +240,7 @@ export default function AuthenticatedView({
     return (
         <div className="relative z-10 flex min-h-screen flex-col items-center justify-center gap-6 p-6 lg:flex-row">
             <GlassCard
-                title="Quick notes"
+                title="Starred notes"
                 action={
                     <button
                         type="button"
@@ -238,7 +255,9 @@ export default function AuthenticatedView({
                 className="w-full lg:w-64"
             >
                 {notes.length === 0 ? (
-                    <p className="text-sm text-[var(--muted)]">No notes yet.</p>
+                    <p className="text-sm text-[var(--muted)]">
+                        No starred notes. Star one in Notes to pin it here.
+                    </p>
                 ) : (
                     <div className="flex flex-col">
                         {notes.map((note) => (
@@ -278,7 +297,7 @@ export default function AuthenticatedView({
                     <span className="text-[var(--muted)]">
                         {dueForReminder
                             ? 'Nothing logged this hour'
-                            : `Last workout: ${lastLoggedAt ?? 'none yet'}`}
+                            : `Last workout: ${lastLoggedAt ? formatWhen(lastLoggedAt) : 'none yet'}`}
                     </span>
                     <button
                         type="button"
@@ -314,6 +333,9 @@ export default function AuthenticatedView({
                     icon={GridIcon}
                     label="Dashboard"
                 />
+                {/* This page has its own chrome rather than GlassShell's, so
+                    the alerts toggle has to be offered here too. */}
+                <AlertsBell />
             </div>
 
             <GlassModal
@@ -351,6 +373,31 @@ export default function AuthenticatedView({
                         />
                         <GlassError message={noteForm.errors.body} />
                     </div>
+                    <button
+                        type="button"
+                        onClick={() =>
+                            noteForm.setData(
+                                'is_starred',
+                                !noteForm.data.is_starred,
+                            )
+                        }
+                        aria-pressed={noteForm.data.is_starred}
+                        className={
+                            'flex items-center gap-2 self-start text-xs font-semibold transition ' +
+                            (noteForm.data.is_starred
+                                ? 'text-[var(--accent)]'
+                                : 'text-[var(--muted)] hover:text-[var(--ink)]')
+                        }
+                    >
+                        {noteForm.data.is_starred ? (
+                            <StarIcon size={13} />
+                        ) : (
+                            <StarOutlineIcon size={13} />
+                        )}
+                        {noteForm.data.is_starred
+                            ? 'Shows on this page'
+                            : 'Not on this page'}
+                    </button>
                     <div className="mt-1 flex items-center justify-end gap-2">
                         <PillButton onClick={closeNote}>Cancel</PillButton>
                         <GlassButton

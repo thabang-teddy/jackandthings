@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import GlassLogo from '@/Components/Glass/GlassLogo';
 import { MODULES } from '@/Lib/glassNav';
 import {
     GridIcon,
@@ -25,6 +26,18 @@ const ICONS = {
 export default function Rail({ active }) {
     return (
         <div className="flex w-[62px] shrink-0 flex-col items-center gap-[14px] rounded-[28px] border border-[var(--rail-border)] bg-[var(--rail-bg)] py-[18px]">
+            <Link
+                href={route('home')}
+                title="Jack & Things"
+                className="flex h-[34px] w-[34px] items-center justify-center transition hover:opacity-80"
+            >
+                <GlassLogo size={26} />
+            </Link>
+            <div
+                aria-hidden="true"
+                className="h-px w-[26px] shrink-0 bg-[var(--rail-border)]"
+            />
+
             {MODULES.map((item) => {
                 const IconComponent = ICONS[item.icon];
                 const isActive = item.key === active;

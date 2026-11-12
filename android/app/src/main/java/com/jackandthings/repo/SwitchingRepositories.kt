@@ -27,6 +27,7 @@ class SwitchingNotesRepository(
     override suspend fun list(): Result<List<Note>> = active.list()
     override suspend fun create(title: String, body: String?) = active.create(title, body)
     override suspend fun update(id: String, title: String, body: String?) = active.update(id, title, body)
+    override suspend fun setStarred(id: String, isStarred: Boolean) = active.setStarred(id, isStarred)
     override suspend fun delete(id: String) = active.delete(id)
 }
 
@@ -53,7 +54,8 @@ class SwitchingWorkoutRepository(
     override suspend fun list(): Result<List<WorkoutEntry>> = active.list()
     override suspend fun reminderState(): Result<ReminderState> = active.reminderState()
     override suspend fun presets(): Result<List<WorkoutPreset>> = active.presets()
-    override suspend fun create(activity: String, notes: String?) = active.create(activity, notes)
+    override suspend fun create(activity: String, notes: String?, loggedAt: String?) =
+        active.create(activity, notes, loggedAt)
     override suspend fun delete(id: String) = active.delete(id)
 }
 

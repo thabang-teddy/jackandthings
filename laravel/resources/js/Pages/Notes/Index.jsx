@@ -36,6 +36,16 @@ export default function Index({ notes }) {
         }
     };
 
+    // Only the flag travels: NoteRequest validates what is present, so a row
+    // can pin itself without sending the whole note back.
+    const toggleStar = (note) => {
+        router.put(
+            route('notes.update', note.id),
+            { is_starred: !note.is_starred },
+            { preserveScroll: true },
+        );
+    };
+
     const destroy = (note) => {
         if (window.confirm(`Delete "${note.title}"?`)) {
             router.delete(route('notes.destroy', note.id), {
@@ -58,6 +68,7 @@ export default function Index({ notes }) {
                     onEdit={startEdit}
                     onNew={startNew}
                     onDestroy={destroy}
+                    onToggleStar={toggleStar}
                 />
             </div>
             <div className="w-full lg:w-96">

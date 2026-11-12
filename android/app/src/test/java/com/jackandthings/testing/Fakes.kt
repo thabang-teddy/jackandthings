@@ -77,6 +77,7 @@ class FakeNotesRepository(
     /** Every (title, body) pair the screen sent, in order. */
     val created: MutableList<Pair<String, String?>> = mutableListOf()
     val updated: MutableList<Triple<String, String, String?>> = mutableListOf()
+    val starred: MutableList<Pair<String, Boolean>> = mutableListOf()
     val deletedIds: MutableList<String> = mutableListOf()
 
     override suspend fun list(): Result<List<Note>> =
@@ -96,6 +97,15 @@ class FakeNotesRepository(
 
         updated.add(Triple(id, title, body))
         val note = Note(id, title, body)
+        notes.replaceAll { if (it.id == id) note else it }
+        return Result.success(note)
+    }
+
+    override suspend fun setStarred(id: String, isStarred: Boolean): Result<Note> {
+        failure?.let { return Result.failure(it) }
+
+        starred.add(id to isStarred)
+        val note = notes.first { it.id == id }.copy(isStarred = isStarred)
         notes.replaceAll { if (it.id == id) note else it }
         return Result.success(note)
     }
@@ -189,11 +199,15 @@ class FakeWorkoutRepository(
     override suspend fun presets(): Result<List<WorkoutPreset>> =
         failure?.let { Result.failure(it) } ?: Result.success(presets.toList())
 
-    override suspend fun create(activity: String, notes: String?): Result<WorkoutEntry> {
+    override suspend fun create(
+        activity: String,
+        notes: String?,
+        loggedAt: String?,
+    ): Result<WorkoutEntry> {
         failure?.let { return Result.failure(it) }
 
         created.add(activity to notes)
-        val entry = WorkoutEntry("w-${entries.size + 1}", activity, notes)
+        val entry = WorkoutEntry("w-${entries.size + 1}", activity, notes, loggedAt)
         entries.add(entry)
         // Logging something clears the nudge, the way the server would.
         reminder = ReminderState(due = false, lastLoggedAt = "now")
@@ -258,6 +272,9 @@ class FakeBudgetRepository(
     var failAfterAccounts: Boolean = false
 
     var postedAmounts: MutableList<String> = mutableListOf()
+
+    /** Which account each post landed on, for checking id remapping. */
+    var postedAccountIds: MutableList<String> = mutableListOf()
     var transfers: MutableList<Triple<String, String, String>> = mutableListOf()
 
     override suspend fun accounts(): Result<List<BudgetAccount>> =
@@ -291,6 +308,7 @@ class FakeBudgetRepository(
         if (failAfterAccounts) return Result.failure(RuntimeException("posting failed"))
 
         postedAmounts.add(amount)
+        postedAccountIds.add(accountId)
         return Result.success(
             BudgetTransaction("tx-${postedAmounts.size}", type, 0, description),
         )

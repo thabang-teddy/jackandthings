@@ -44,6 +44,20 @@ class ApiAuthStore(
     private val _user = MutableStateFlow<AuthUser?>(null)
     override val user: StateFlow<AuthUser?> = _user.asStateFlow()
 
+    /**
+     * Run while the token is still valid, so anything queued offline gets one
+     * last chance to reach the server before the session goes. Wired to the
+     * outbox in AppContainer, the same way [ApiClient.onUnauthenticated] is.
+     */
+    var beforeSignOut: (suspend () -> Unit)? = null
+
+    /**
+     * Run once the session is gone, to drop cached copies of that account's
+     * rows. Not doing so would leave one account's notes on screen for the
+     * next one, which docs/SECURITY.md does not allow.
+     */
+    var onSessionCleared: (() -> Unit)? = null
+
     override fun restore() {
         val stored = tokens.read()
         if (stored.isNullOrBlank()) return
@@ -67,6 +81,9 @@ class ApiAuthStore(
      * would clean up once token expiry is configured.
      */
     override suspend fun signOut() {
+        runCatching { beforeSignOut?.invoke() }
+            .onFailure { Log.w(TAG, "Pre-sign-out sync failed; signing out anyway", it) }
+
         apiCall { api.revokeToken() }
             .onFailure { Log.w(TAG, "Token revoke failed; clearing locally anyway", it) }
 
@@ -82,6 +99,7 @@ class ApiAuthStore(
         client.setAuthToken(null)
         _user.value = null
         _signedIn.value = false
+        onSessionCleared?.invoke()
     }
 
     private fun deviceName(): String = "${Build.MANUFACTURER} ${Build.MODEL}".trim()

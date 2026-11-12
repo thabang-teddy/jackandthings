@@ -19,7 +19,7 @@ const MONTHS = [
 
 const pad = (value) => String(value).padStart(2, '0');
 
-/** Parse a "YYYY-MM-DDTHH:mm" value into a Date, or now when empty/invalid. */
+/** Parse an ISO-8601 instant into a Date, or now when empty/invalid. */
 function parseValue(value) {
     if (value) {
         const parsed = new Date(value);
@@ -30,8 +30,17 @@ function parseValue(value) {
     return new Date();
 }
 
+/**
+ * Emits an absolute instant. A bare "YYYY-MM-DDTHH:mm" carries no offset, so
+ * the server read the picked wall time as UTC and the entry came back shifted
+ * by the viewer's offset. Seconds are dropped because the UI only offers
+ * minutes.
+ */
 function toValue(date) {
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    const instant = new Date(date);
+    instant.setSeconds(0, 0);
+
+    return instant.toISOString();
 }
 
 function formatDisplay(value) {
@@ -58,8 +67,9 @@ function monthGrid(year, month) {
 }
 
 /**
- * A themed date + time picker that emits the same "YYYY-MM-DDTHH:mm" string a
- * native datetime-local would, so callers and server validation are unchanged.
+ * A themed date + time picker over an absolute ISO-8601 instant: it reads and
+ * writes the same shape the api/v1 contract uses, and shows it in the viewer's
+ * own zone. Server validation ("date") accepts it unchanged.
  */
 export default function GlassDateTimePicker({ id, value, onChange }) {
     const [open, setOpen] = useState(false);

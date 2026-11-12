@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ALERT_TAGS, notify } from '@/Lib/desktopAlerts';
 
 const PHASE_FOCUS = 'focus';
 const PHASE_BREAK = 'break';
@@ -117,12 +118,26 @@ export function useCountdown() {
             return;
         }
 
-        // Focus rolls into the break, then the timer stops.
+        // Focus rolls into the break, then the timer stops. Each roll-over
+        // also raises a desktop alert, since the whole point of a timer is
+        // that you are not watching it. Only the clock running out notifies:
+        // skip and stop are the user's own doing and need no telling.
         if (phase === PHASE_FOCUS && preset.break_minutes > 0) {
             setPhase(PHASE_BREAK);
             setSecondsLeft(preset.break_minutes * 60);
+            notify('Focus done — break time', {
+                body: `${preset.break_minutes} minute break started.`,
+                tag: ALERT_TAGS.pomodoro,
+            });
         } else {
             setRunning(false);
+            notify(
+                phase === PHASE_BREAK ? 'Break over' : 'Focus session done',
+                {
+                    body: `${preset.name} finished.`,
+                    tag: ALERT_TAGS.pomodoro,
+                },
+            );
         }
     }, [secondsLeft, running, phase, preset]);
 

@@ -4,6 +4,8 @@ import android.content.Context
 import com.jackandthings.data.AppPrefs
 import com.jackandthings.data.TokenStore
 import com.jackandthings.data.local.LocalStores
+import com.jackandthings.data.local.OfflineCache
+import com.jackandthings.data.local.Outbox
 import com.jackandthings.data.remote.ApiClient
 import com.jackandthings.data.remote.JackApi
 import com.jackandthings.repo.ApiAuthStore
@@ -20,6 +22,12 @@ import com.jackandthings.repo.LocalPomodoroRepository
 import com.jackandthings.repo.LocalWatchListRepository
 import com.jackandthings.repo.LocalWorkoutRepository
 import com.jackandthings.repo.NotesRepository
+import com.jackandthings.repo.OfflineBudgetRepository
+import com.jackandthings.repo.OfflineNotesRepository
+import com.jackandthings.repo.OfflinePomodoroRepository
+import com.jackandthings.repo.OfflineWatchListRepository
+import com.jackandthings.repo.OfflineWorkoutRepository
+import com.jackandthings.repo.OutboxDrainer
 import com.jackandthings.repo.PomodoroRepository
 import com.jackandthings.repo.SwitchingBudgetRepository
 import com.jackandthings.repo.SwitchingNotesRepository
@@ -29,6 +37,11 @@ import com.jackandthings.repo.SwitchingWorkoutRepository
 import com.jackandthings.repo.SyncManager
 import com.jackandthings.repo.WatchListRepository
 import com.jackandthings.repo.WorkoutRepository
+import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * The app's object graph, assembled by hand.
@@ -42,6 +55,9 @@ class AppContainer(context: Context) {
 
     private val appContext = context.applicationContext
 
+    /** Process-lived, for the few jobs with no screen to own them. */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     val prefs: AppPrefs = AppPrefs.create(appContext)
 
     private val client: ApiClient = ApiClient(prefs.baseUrl.value)
@@ -49,17 +65,31 @@ class AppContainer(context: Context) {
     private val tokens: TokenStore = TokenStore.create(appContext)
     private val localStores = LocalStores(appContext.filesDir)
 
-    val auth: AuthStore = ApiAuthStore(api, client, tokens)
+    private val authStore = ApiAuthStore(api, client, tokens)
+    val auth: AuthStore = authStore
 
     // Each module is a remote (server-backed) and a local (file-backed)
     // implementation of the same interface, chosen per call by whether there
     // is a signed-in session - see SwitchingRepositories.kt. Nothing above
     // this line depends on either implementation, only the interfaces.
-    private val remoteNotes = ApiNotesRepository(api)
-    private val remotePomodoro = ApiPomodoroRepository(api)
-    private val remoteWatchList = ApiWatchListRepository(api)
-    private val remoteWorkout = ApiWorkoutRepository(api)
-    private val remoteBudget = ApiBudgetRepository(api)
+    //
+    // A signed-in session still reaches the server on every call. These
+    // decorators only come into play when it cannot be reached: they serve
+    // the last list seen and queue the write for later. See Offline.kt.
+    private val offlineCache = OfflineCache(appContext.filesDir)
+    private val outbox = Outbox(File(appContext.filesDir, "outbox.json"))
+
+    private val apiNotes = ApiNotesRepository(api)
+    private val apiPomodoro = ApiPomodoroRepository(api)
+    private val apiWatchList = ApiWatchListRepository(api)
+    private val apiWorkout = ApiWorkoutRepository(api)
+    private val apiBudget = ApiBudgetRepository(api)
+
+    private val remoteNotes = OfflineNotesRepository(apiNotes, offlineCache, outbox)
+    private val remotePomodoro = OfflinePomodoroRepository(apiPomodoro, offlineCache, outbox)
+    private val remoteWatchList = OfflineWatchListRepository(apiWatchList, offlineCache, outbox)
+    private val remoteWorkout = OfflineWorkoutRepository(apiWorkout, offlineCache, outbox)
+    private val remoteBudget = OfflineBudgetRepository(apiBudget, offlineCache, outbox)
 
     private val localNotes = LocalNotesRepository(localStores.notes)
     private val localPomodoro = LocalPomodoroRepository(localStores.presets)
@@ -77,14 +107,36 @@ class AppContainer(context: Context) {
     val workout: WorkoutRepository = SwitchingWorkoutRepository(auth, localWorkout, remoteWorkout)
     val budget: BudgetRepository = SwitchingBudgetRepository(auth, localBudget, remoteBudget)
 
-    /** Pushes whatever is waiting in [localStores] up to the server. */
+    /**
+     * Pushes whatever is waiting in [localStores] up to the server.
+     *
+     * Deliberately given the bare `api*` repositories rather than the offline
+     * ones: a sign-in sync that cannot reach the server should say so in its
+     * dialog, not quietly report success and move the backlog sideways into
+     * the outbox.
+     */
     val syncManager = SyncManager(
         stores = localStores,
-        remoteNotes = remoteNotes,
-        remotePomodoro = remotePomodoro,
-        remoteWorkout = remoteWorkout,
-        remoteBudget = remoteBudget,
-        remoteWatchList = remoteWatchList,
+        remoteNotes = apiNotes,
+        remotePomodoro = apiPomodoro,
+        remoteWorkout = apiWorkout,
+        remoteBudget = apiBudget,
+        remoteWatchList = apiWatchList,
+    )
+
+    /**
+     * Replays writes made while signed in but offline. Also on the bare
+     * `api*` repositories, so a replay that fails is retried from the queue
+     * instead of being appended to it again.
+     */
+    val outboxDrainer = OutboxDrainer(
+        outbox = outbox,
+        cache = offlineCache,
+        notes = apiNotes,
+        pomodoro = apiPomodoro,
+        workout = apiWorkout,
+        watchList = apiWatchList,
+        budget = apiBudget,
     )
 
     /**
@@ -98,6 +150,16 @@ class AppContainer(context: Context) {
 
     init {
         client.onUnauthenticated = auth::onUnauthenticated
+
+        // One last attempt to empty the outbox while the token still works.
+        authStore.beforeSignOut = { outboxDrainer.drain() }
+
+        // Cached rows are copies of one account's data, so they go with the
+        // session. The outbox is kept: a 401 is usually an expired token and
+        // the same person signs straight back in. This app has one user per
+        // device (docs/PRD.md); two accounts sharing one would need the
+        // queue keyed by user before it could be replayed safely.
+        authStore.onSessionCleared = { scope.launch { offlineCache.clear() } }
 
         // The stored token has to reach the HTTP client before any screen can
         // issue a request, so the session is restored as the graph is built.

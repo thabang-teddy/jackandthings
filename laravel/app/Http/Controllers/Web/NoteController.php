@@ -26,7 +26,8 @@ class NoteController extends Controller
                 'id' => $note->id,
                 'title' => $note->title,
                 'body' => $note->body,
-                'updated_at' => $note->updated_at?->toDayDateTimeString(),
+                'is_starred' => $note->is_starred,
+                'updated_at' => $note->updated_at?->toIso8601String(),
             ]);
 
         return Inertia::render('Notes/Index', ['notes' => $notes]);
@@ -39,7 +40,7 @@ class NoteController extends Controller
 
     public function store(NoteRequest $request): RedirectResponse
     {
-        $request->user()->notes()->create($request->validated());
+        $request->user()->notes()->create($request->attributesForModel());
 
         // The home page's quick-note popup saves without leaving the page;
         // every other create form still lands on the notes list.
@@ -59,6 +60,7 @@ class NoteController extends Controller
                 'id' => $note->id,
                 'title' => $note->title,
                 'body' => $note->body,
+                'is_starred' => $note->is_starred,
             ],
         ]);
     }
@@ -67,7 +69,7 @@ class NoteController extends Controller
     {
         $this->authorizeOwned('update', $note);
 
-        $note->update($request->validated());
+        $note->update($request->attributesForModel());
 
         // The home page's note popup edits in place; every other edit form
         // still lands on the notes list.

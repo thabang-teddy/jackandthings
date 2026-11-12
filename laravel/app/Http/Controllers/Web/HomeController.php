@@ -27,7 +27,11 @@ class HomeController extends Controller
             ]);
         }
 
+        // Starred notes only: the home page is a pinboard the user chooses,
+        // not the tail of the notes list. The cap stays so a user who stars
+        // everything does not get an unbounded home page.
         $notes = $user->notes()
+            ->where('is_starred', true)
             ->latest()
             ->take(4)
             ->get()
@@ -35,6 +39,7 @@ class HomeController extends Controller
                 'id' => $note->id,
                 'title' => $note->title,
                 'body' => $note->body,
+                'is_starred' => $note->is_starred,
             ]);
 
         $defaultPreset = $user->pomodoroPresets()
@@ -54,7 +59,7 @@ class HomeController extends Controller
             'notes' => $notes,
             'presets' => $presets,
             'dueForReminder' => $this->reminderStatus->isDue($user),
-            'lastLoggedAt' => $this->reminderStatus->lastLoggedAt($user)?->toDayDateTimeString(),
+            'lastLoggedAt' => $this->reminderStatus->lastLoggedAt($user)?->toIso8601String(),
             'defaultPreset' => $defaultPreset === null ? null : [
                 'id' => $defaultPreset->id,
                 'name' => $defaultPreset->name,

@@ -10,10 +10,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['title', 'body'])]
+#[Fillable(['title', 'body', 'is_starred'])]
 class Note extends Model
 {
     use HasFactory, HasUuids;
+
+    protected function casts(): array
+    {
+        return [
+            'is_starred' => 'boolean',
+        ];
+    }
 
     public function user(): BelongsTo
     {

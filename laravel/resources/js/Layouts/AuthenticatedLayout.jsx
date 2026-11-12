@@ -1,5 +1,6 @@
 import GlassShell from '@/Components/Glass/GlassShell';
 import { PomodoroTimerProvider } from '@/Lib/PomodoroTimerContext';
+import { useWorkoutNudge } from '@/Lib/useWorkoutNudge';
 
 /**
  * The app's one layout. GlassShell renders the rail + submenu chrome in
@@ -22,6 +23,11 @@ export default function AuthenticatedLayout({
     activeAnchor,
     children,
 }) {
+    // Mounted here rather than per page for the same reason the timer is:
+    // the layout survives Inertia navigations, so the hourly check is not
+    // restarted every time the user moves between modules.
+    useWorkoutNudge(route('workouts.due'));
+
     return (
         <PomodoroTimerProvider>
             <GlassShell

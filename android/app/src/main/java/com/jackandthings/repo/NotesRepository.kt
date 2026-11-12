@@ -15,6 +15,9 @@ interface NotesRepository {
 
     suspend fun update(id: String, title: String, body: String?): Result<Note>
 
+    /** Separate from [update] so a list row can pin a note it is not editing. */
+    suspend fun setStarred(id: String, isStarred: Boolean): Result<Note>
+
     suspend fun delete(id: String): Result<Unit>
 }
 
@@ -27,6 +30,9 @@ class ApiNotesRepository(private val api: JackApi) : NotesRepository {
 
     override suspend fun update(id: String, title: String, body: String?): Result<Note> =
         apiCall { api.updateNote(id, title, body) }
+
+    override suspend fun setStarred(id: String, isStarred: Boolean): Result<Note> =
+        apiCall { api.starNote(id, isStarred) }
 
     override suspend fun delete(id: String): Result<Unit> = apiCall { api.deleteNote(id) }
 }

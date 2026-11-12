@@ -114,7 +114,7 @@ class BudgetController extends Controller
                 'description' => $transaction->description,
                 'account' => $transaction->account?->name,
                 'related_account' => $transaction->relatedAccount?->name,
-                'created_at' => $transaction->created_at?->toDayDateTimeString(),
+                'created_at' => $transaction->created_at?->toIso8601String(),
             ]);
     }
 }

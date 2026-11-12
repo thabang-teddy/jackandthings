@@ -14,7 +14,16 @@ interface WorkoutRepository {
     /** Named activities to log in one tap, offered by the dashboard. */
     suspend fun presets(): Result<List<WorkoutPreset>>
 
-    suspend fun create(activity: String, notes: String?): Result<WorkoutEntry>
+    /**
+     * [loggedAt] is an ISO-8601 instant, and only replays pass one: a workout
+     * recorded offline happened when the user logged it, not when the queue
+     * finally reached the server. Left null, the server stamps it now.
+     */
+    suspend fun create(
+        activity: String,
+        notes: String?,
+        loggedAt: String? = null,
+    ): Result<WorkoutEntry>
 
     suspend fun delete(id: String): Result<Unit>
 }
@@ -27,8 +36,11 @@ class ApiWorkoutRepository(private val api: JackApi) : WorkoutRepository {
 
     override suspend fun presets(): Result<List<WorkoutPreset>> = apiCall { api.workoutPresets() }
 
-    override suspend fun create(activity: String, notes: String?): Result<WorkoutEntry> =
-        apiCall { api.createWorkoutEntry(activity, notes) }
+    override suspend fun create(
+        activity: String,
+        notes: String?,
+        loggedAt: String?,
+    ): Result<WorkoutEntry> = apiCall { api.createWorkoutEntry(activity, notes, loggedAt) }
 
     override suspend fun delete(id: String): Result<Unit> = apiCall { api.deleteWorkoutEntry(id) }
 }
