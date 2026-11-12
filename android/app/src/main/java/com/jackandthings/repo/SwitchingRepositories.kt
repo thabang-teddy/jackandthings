@@ -27,6 +27,7 @@ class SwitchingNotesRepository(
     override suspend fun list(): Result<List<Note>> = active.list()
     override suspend fun create(title: String, body: String?) = active.create(title, body)
     override suspend fun update(id: String, title: String, body: String?) = active.update(id, title, body)
+    override suspend fun setStarred(id: String, isStarred: Boolean) = active.setStarred(id, isStarred)
     override suspend fun delete(id: String) = active.delete(id)
 }
 

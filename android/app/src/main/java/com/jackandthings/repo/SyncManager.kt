@@ -54,7 +54,17 @@ class SyncManager(
         var pushed = 0
         for (note in stores.notes.read()) {
             remoteNotes.create(note.title, note.body)
-                .onSuccess { pushed++ }
+                .onSuccess { created ->
+                    pushed++
+                    // create() does not carry the flag, so a note starred
+                    // while signed out is pinned in a second call rather than
+                    // quietly losing its star on the way up.
+                    if (note.isStarred) {
+                        remoteNotes.setStarred(created.id, true).onFailure {
+                            errors += "Note \"${note.title}\" synced but could not be starred"
+                        }
+                    }
+                }
                 .onFailure {
                     remaining += note
                     errors += "Note \"${note.title}\": ${it.readableMessage()}"

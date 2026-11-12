@@ -77,6 +77,7 @@ class FakeNotesRepository(
     /** Every (title, body) pair the screen sent, in order. */
     val created: MutableList<Pair<String, String?>> = mutableListOf()
     val updated: MutableList<Triple<String, String, String?>> = mutableListOf()
+    val starred: MutableList<Pair<String, Boolean>> = mutableListOf()
     val deletedIds: MutableList<String> = mutableListOf()
 
     override suspend fun list(): Result<List<Note>> =
@@ -96,6 +97,15 @@ class FakeNotesRepository(
 
         updated.add(Triple(id, title, body))
         val note = Note(id, title, body)
+        notes.replaceAll { if (it.id == id) note else it }
+        return Result.success(note)
+    }
+
+    override suspend fun setStarred(id: String, isStarred: Boolean): Result<Note> {
+        failure?.let { return Result.failure(it) }
+
+        starred.add(id to isStarred)
+        val note = notes.first { it.id == id }.copy(isStarred = isStarred)
         notes.replaceAll { if (it.id == id) note else it }
         return Result.success(note)
     }

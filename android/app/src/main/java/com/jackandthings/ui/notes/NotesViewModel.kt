@@ -76,6 +76,25 @@ class NotesViewModel(private val repo: NotesRepository) : ViewModel() {
         }
     }
 
+    /**
+     * Starred notes are what the home screen pins. The list is patched in
+     * place rather than refetched so the row does not flicker under the tap.
+     */
+    fun toggleStar(note: Note) {
+        viewModelScope.launch {
+            repo.setStarred(note.id, !note.isStarred).fold(
+                onSuccess = { updated ->
+                    _state.update { state ->
+                        state.copy(
+                            notes = state.notes.map { if (it.id == updated.id) updated else it },
+                        )
+                    }
+                },
+                onFailure = { e -> _state.update { it.copy(error = e.readableMessage()) } },
+            )
+        }
+    }
+
     fun delete(id: String) {
         viewModelScope.launch {
             repo.delete(id).fold(

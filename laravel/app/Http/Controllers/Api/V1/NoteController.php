@@ -26,7 +26,7 @@ class NoteController extends Controller
 
     public function store(NoteRequest $request): JsonResponse
     {
-        $note = $request->user()->notes()->create($request->validated());
+        $note = $request->user()->notes()->create($request->attributesForModel());
 
         return response()->json(['data' => $note], 201);
     }
@@ -42,7 +42,7 @@ class NoteController extends Controller
     {
         $this->authorizeOwned('update', $note);
 
-        $note->update($request->validated());
+        $note->update($request->attributesForModel());
 
         return response()->json(['data' => $note]);
     }

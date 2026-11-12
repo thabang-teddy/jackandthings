@@ -1,7 +1,11 @@
 import GlassCard from '@/Components/Glass/GlassCard';
 import GlassPagination from '@/Components/Glass/GlassPagination';
 import TxRow from '@/Components/Glass/TxRow';
-import { DocumentIcon } from '@/Components/Glass/icons';
+import {
+    DocumentIcon,
+    StarIcon,
+    StarOutlineIcon,
+} from '@/Components/Glass/icons';
 import { formatWhen } from '@/Lib/formatWhen';
 
 export default function NotesGlassIndexView({
@@ -9,6 +13,7 @@ export default function NotesGlassIndexView({
     editingId,
     onEdit,
     onDestroy,
+    onToggleStar,
 }) {
     return (
         <div id="notes" className="flex h-full min-h-0 flex-col gap-4">
@@ -38,6 +43,27 @@ export default function NotesGlassIndexView({
                             }
                             action={
                                 <div className="ml-2 flex shrink-0 items-center gap-3 text-xs">
+                                    <button
+                                        type="button"
+                                        onClick={() => onToggleStar(note)}
+                                        aria-pressed={note.is_starred}
+                                        title={
+                                            note.is_starred
+                                                ? 'Starred (shows on the home page)'
+                                                : 'Star to pin to the home page'
+                                        }
+                                        className={
+                                            note.is_starred
+                                                ? 'text-[var(--accent)]'
+                                                : 'text-[var(--muted)] hover:text-[var(--ink)]'
+                                        }
+                                    >
+                                        {note.is_starred ? (
+                                            <StarIcon size={14} />
+                                        ) : (
+                                            <StarOutlineIcon size={14} />
+                                        )}
+                                    </button>
                                     <button
                                         type="button"
                                         onClick={() => onEdit(note)}

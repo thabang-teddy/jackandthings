@@ -29,6 +29,8 @@ data class Note(
     val id: String,
     val title: String,
     val body: String? = null,
+    /** Starred notes are the ones the home screen pins; see docs/PRD.md F-01. */
+    @SerialName("is_starred") val isStarred: Boolean = false,
     @SerialName("updated_at") val updatedAt: String? = null,
 )
 

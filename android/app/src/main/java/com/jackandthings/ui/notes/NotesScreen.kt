@@ -12,6 +12,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
@@ -84,6 +86,25 @@ fun NotesScreen(viewModel: NotesViewModel, onBack: () -> Unit) {
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                 }
+                            }
+                            IconButton(onClick = { viewModel.toggleStar(note) }) {
+                                Icon(
+                                    imageVector = if (note.isStarred) {
+                                        Icons.Filled.Star
+                                    } else {
+                                        Icons.Outlined.StarBorder
+                                    },
+                                    contentDescription = if (note.isStarred) {
+                                        "Unstar note"
+                                    } else {
+                                        "Star note so it shows on the home screen"
+                                    },
+                                    tint = if (note.isStarred) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                )
                             }
                             IconButton(onClick = { viewModel.delete(note.id) }) {
                                 Icon(Icons.Filled.Delete, contentDescription = "Delete note")
