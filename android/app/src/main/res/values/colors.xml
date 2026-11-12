@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="brand_surface">#FFF8FAFC</color>
-    <color name="brand_primary">#FF4F46E5</color>
-    <color name="launcher_background">#FF4F46E5</color>
+    <!-- The brand accent, matching the web shell's accent theme token.
+         The launcher icon draws its own gradient in ic_launcher_background. -->
+    <color name="brand_primary">#FF2B6CFF</color>
 </resources>

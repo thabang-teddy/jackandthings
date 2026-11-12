@@ -1,11 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Placeholder mark: a "J" glyph. Replace once a real icon exists. -->
+<!--
+    The Jack & Things mark: a "J" beside three fading bars. Drawn in the 64-unit
+    space the master SVG uses (laravel/public/logo.svg), then scaled 1.3x and
+    offset so the 40-unit artwork sits centred inside the 66dp adaptive-icon
+    safe zone of the 108dp canvas.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M62,30 L62,62 a14,14 0 0 1 -28,0 l0,-4 l10,0 l0,4 a4,4 0 0 0 8,0 L52,40 L40,40 L40,30 Z" />
+    <group
+        android:scaleX="1.3"
+        android:scaleY="1.3"
+        android:translateX="12.4"
+        android:translateY="15">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M15.5,14 H30.5 A3.5,3.5 0 0 1 30.5,21 H15.5 A3.5,3.5 0 0 1 15.5,14 Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:fillAlpha="0.7"
+            android:pathData="M15.5,25 H24.5 A3.5,3.5 0 0 1 24.5,32 H15.5 A3.5,3.5 0 0 1 15.5,25 Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:fillAlpha="0.45"
+            android:pathData="M15.5,36 H19.5 A3.5,3.5 0 0 1 19.5,43 H15.5 A3.5,3.5 0 0 1 15.5,36 Z" />
+        <path
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="8"
+            android:strokeLineCap="round"
+            android:pathData="M46,14 V33 Q46,46 33,46" />
+    </group>
 </vector>
