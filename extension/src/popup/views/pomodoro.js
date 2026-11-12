@@ -23,6 +23,7 @@ async function startPreset(preset) {
             presetId: preset.id,
             name: preset.name,
             phase: 'focus',
+            focusMinutes: preset.focus_minutes,
             breakMinutes: preset.break_minutes,
             endsAt,
             pausedRemaining: null,
@@ -49,6 +50,48 @@ async function stop() {
     await ext.runtime.sendMessage({ type: 'cancel-pomodoro' });
 }
 
+/** Back to the top of the focus phase, paused - mirrors Lib/useCountdown.js's `restart`. */
+async function restart(pomodoro) {
+    await writeSettings({
+        pomodoro: {
+            ...pomodoro,
+            phase: 'focus',
+            pausedRemaining: pomodoro.focusMinutes * 60,
+        },
+    });
+    await ext.runtime.sendMessage({ type: 'cancel-pomodoro' });
+}
+
+/**
+ * Jumps straight to the other phase without waiting for the clock to run
+ * out, keeping whatever running/paused state it was already in. Mirrors the
+ * natural roll-over when there is no break to skip into.
+ */
+async function skip(pomodoro) {
+    const running = pomodoro.pausedRemaining == null;
+
+    if (pomodoro.phase === 'focus') {
+        if (pomodoro.breakMinutes > 0) {
+            await toPhase(pomodoro, 'break', pomodoro.breakMinutes, running);
+        } else {
+            await stop();
+        }
+        return;
+    }
+
+    await toPhase(pomodoro, 'focus', pomodoro.focusMinutes, running);
+}
+
+async function toPhase(pomodoro, phase, minutes, running) {
+    if (running) {
+        const endsAt = Date.now() + minutes * 60_000;
+        await writeSettings({ pomodoro: { ...pomodoro, phase, endsAt, pausedRemaining: null } });
+        await ext.runtime.sendMessage({ type: 'schedule-pomodoro', endsAt });
+    } else {
+        await writeSettings({ pomodoro: { ...pomodoro, phase, pausedRemaining: minutes * 60 } });
+    }
+}
+
 export async function renderPomodoro(view, rerender) {
     clear(view).append(muted('Loading presets…'));
 
@@ -70,10 +113,30 @@ export async function renderPomodoro(view, rerender) {
                     h('button', {
                         class: 'btn-ghost',
                         type: 'button',
+                        text: 'Restart',
+                        onClick: () =>
+                            guard(view, async () => {
+                                await restart(pomodoro);
+                                await rerender();
+                            }),
+                    }),
+                    h('button', {
+                        class: 'btn-ghost',
+                        type: 'button',
                         text: running ? 'Pause' : 'Resume',
                         onClick: () =>
                             guard(view, async () => {
                                 await (running ? pause(pomodoro) : resume(pomodoro));
+                                await rerender();
+                            }),
+                    }),
+                    h('button', {
+                        class: 'btn-ghost',
+                        type: 'button',
+                        text: 'Skip',
+                        onClick: () =>
+                            guard(view, async () => {
+                                await skip(pomodoro);
                                 await rerender();
                             }),
                     }),

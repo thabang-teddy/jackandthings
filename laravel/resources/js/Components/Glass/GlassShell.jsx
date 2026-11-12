@@ -1,5 +1,6 @@
 import { Head, usePage } from '@inertiajs/react';
 import Dropdown from '@/Components/Dropdown';
+import PomodoroFloatingRing from '@/Components/Glass/PomodoroFloatingRing';
 import Rail from '@/Components/Glass/Rail';
 import SubmenuPills from '@/Components/Glass/SubmenuPills';
 import ThemeToggle from '@/Components/Glass/ThemeToggle';
@@ -122,6 +123,12 @@ export default function GlassShell({
                     <div className="min-h-0 flex-1">{children}</div>
                 </div>
             </div>
+
+            {/* A sibling of the flex content above rather than nested in it,
+                so its own fixed positioning isn't affected by that layout —
+                but still inside this div, which is what carries the theme's
+                CSS custom properties via `style={vars}` above. */}
+            <PomodoroFloatingRing />
         </div>
     );
 }

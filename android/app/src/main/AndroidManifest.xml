@@ -2,9 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Asked for at runtime on API 33+; the hourly workout nudge is the only
-         notification this app posts. -->
+    <!-- Asked for at runtime on API 33+; covers both the hourly workout nudge
+         and the running-Pomodoro notification. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- For PomodoroTimerService, so the countdown and its notification
+         controls survive the app being backgrounded. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
         android:name=".JackApplication"
@@ -34,6 +38,18 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+
+        <!-- No existing android:foregroundServiceType category fits a focus
+             timer; specialUse is the documented escape hatch for exactly that,
+             declared below with the required PROPERTY_SPECIAL_USE_FGS_SUBTYPE. -->
+        <service
+            android:name=".pomodoro.PomodoroTimerService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="pomodoro-timer" />
+        </service>
     </application>
 
 </manifest>

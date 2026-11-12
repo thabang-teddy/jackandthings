@@ -14,6 +14,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Schedule
@@ -37,7 +42,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jackandthings.model.PomodoroPreset
-import com.jackandthings.ui.pomodoro.TimerPhase
+import com.jackandthings.pomodoro.TimerPhase
 import com.jackandthings.ui.theme.GlassCircleButton
 import com.jackandthings.ui.theme.PillButton
 import com.jackandthings.ui.theme.glassFieldColors
@@ -61,8 +66,10 @@ fun DashboardView(
     state: DashboardState,
     onLogWorkout: (activity: String, notes: String, onLogged: () -> Unit) -> Unit,
     onStart: (PomodoroPreset) -> Unit,
+    onRestart: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
+    onSkip: () -> Unit,
     onStop: () -> Unit,
     onOpen: (route: String) -> Unit,
 ) {
@@ -103,8 +110,10 @@ fun DashboardView(
                 PomodoroReadout(
                     state = state,
                     onStart = onStart,
+                    onRestart = onRestart,
                     onPause = onPause,
                     onResume = onResume,
+                    onSkip = onSkip,
                     onStop = onStop,
                     onOpenPomodoro = { onOpen("pomodoro") },
                 )
@@ -270,8 +279,10 @@ private fun formatLoggedAt(raw: String): String = runCatching {
 private fun PomodoroReadout(
     state: DashboardState,
     onStart: (PomodoroPreset) -> Unit,
+    onRestart: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
+    onSkip: () -> Unit,
     onStop: () -> Unit,
     onOpenPomodoro: () -> Unit,
 ) {
@@ -331,14 +342,43 @@ private fun PomodoroReadout(
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (state.idle) {
-                PillButton("Start", primary = true, onClick = { onStart(preset) })
+                GlassCircleButton(
+                    icon = Icons.Filled.PlayArrow,
+                    contentDescription = "Start",
+                    active = true,
+                    onClick = { onStart(preset) },
+                )
             } else {
+                GlassCircleButton(
+                    icon = Icons.Filled.RestartAlt,
+                    contentDescription = "Restart",
+                    onClick = onRestart,
+                )
                 if (state.running) {
-                    PillButton("Pause", onClick = onPause)
+                    GlassCircleButton(
+                        icon = Icons.Filled.Pause,
+                        contentDescription = "Pause",
+                        active = true,
+                        onClick = onPause,
+                    )
                 } else {
-                    PillButton("Resume", primary = true, onClick = onResume)
+                    GlassCircleButton(
+                        icon = Icons.Filled.PlayArrow,
+                        contentDescription = "Resume",
+                        active = true,
+                        onClick = onResume,
+                    )
                 }
-                PillButton("Stop", onClick = onStop)
+                GlassCircleButton(
+                    icon = Icons.Filled.SkipNext,
+                    contentDescription = "Skip",
+                    onClick = onSkip,
+                )
+                GlassCircleButton(
+                    icon = Icons.Filled.Stop,
+                    contentDescription = "Stop",
+                    onClick = onStop,
+                )
             }
         }
     }

@@ -106,6 +106,7 @@ private fun MainApp(container: AppContainer, sharedText: String?, signedIn: Bool
                         factory = DashboardViewModel.factory(
                             pomodoro = container.pomodoro,
                             workout = container.workout,
+                            appContext = context.applicationContext,
                         ),
                     )
                     val dashboardState by dashboard.state.collectAsStateWithLifecycle()
@@ -114,8 +115,10 @@ private fun MainApp(container: AppContainer, sharedText: String?, signedIn: Bool
                         state = dashboardState,
                         onLogWorkout = dashboard::logWorkout,
                         onStart = dashboard::start,
+                        onRestart = dashboard::restart,
                         onPause = dashboard::pause,
                         onResume = dashboard::resume,
+                        onSkip = dashboard::skip,
                         onStop = dashboard::stop,
                         onOpen = { route -> navController.navigate(route) },
                     )
@@ -142,7 +145,7 @@ private fun MainApp(container: AppContainer, sharedText: String?, signedIn: Bool
         composable("pomodoro") {
             PomodoroScreen(
                 viewModel = viewModel(
-                    factory = PomodoroViewModel.factory(container.pomodoro),
+                    factory = PomodoroViewModel.factory(container.pomodoro, context.applicationContext),
                 ),
                 onBack = navController::popBackStack,
             )

@@ -1,9 +1,18 @@
 import GlassShell from '@/Components/Glass/GlassShell';
+import { PomodoroTimerProvider } from '@/Lib/PomodoroTimerContext';
 
 /**
  * The app's one layout. GlassShell renders the rail + submenu chrome in
  * whichever of the two palettes (light/glass) the user has chosen — see
- * Lib/ThemeContext and Lib/themeTokens.
+ * Lib/ThemeContext and Lib/themeTokens. It also renders the floating
+ * Pomodoro ring itself, since it needs to sit inside GlassShell's own themed
+ * div to pick up the CSS custom properties that div sets.
+ *
+ * Every page assigns this same component via `Page.layout`, which is what
+ * makes Inertia treat it as a persistent layout: React keeps it (and the
+ * PomodoroTimerProvider inside it) mounted across page navigations instead of
+ * tearing it down and rebuilding it, so a running Pomodoro timer survives the
+ * trip from one page to another.
  */
 export default function AuthenticatedLayout({
     header,
@@ -14,14 +23,16 @@ export default function AuthenticatedLayout({
     children,
 }) {
     return (
-        <GlassShell
-            module={module}
-            title={title}
-            header={header}
-            submenu={submenu}
-            activeAnchor={activeAnchor}
-        >
-            {children}
-        </GlassShell>
+        <PomodoroTimerProvider>
+            <GlassShell
+                module={module}
+                title={title}
+                header={header}
+                submenu={submenu}
+                activeAnchor={activeAnchor}
+            >
+                {children}
+            </GlassShell>
+        </PomodoroTimerProvider>
     );
 }

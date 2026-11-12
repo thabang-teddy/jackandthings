@@ -10,16 +10,21 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -36,6 +41,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jackandthings.pomodoro.TimerPhase
 import com.jackandthings.ui.common.EmptyState
 import com.jackandthings.ui.common.ErrorCard
 import com.jackandthings.ui.common.LoadingBox
@@ -54,8 +60,10 @@ fun PomodoroScreen(viewModel: PomodoroViewModel, onBack: () -> Unit) {
             phaseLabel = if (state.phase == TimerPhase.Focus) "Focus" else "Break",
             presetName = state.activePreset?.name.orEmpty(),
             running = state.running,
+            onRestart = viewModel::restart,
             onPause = viewModel::pause,
             onResume = viewModel::resume,
+            onSkip = viewModel::skip,
             onStop = viewModel::stop,
         )
         return
@@ -104,7 +112,9 @@ fun PomodoroScreen(viewModel: PomodoroViewModel, onBack: () -> Unit) {
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            Button(onClick = { viewModel.start(preset) }) { Text("Start") }
+                            FilledIconButton(onClick = { viewModel.start(preset) }) {
+                                Icon(Icons.Filled.PlayArrow, contentDescription = "Start ${preset.name}")
+                            }
                             IconButton(onClick = { viewModel.deletePreset(preset.id) }) {
                                 Icon(Icons.Filled.Delete, contentDescription = "Delete preset")
                             }
@@ -132,8 +142,10 @@ private fun FullScreenTimer(
     phaseLabel: String,
     presetName: String,
     running: Boolean,
+    onRestart: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
+    onSkip: () -> Unit,
     onStop: () -> Unit,
 ) {
     Surface(modifier = Modifier.fillMaxSize()) {
@@ -154,12 +166,24 @@ private fun FullScreenTimer(
                 modifier = Modifier.padding(vertical = 24.dp),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (running) {
-                    OutlinedButton(onClick = onPause) { Text("Pause") }
-                } else {
-                    Button(onClick = onResume) { Text("Resume") }
+                OutlinedIconButton(onClick = onRestart) {
+                    Icon(Icons.Filled.RestartAlt, contentDescription = "Restart")
                 }
-                OutlinedButton(onClick = onStop) { Text("Stop") }
+                if (running) {
+                    FilledIconButton(onClick = onPause) {
+                        Icon(Icons.Filled.Pause, contentDescription = "Pause")
+                    }
+                } else {
+                    FilledIconButton(onClick = onResume) {
+                        Icon(Icons.Filled.PlayArrow, contentDescription = "Resume")
+                    }
+                }
+                OutlinedIconButton(onClick = onSkip) {
+                    Icon(Icons.Filled.SkipNext, contentDescription = "Skip")
+                }
+                OutlinedIconButton(onClick = onStop) {
+                    Icon(Icons.Filled.Stop, contentDescription = "Stop")
+                }
             }
         }
     }

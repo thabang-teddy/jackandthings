@@ -16,7 +16,9 @@ import {
     faCheck,
     faClock,
     faClockRotateLeft,
+    faCompress,
     faCopy,
+    faExpand,
     faFileLines,
     faForwardStep,
     faHeart,
@@ -24,10 +26,12 @@ import {
     faListUl,
     faMagnifyingGlass,
     faPause,
+    faPlay,
     faPlus,
     faRepeat,
     faRightLeft,
     faStar,
+    faStop,
     faStopwatch,
     faTableCells,
     faUser,
@@ -77,3 +81,7 @@ export const ForwardIcon = makeIcon(faForwardStep);
 export const PauseIcon = makeIcon(faPause);
 export const TimerIcon = makeIcon(faStopwatch);
 export const HomeIcon = makeIcon(faHouse);
+export const ExpandIcon = makeIcon(faExpand);
+export const CompressIcon = makeIcon(faCompress);
+export const PlayIcon = makeIcon(faPlay);
+export const StopIcon = makeIcon(faStop);
