@@ -111,7 +111,7 @@ extension/               MV3 add-on (five modules + the history add-on)
 
 **Still unresolved:**
 - The real history auto-delete rule (schedule, which browsers/profiles, per-domain exceptions) — the 90-day default is a placeholder.
-- Notification delivery for workout reminders **beyond Android**. The Android app now polls `workout-entries/due` hourly via WorkManager and raises its own local notification, which is what the server's poll-only design intended; the web app still shows an in-page banner only, and nothing is pushed from the server.
+- Notification delivery **to a client that is not running**. Every surface now raises its own local notification from the server's poll-only due-state — Android hourly via WorkManager, the add-on via alarms, the web page while a tab is open (plus Pomodoro phase changes). Nothing is pushed from the server, by design. The gap left is the web app with no tab open: closing it would need Web Push, and that means a server that sends.
 - Clipboard cross-device sync semantics (conflict handling, retention, whether content should be encrypted at rest given it may hold passwords).
 - Whether an admin/operator role exists.
 - Whether the add-on should be packaged and signed for distribution. It is load-unpacked only today, and Firefox treats an unsigned one as temporary, so it disappears on restart.

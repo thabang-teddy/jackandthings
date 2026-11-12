@@ -1,10 +1,10 @@
 import { Head, usePage } from '@inertiajs/react';
 import Dropdown from '@/Components/Dropdown';
+import AlertsBell from '@/Components/Glass/AlertsBell';
 import PomodoroFloatingRing from '@/Components/Glass/PomodoroFloatingRing';
 import Rail from '@/Components/Glass/Rail';
 import SubmenuPills from '@/Components/Glass/SubmenuPills';
 import ThemeToggle from '@/Components/Glass/ThemeToggle';
-import { BellIcon } from '@/Components/Glass/icons';
 import { getModule, getSubmenu } from '@/Lib/glassNav';
 import { getThemeVars } from '@/Lib/themeTokens';
 import { useTheme } from '@/Lib/ThemeContext';
@@ -79,9 +79,7 @@ export default function GlassShell({
                                 />
                             )}
                             <ThemeToggle />
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--card-border)] bg-[var(--card-bg)]">
-                                <BellIcon size={15} />
-                            </div>
+                            <AlertsBell />
                             <Dropdown>
                                 <Dropdown.Trigger>
                                     <button

@@ -1,5 +1,6 @@
 import { Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import AlertsBell from '@/Components/Glass/AlertsBell';
 import GlassCard from '@/Components/Glass/GlassCard';
 import GlassDateTimePicker from '@/Components/Glass/GlassDateTimePicker';
 import GlassModal from '@/Components/Glass/GlassModal';
@@ -30,6 +31,7 @@ import {
 import { formatClock } from '@/Lib/formatClock';
 import { formatWhen } from '@/Lib/formatWhen';
 import { usePomodoroTimer } from '@/Lib/PomodoroTimerContext';
+import { useWorkoutNudge } from '@/Lib/useWorkoutNudge';
 
 function QuickLink({ href, icon: Icon, label }) {
     return (
@@ -146,6 +148,10 @@ export default function AuthenticatedView({
     const [editingNote, setEditingNote] = useState(null);
     const [workoutOpen, setWorkoutOpen] = useState(false);
     const timer = usePomodoroTimer();
+
+    // This page sits outside AuthenticatedLayout, which is where every other
+    // page picks the hourly nudge up.
+    useWorkoutNudge(route('workouts.due'));
 
     // `return_to` tells NoteController@store/@update to come back here rather
     // than sending the user to the Notes module; NoteRequest ignores the field.
@@ -327,6 +333,9 @@ export default function AuthenticatedView({
                     icon={GridIcon}
                     label="Dashboard"
                 />
+                {/* This page has its own chrome rather than GlassShell's, so
+                    the alerts toggle has to be offered here too. */}
+                <AlertsBell />
             </div>
 
             <GlassModal
