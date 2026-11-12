@@ -1,6 +1,8 @@
 import { Head } from '@inertiajs/react';
 import AuthenticatedView from './Welcome/AuthenticatedView';
 import GuestView from './Welcome/GuestView';
+import PomodoroFloatingRing from '@/Components/Glass/PomodoroFloatingRing';
+import { PomodoroTimerProvider } from '@/Lib/PomodoroTimerContext';
 import { getThemeVars } from '@/Lib/themeTokens';
 import { useTheme } from '@/Lib/ThemeContext';
 
@@ -43,13 +45,16 @@ export default function Welcome({
                 />
 
                 {auth?.user ? (
-                    <AuthenticatedView
-                        notes={notes}
-                        presets={presets}
-                        dueForReminder={dueForReminder}
-                        lastLoggedAt={lastLoggedAt}
-                        defaultPreset={defaultPreset}
-                    />
+                    <PomodoroTimerProvider>
+                        <AuthenticatedView
+                            notes={notes}
+                            presets={presets}
+                            dueForReminder={dueForReminder}
+                            lastLoggedAt={lastLoggedAt}
+                            defaultPreset={defaultPreset}
+                        />
+                        <PomodoroFloatingRing />
+                    </PomodoroTimerProvider>
                 ) : (
                     <GuestView canLogin={canLogin} />
                 )}

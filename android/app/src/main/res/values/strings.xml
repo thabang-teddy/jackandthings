@@ -3,4 +3,6 @@
     <string name="app_name">Jack &amp; Things</string>
     <string name="workout_reminder_channel_name">Workout reminders</string>
     <string name="workout_reminder_channel_description">Hourly nudge when no workout has been logged.</string>
+    <string name="pomodoro_timer_channel_name">Pomodoro timer</string>
+    <string name="pomodoro_timer_channel_description">Shows the running focus/break countdown with restart, pause, skip, and stop.</string>
 </resources>

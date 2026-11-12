@@ -1,10 +1,10 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import PomodoroGlassView from './GlassView';
-import { useCountdown } from '@/Lib/useCountdown';
+import { usePomodoroTimer } from '@/Lib/PomodoroTimerContext';
 import { router, useForm } from '@inertiajs/react';
 
 export default function Index({ presets }) {
-    const timer = useCountdown();
+    const timer = usePomodoroTimer();
 
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',

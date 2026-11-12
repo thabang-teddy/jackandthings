@@ -23,6 +23,7 @@ async function startPreset(preset) {
             presetId: preset.id,
             name: preset.name,
             phase: 'focus',
+            focusMinutes: preset.focus_minutes,
             breakMinutes: preset.break_minutes,
             endsAt,
             pausedRemaining: null,
@@ -49,6 +50,63 @@ async function stop() {
     await ext.runtime.sendMessage({ type: 'cancel-pomodoro' });
 }
 
+/**
+ * The pure half of `restart`/`skip`: what the stored `pomodoro` object
+ * should become, with no side effects, so this part is unit-testable without
+ * a browser. `null` from `skipPatch` means "no break to skip into, so stop
+ * the session" rather than a phase change.
+ */
+
+/** Back to the top of the focus phase, paused - mirrors Lib/useCountdown.js's `restart`. */
+export function restartPatch(pomodoro) {
+    return {
+        ...pomodoro,
+        phase: 'focus',
+        pausedRemaining: pomodoro.focusMinutes * 60,
+    };
+}
+
+/**
+ * Jumps straight to the other phase without waiting for the clock to run
+ * out, keeping whatever running/paused state it was already in. Mirrors the
+ * natural roll-over when there is no break to skip into.
+ */
+export function skipPatch(pomodoro, now = Date.now()) {
+    const running = pomodoro.pausedRemaining == null;
+
+    if (pomodoro.phase === 'focus') {
+        if (pomodoro.breakMinutes <= 0) return null;
+        return phasePatch(pomodoro, 'break', pomodoro.breakMinutes, running, now);
+    }
+
+    return phasePatch(pomodoro, 'focus', pomodoro.focusMinutes, running, now);
+}
+
+function phasePatch(pomodoro, phase, minutes, running, now) {
+    if (running) {
+        return { ...pomodoro, phase, endsAt: now + minutes * 60_000, pausedRemaining: null };
+    }
+    return { ...pomodoro, phase, pausedRemaining: minutes * 60 };
+}
+
+async function restart(pomodoro) {
+    await writeSettings({ pomodoro: restartPatch(pomodoro) });
+    await ext.runtime.sendMessage({ type: 'cancel-pomodoro' });
+}
+
+async function skip(pomodoro) {
+    const patch = skipPatch(pomodoro);
+    if (patch === null) {
+        await stop();
+        return;
+    }
+
+    await writeSettings({ pomodoro: patch });
+    if (patch.pausedRemaining == null) {
+        await ext.runtime.sendMessage({ type: 'schedule-pomodoro', endsAt: patch.endsAt });
+    }
+}
+
 export async function renderPomodoro(view, rerender) {
     clear(view).append(muted('Loading presets…'));
 
@@ -70,10 +128,30 @@ export async function renderPomodoro(view, rerender) {
                     h('button', {
                         class: 'btn-ghost',
                         type: 'button',
+                        text: 'Restart',
+                        onClick: () =>
+                            guard(view, async () => {
+                                await restart(pomodoro);
+                                await rerender();
+                            }),
+                    }),
+                    h('button', {
+                        class: 'btn-ghost',
+                        type: 'button',
                         text: running ? 'Pause' : 'Resume',
                         onClick: () =>
                             guard(view, async () => {
                                 await (running ? pause(pomodoro) : resume(pomodoro));
+                                await rerender();
+                            }),
+                    }),
+                    h('button', {
+                        class: 'btn-ghost',
+                        type: 'button',
+                        text: 'Skip',
+                        onClick: () =>
+                            guard(view, async () => {
+                                await skip(pomodoro);
                                 await rerender();
                             }),
                     }),

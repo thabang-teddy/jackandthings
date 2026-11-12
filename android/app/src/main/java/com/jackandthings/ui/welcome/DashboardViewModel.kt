@@ -7,17 +7,16 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jackandthings.model.PomodoroPreset
 import com.jackandthings.model.ReminderState
 import com.jackandthings.model.WorkoutPreset
+import com.jackandthings.pomodoro.PomodoroTimerEngine
+import com.jackandthings.pomodoro.PomodoroTimerState
+import com.jackandthings.pomodoro.TimerPhase
 import com.jackandthings.repo.PomodoroRepository
 import com.jackandthings.repo.WorkoutRepository
 import com.jackandthings.repo.readableMessage
-import com.jackandthings.ui.pomodoro.TimerPhase
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /** Which readout the centre of the page is showing. */
@@ -50,9 +49,12 @@ data class DashboardState(
  * Backs the welcome page's signed-in view: the workout reminder line, the
  * presets its popup offers, and the countdown.
  *
- * The countdown mirrors `Lib/useCountdown.js` - focus rolls into the break
- * and then stops - and like the web it is never persisted, since the server
- * has no session table.
+ * The countdown mirrors `Lib/useCountdown.js` and is backed by the same
+ * [PomodoroTimerEngine] the Pomodoro screen uses, rather than a ticker of its
+ * own - that is what lets a timer started here still be running after a trip
+ * to the Pomodoro screen and back, the same way the web's shared
+ * `PomodoroTimerContext` does. Like the web, it is never persisted across a
+ * process restart: the server has no session table.
  */
 class DashboardViewModel(
     private val pomodoro: PomodoroRepository,
@@ -62,10 +64,22 @@ class DashboardViewModel(
     private val _state = MutableStateFlow(DashboardState())
     val state: StateFlow<DashboardState> = _state.asStateFlow()
 
-    private var ticker: Job? = null
-
     init {
         refresh()
+        viewModelScope.launch {
+            PomodoroTimerEngine.state.collect { timer -> applyTimer(timer) }
+        }
+    }
+
+    private fun applyTimer(timer: PomodoroTimerState) {
+        _state.update {
+            it.copy(
+                activePreset = timer.activePreset,
+                phase = timer.phase,
+                secondsLeft = timer.secondsLeft,
+                running = timer.running,
+            )
+        }
     }
 
     fun refresh() {
@@ -118,86 +132,14 @@ class DashboardViewModel(
 
     // ── Countdown ──────────────────────────────────────────────────────────
 
-    fun start(preset: PomodoroPreset) {
-        _state.update {
-            it.copy(
-                activePreset = preset,
-                phase = TimerPhase.Focus,
-                secondsLeft = preset.focusMinutes * SECONDS_PER_MINUTE,
-                running = true,
-            )
-        }
-        startTicking()
-    }
-
-    fun pause() {
-        ticker?.cancel()
-        _state.update { it.copy(running = false) }
-    }
-
-    fun resume() {
-        _state.update { it.copy(running = true) }
-        startTicking()
-    }
-
-    fun stop() {
-        ticker?.cancel()
-        _state.update {
-            it.copy(
-                activePreset = null,
-                phase = TimerPhase.Focus,
-                secondsLeft = 0,
-                running = false,
-            )
-        }
-    }
-
-    private fun startTicking() {
-        ticker?.cancel()
-        ticker = viewModelScope.launch {
-            while (isActive) {
-                delay(1_000)
-                if (!advance()) return@launch
-            }
-        }
-    }
-
-    /** One tick. Returns false once the timer has nothing left to count. */
-    private fun advance(): Boolean {
-        var keepGoing = true
-
-        _state.update { current ->
-            val preset = current.activePreset
-            if (!current.running || preset == null) {
-                keepGoing = false
-                return@update current
-            }
-
-            val remaining = current.secondsLeft - 1
-            if (remaining > 0) return@update current.copy(secondsLeft = remaining)
-
-            // Focus rolls into the break, then the timer stops.
-            if (current.phase == TimerPhase.Focus && preset.breakMinutes > 0) {
-                current.copy(
-                    phase = TimerPhase.Break,
-                    secondsLeft = preset.breakMinutes * SECONDS_PER_MINUTE,
-                )
-            } else {
-                keepGoing = false
-                current.copy(secondsLeft = 0, running = false)
-            }
-        }
-
-        return keepGoing
-    }
-
-    override fun onCleared() {
-        ticker?.cancel()
-    }
+    fun start(preset: PomodoroPreset) = PomodoroTimerEngine.start(preset)
+    fun pause() = PomodoroTimerEngine.pause()
+    fun resume() = PomodoroTimerEngine.resume()
+    fun stop() = PomodoroTimerEngine.stop()
+    fun restart() = PomodoroTimerEngine.restart()
+    fun skip() = PomodoroTimerEngine.skip()
 
     companion object {
-        private const val SECONDS_PER_MINUTE = 60
-
         fun factory(
             pomodoro: PomodoroRepository,
             workout: WorkoutRepository,

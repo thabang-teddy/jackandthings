@@ -6,9 +6,9 @@ A suite now exists on all three surfaces and **all of it passes**. Figures below
 | Surface | Framework | Tests | Command |
 | --- | --- | --- | --- |
 | Laravel | PHPUnit 12.5 | **168** (2184 assertions) | `php artisan test` |
-| Android | JUnit 4 + `kotlinx-coroutines-test` | **77** | `.\gradlew.bat :app:testDebugUnitTest` |
-| Add-on | `node --test` (no dependencies) | **27** | `npm test` in `extension/` |
-| | | **272 total** | |
+| Android | JUnit 4 + `kotlinx-coroutines-test` | **136** | `.\gradlew.bat :app:testDebugUnitTest` |
+| Add-on | `node --test` (no dependencies) | **33** | `npm test` in `extension/` |
+| | | **337 total** | |
 
 **Every Android ViewModel is covered.** That was only possible after the five repositories and `AuthStore` were put behind interfaces, which is why that refactor counts as test work rather than tidying.
 
@@ -62,6 +62,9 @@ Caveat on method: the first run of the isolation check silently passed for the w
 | Budget read | Opened the module | Balances matched the seed exactly: R3 674,50 / R1 000,00 / R4 674,50, in en-ZA format |
 | Notes write | Created a note on the phone | Row present in MySQL seconds later |
 | Pomodoro | Started the "Classic 25/5" preset | Full-screen countdown at 24:55 after five seconds, with Pause/Stop |
+| Pomodoro cross-screen | Started a timer on the welcome dashboard, then opened the Pomodoro screen | Same running preset and countdown shown on both, confirming the shared `PomodoroTimerEngine` fix |
+| Pomodoro notification | Started a timer, pulled down the shade | Restart/Pause/Skip/Stop notification present; Skip and Stop both worked from the shade with the app backgrounded |
+| Update banner | Ran against the real GitHub repo with an older local `versionName` | "Update available (0.1.9)" banner shown app-wide; View opened the release, the × dismissed it |
 
 Two defects were found this way and fixed: transfer rows displayed the money flowing backwards on the incoming leg, and the budget action buttons wrapped mid-word. Neither would have been caught by a build or a unit test of the server.
 
@@ -92,8 +95,8 @@ Scope it to the six modules (PRD.md F-01…F-06) plus the SECURITY.md requiremen
 ## Verified commands
 All run successfully:
 - Server: `php artisan test` (from `laravel/`) — 168 passed. Also `--testsuite=Unit` / `--testsuite=Feature`. Note the batch wrapper eats `|`, so `--filter="A|B"` fails; filter one class at a time or run a suite. No `npm run build` is needed first: `tests/TestCase.php` swaps in an empty Vite handler, so page-rendering tests pass on a fresh clone with no `public/build`. The bundle itself is still proven by `npm run build` (the `js` CI job).
-- Android: `.\gradlew.bat :app:testDebugUnitTest` (from `android/`, `JAVA_HOME` set to Android Studio's JBR) — 77 passed.
-- Add-on: `npm test` (from `extension/`) — 27 passed. No install step; it uses Node's built-in runner.
+- Android: `.\gradlew.bat :app:testDebugUnitTest` (from `android/`, `JAVA_HOME` set to Android Studio's JBR) — 136 passed.
+- Add-on: `npm test` (from `extension/`) — 33 passed. No install step; it uses Node's built-in runner.
 - Coverage: **Not available** — no Xdebug or pcov.
 - End-to-end: **Not configured** — Playwright not installed.
 - Build/lint/format: see CODE_STYLE.md "Verified commands".
@@ -117,7 +120,11 @@ A route-table audit fails the build when a model-bound route is added without a 
 
 **Android** — the transfer-direction rule that was actually wrong in the first build (both legs must read source → destination), type classification, and clock formatting including the negative case.
 
-**Android ViewModels** — now testable because the five module repositories were extracted into interfaces (`NotesRepository` and friends are interfaces; `ApiNotesRepository` is the only production implementation). `PomodoroViewModelTest` drives the countdown on virtual time: ticking, focus rolling into the break, a no-break preset ending after focus, pause freezing the clock, resume continuing from where it stopped, and deleting the *running* preset stopping the timer while deleting another leaves it alone. `BudgetViewModelTest` covers the submit flow — a rejected write keeps the composer open with the server's reason, a partial load failure keeps the balances already on screen rather than blanking them, and the typed amount string reaches the repository untouched.
+**Android ViewModels** — now testable because the five module repositories were extracted into interfaces (`NotesRepository` and friends are interfaces; `ApiNotesRepository` is the only production implementation). `BudgetViewModelTest` covers the submit flow — a rejected write keeps the composer open with the server's reason, a partial load failure keeps the balances already on screen rather than blanking them, and the typed amount string reaches the repository untouched.
+
+**`PomodoroTimerEngineTest`** — the countdown itself, on virtual time: ticking, focus rolling into the break, a no-break preset ending after focus, pause freezing the clock, resume continuing from where it stopped, restart and skip in every phase/running combination, and `stopIfPreset` leaving an unrelated running timer alone. This moved out of `PomodoroViewModel` into a process-wide `PomodoroTimerEngine` so the welcome page and the Pomodoro screen share one running timer instead of each keeping its own (starting one and finding it "stopped" on the other screen was a real bug this fixed) — and the engine is deliberately Context-free so it stays unit-testable without Robolectric; `JackApplication` is what notices the engine going active and starts the foreground notification service for it. `PomodoroViewModelTest` and `DashboardViewModelTest` now only cover what is actually theirs: preset CRUD, the reminder/workout flow, and that each ViewModel's `state` correctly mirrors the shared engine.
+
+**`AppUpdateCheckerTest`** — version-string comparison (`"0.1.10"` reading as newer than `"0.1.9"`, not the other way around as plain strings would have it) and parsing GitHub's "latest release" response, including a malformed or incomplete body degrading to "no update" rather than crashing on launch. The network call itself is untested, consistent with the rest of this app's HTTP-calling code.
 
 **Sign-in** (`LoginViewModelTest`) — `AuthStore` is an interface too (`ApiAuthStore` is the implementation), so the screen is testable without a server or a keystore. Covered: the submit button needing both fields, the email being trimmed, the **server address being applied before the request** rather than after (otherwise a corrected address always fails on the first try), a rejected sign-in reporting the reason and leaving the form usable, typing clearing the previous error, and a double tap sending only once.
 
@@ -127,7 +134,7 @@ A pattern worth keeping: each of these asserts that a rejected write leaves the 
 
 Fakes are hand-written (`app/src/test/.../testing/Fakes.kt`), not generated: they are short and they break loudly when an interface changes.
 
-**Add-on** — URL joining with and without a trailing slash, bearer header presence, the first-field-error-wins rule for a 422, an unreachable server reported as such, a 401 clearing the session while other failures do not, and history leaving the retention window `null` rather than guessing one.
+**Add-on** — URL joining with and without a trailing slash, bearer header presence, the first-field-error-wins rule for a 422, an unreachable server reported as such, a 401 clearing the session while other failures do not, and history leaving the retention window `null` rather than guessing one. `pomodoro.test.js` covers the pure `restartPatch`/`skipPatch` functions the popup's Restart and Skip buttons use — pulled out of the `chrome.storage`/alarm side effects specifically so this logic is testable without a browser.
 
 ## Known gaps
 - **Coverage is unmeasured** (no driver installed).

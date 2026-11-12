@@ -8,8 +8,13 @@ import PillButton from '@/Components/Glass/PillButton';
 import {
     BarsIcon,
     ClockIcon,
+    ForwardIcon,
     GridIcon,
+    PauseIcon,
+    PlayIcon,
     PlusIcon,
+    RepeatIcon,
+    StopIcon,
     TimerIcon,
 } from '@/Components/Glass/icons';
 import {
@@ -21,7 +26,7 @@ import {
     GlassTextarea,
 } from '@/Components/Glass/GlassFormControls';
 import { formatClock } from '@/Lib/formatClock';
-import { useCountdown } from '@/Lib/useCountdown';
+import { usePomodoroTimer } from '@/Lib/PomodoroTimerContext';
 
 function QuickLink({ href, icon: Icon, label }) {
     return (
@@ -91,19 +96,34 @@ function PomodoroDisplay({ timer, defaultPreset }) {
                     <PillButton
                         primary
                         onClick={() => timer.start(defaultPreset)}
+                        ariaLabel="Start"
                     >
-                        Start
+                        <PlayIcon size={14} />
                     </PillButton>
                 ) : (
                     <>
+                        <PillButton onClick={timer.restart} ariaLabel="Restart">
+                            <RepeatIcon size={14} />
+                        </PillButton>
                         {timer.running ? (
-                            <PillButton onClick={timer.pause}>Pause</PillButton>
+                            <PillButton onClick={timer.pause} ariaLabel="Pause">
+                                <PauseIcon size={14} />
+                            </PillButton>
                         ) : (
-                            <PillButton primary onClick={timer.resume}>
-                                Resume
+                            <PillButton
+                                primary
+                                onClick={timer.resume}
+                                ariaLabel="Resume"
+                            >
+                                <PlayIcon size={14} />
                             </PillButton>
                         )}
-                        <PillButton onClick={timer.stop}>Stop</PillButton>
+                        <PillButton onClick={timer.skip} ariaLabel="Skip">
+                            <ForwardIcon size={14} />
+                        </PillButton>
+                        <PillButton onClick={timer.stop} ariaLabel="Stop">
+                            <StopIcon size={14} />
+                        </PillButton>
                     </>
                 )}
             </div>
@@ -122,7 +142,7 @@ export default function AuthenticatedView({
     const [noteOpen, setNoteOpen] = useState(false);
     const [editingNote, setEditingNote] = useState(null);
     const [workoutOpen, setWorkoutOpen] = useState(false);
-    const timer = useCountdown();
+    const timer = usePomodoroTimer();
 
     // `return_to` tells NoteController@store/@update to come back here rather
     // than sending the user to the Notes module; NoteRequest ignores the field.

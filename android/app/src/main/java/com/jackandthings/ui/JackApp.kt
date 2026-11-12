@@ -2,22 +2,42 @@ package com.jackandthings.ui
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.jackandthings.AppContainer
+import com.jackandthings.update.AppUpdateChecker
 import com.jackandthings.ui.auth.LoginScreen
 import com.jackandthings.ui.auth.LoginViewModel
 import com.jackandthings.ui.budget.BudgetScreen
@@ -95,6 +115,7 @@ private fun MainApp(container: AppContainer, sharedText: String?, signedIn: Bool
         if (!sharedText.isNullOrBlank()) navController.navigate("watchlist")
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     NavHost(navController = navController, startDestination = "home") {
         // Home is the welcome page, as on the web: one page carrying two
         // views, the dashboard once there is an account behind it and the
@@ -114,8 +135,10 @@ private fun MainApp(container: AppContainer, sharedText: String?, signedIn: Bool
                         state = dashboardState,
                         onLogWorkout = dashboard::logWorkout,
                         onStart = dashboard::start,
+                        onRestart = dashboard::restart,
                         onPause = dashboard::pause,
                         onResume = dashboard::resume,
+                        onSkip = dashboard::skip,
                         onStop = dashboard::stop,
                         onOpen = { route -> navController.navigate(route) },
                     )
@@ -218,6 +241,45 @@ private fun MainApp(container: AppContainer, sharedText: String?, signedIn: Bool
             // the shared state, and this is the route's cue to step back out.
             LaunchedEffect(signedIn) {
                 if (signedIn) navController.popBackStack()
+            }
+        }
+        }
+
+        AppUpdateBanner(modifier = Modifier.align(Alignment.TopCenter))
+    }
+}
+
+/**
+ * One line at the top of every screen when [AppUpdateChecker] has found a
+ * newer release than the one running - the `apk` CI job publishes to GitHub
+ * Releases, which is also the only place an unsigned sideload can check.
+ */
+@Composable
+private fun AppUpdateBanner(modifier: Modifier = Modifier) {
+    val available by AppUpdateChecker.available.collectAsStateWithLifecycle()
+    val version = available ?: return
+    val context = LocalContext.current
+
+    Surface(
+        modifier = modifier.fillMaxWidth().padding(12.dp),
+        shape = RoundedCornerShape(16.dp),
+        tonalElevation = 4.dp,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = "Update available (${version.versionName})")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(version.downloadUrl)))
+                }) {
+                    Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = "View the new release")
+                }
+                IconButton(onClick = AppUpdateChecker::dismiss) {
+                    Icon(Icons.Filled.Close, contentDescription = "Dismiss update notice")
+                }
             }
         }
     }
