@@ -17,6 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import java.text.NumberFormat
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -28,6 +31,20 @@ private val zarFormat: NumberFormat =
     NumberFormat.getCurrencyInstance(Locale.Builder().setLanguage("en").setRegion("ZA").build())
 
 fun formatZar(cents: Long): String = zarFormat.format(cents / 100.0)
+
+private val whenFormat: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("EEE, d MMM yyyy, HH:mm", Locale.Builder().setLanguage("en").setRegion("ZA").build())
+
+/**
+ * Timestamps cross the api/v1 boundary as absolute ISO-8601 instants and are
+ * stored in UTC, so they are only ever shown in the device's own zone - a raw
+ * stamp reads as UTC and sits two hours behind the clock the entry was made on.
+ * The web client's formatWhen prints the same shape. Anything unparseable falls
+ * back to the raw value rather than being hidden.
+ */
+fun formatWhen(raw: String): String = runCatching {
+    OffsetDateTime.parse(raw).atZoneSameInstant(ZoneId.systemDefault()).format(whenFormat)
+}.getOrDefault(raw)
 
 @Composable
 fun LoadingBox(modifier: Modifier = Modifier) {

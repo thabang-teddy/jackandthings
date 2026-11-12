@@ -34,7 +34,7 @@ class WorkoutEntryController extends Controller
                 'id' => $entry->id,
                 'activity' => $entry->activity,
                 'notes' => $entry->notes,
-                'logged_at' => $entry->logged_at?->toDayDateTimeString(),
+                'logged_at' => $entry->logged_at?->toIso8601String(),
             ]);
 
         return Inertia::render('Workout/Index', [
@@ -43,7 +43,7 @@ class WorkoutEntryController extends Controller
             // Rendered as an in-page banner. Nothing is sent anywhere: see
             // WorkoutReminderStatus for why delivery is not built yet.
             'dueForReminder' => $this->reminderStatus->isDue($user),
-            'lastLoggedAt' => $this->reminderStatus->lastLoggedAt($user)?->toDayDateTimeString(),
+            'lastLoggedAt' => $this->reminderStatus->lastLoggedAt($user)?->toIso8601String(),
         ]);
     }
 
@@ -77,7 +77,7 @@ class WorkoutEntryController extends Controller
                 'id' => $workout->id,
                 'activity' => $workout->activity,
                 'notes' => $workout->notes,
-                'logged_at' => $workout->logged_at?->format('Y-m-d\TH:i'),
+                'logged_at' => $workout->logged_at?->toIso8601String(),
             ],
             'presets' => $this->presetsFor($request->user()),
         ]);

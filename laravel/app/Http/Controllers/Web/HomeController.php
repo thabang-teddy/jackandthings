@@ -54,7 +54,7 @@ class HomeController extends Controller
             'notes' => $notes,
             'presets' => $presets,
             'dueForReminder' => $this->reminderStatus->isDue($user),
-            'lastLoggedAt' => $this->reminderStatus->lastLoggedAt($user)?->toDayDateTimeString(),
+            'lastLoggedAt' => $this->reminderStatus->lastLoggedAt($user)?->toIso8601String(),
             'defaultPreset' => $defaultPreset === null ? null : [
                 'id' => $defaultPreset->id,
                 'name' => $defaultPreset->name,

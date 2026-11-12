@@ -26,7 +26,7 @@ class NoteController extends Controller
                 'id' => $note->id,
                 'title' => $note->title,
                 'body' => $note->body,
-                'updated_at' => $note->updated_at?->toDayDateTimeString(),
+                'updated_at' => $note->updated_at?->toIso8601String(),
             ]);
 
         return Inertia::render('Notes/Index', ['notes' => $notes]);

@@ -27,7 +27,7 @@ class HistoryEntryController extends Controller
                 'url' => $entry->url,
                 'title' => $entry->title,
                 'source' => $entry->source,
-                'visited_at' => $entry->visited_at?->toDayDateTimeString(),
+                'visited_at' => $entry->visited_at?->toIso8601String(),
             ]);
 
         return Inertia::render('History/Index', [

@@ -34,6 +34,7 @@ import com.jackandthings.ui.common.EmptyState
 import com.jackandthings.ui.common.ErrorCard
 import com.jackandthings.ui.common.LoadingBox
 import com.jackandthings.ui.common.ModuleScaffold
+import com.jackandthings.ui.common.formatWhen
 
 @Composable
 fun WorkoutScreen(viewModel: WorkoutViewModel, onBack: () -> Unit) {
@@ -103,7 +104,7 @@ fun WorkoutScreen(viewModel: WorkoutViewModel, onBack: () -> Unit) {
                                 }
                                 entry.loggedAt?.let {
                                     Text(
-                                        it,
+                                        formatWhen(it),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )

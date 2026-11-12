@@ -26,6 +26,7 @@ import {
     GlassTextarea,
 } from '@/Components/Glass/GlassFormControls';
 import { formatClock } from '@/Lib/formatClock';
+import { formatWhen } from '@/Lib/formatWhen';
 import { usePomodoroTimer } from '@/Lib/PomodoroTimerContext';
 
 function QuickLink({ href, icon: Icon, label }) {
@@ -278,7 +279,7 @@ export default function AuthenticatedView({
                     <span className="text-[var(--muted)]">
                         {dueForReminder
                             ? 'Nothing logged this hour'
-                            : `Last workout: ${lastLoggedAt ?? 'none yet'}`}
+                            : `Last workout: ${lastLoggedAt ? formatWhen(lastLoggedAt) : 'none yet'}`}
                     </span>
                     <button
                         type="button"

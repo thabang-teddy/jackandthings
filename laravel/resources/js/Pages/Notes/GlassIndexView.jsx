@@ -2,6 +2,7 @@ import GlassCard from '@/Components/Glass/GlassCard';
 import GlassPagination from '@/Components/Glass/GlassPagination';
 import TxRow from '@/Components/Glass/TxRow';
 import { DocumentIcon } from '@/Components/Glass/icons';
+import { formatWhen } from '@/Lib/formatWhen';
 
 export default function NotesGlassIndexView({
     notes,
@@ -32,7 +33,8 @@ export default function NotesGlassIndexView({
                             subtitle={
                                 (note.body
                                     ? `${note.body.slice(0, 80)} · `
-                                    : '') + `Updated ${note.updated_at}`
+                                    : '') +
+                                `Updated ${formatWhen(note.updated_at)}`
                             }
                             action={
                                 <div className="ml-2 flex shrink-0 items-center gap-3 text-xs">
