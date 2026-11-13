@@ -1,3 +1,35 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * The options inside a GlassSelect.
+ *
+ * A native <select>'s popup list is drawn by the operating system, outside
+ * the page's own box, so it inherits the control's `color` but none of its
+ * background. In the dark theme that meant near-white option text painted on
+ * the popup's default white — invisible unless the row happened to be
+ * highlighted.
+ *
+ * The real fix is `color-scheme`, set per theme in Lib/themeTokens.js, which
+ * is what makes the browser paint the popup dark in the first place. This
+ * rule is the second half: not every platform restyles the popup from
+ * `color-scheme` alone, and the pair below is opaque, which the card tokens
+ * are not — `--card-bg` is barely-there white that only reads as dark
+ * because of the page behind it, and an OS-drawn popup has no page behind
+ * it.
+ *
+ * Scoped to .glass-select so Breeze's own selects on Profile and auth, which
+ * are always light, are left alone.
+ */
+.glass-select option,
+.glass-select optgroup {
+    background-color: var(--field-bg);
+    color: var(--field-ink);
+}
+
+/* A disabled option is a placeholder ("Select a preset…"), so it reads as
+   secondary rather than as an option you failed to pick. */
+.glass-select option:disabled {
+    color: var(--muted);
+}
