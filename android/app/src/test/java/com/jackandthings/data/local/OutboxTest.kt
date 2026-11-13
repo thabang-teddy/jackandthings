@@ -1,5 +1,6 @@
 package com.jackandthings.data.local
 
+import com.jackandthings.model.PomodoroPresetDraft
 import java.io.File
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -67,9 +68,28 @@ class OutboxTest {
             PendingAction.DeleteNote(subjectId = "n1"),
             PendingAction.CreatePreset(
                 subjectId = "p1",
-                name = "Deep work",
-                focusMinutes = 25,
-                breakMinutes = 5,
+                // Everything a preset carries, not just the minutes: this
+                // test exists to prove a queued action replays as exactly
+                // what was asked for.
+                draft = PomodoroPresetDraft(
+                    name = "Deep work",
+                    focusMinutes = 25,
+                    breakMinutes = 5,
+                    longBreakMinutes = 20,
+                    cyclesBeforeLongBreak = 3,
+                    autoStartBreaks = false,
+                    autoStartFocus = true,
+                    tag = "Coding",
+                    alarmSound = "bell",
+                    tickingSound = "soft",
+                    ambience = "rain",
+                    strictMode = true,
+                    blockedSites = listOf("news.ycombinator.com"),
+                ),
+            ),
+            PendingAction.UpdatePreset(
+                subjectId = "p1",
+                draft = PomodoroPresetDraft(name = "Deeper", focusMinutes = 50, breakMinutes = 10),
             ),
             PendingAction.DeletePreset(subjectId = "p1"),
             PendingAction.CreateWorkout(

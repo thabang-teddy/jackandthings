@@ -5,6 +5,7 @@ import com.jackandthings.data.local.Outbox
 import com.jackandthings.data.local.PendingAction
 import com.jackandthings.data.remote.ApiException
 import com.jackandthings.model.Note
+import com.jackandthings.model.PomodoroPresetDraft
 import com.jackandthings.testing.FakeBudgetRepository
 import com.jackandthings.testing.FakeNotesRepository
 import com.jackandthings.testing.FakePomodoroRepository
@@ -181,7 +182,13 @@ class OutboxDrainerTest {
     @Test
     fun `a drain stops at a server that is still away and keeps the rest`() = runTest {
         outbox.add(PendingAction.CreateNote(subjectId = "local-1", title = "One", body = null))
-        outbox.add(PendingAction.CreatePreset("p", "local-2", "Deep work", 25, 5))
+        outbox.add(
+            PendingAction.CreatePreset(
+                id = "p",
+                subjectId = "local-2",
+                draft = PomodoroPresetDraft(name = "Deep work", focusMinutes = 25, breakMinutes = 5),
+            ),
+        )
         outbox.add(PendingAction.CreateNote(subjectId = "local-3", title = "Three", body = null))
         pomodoro.failure = offline
 
@@ -225,7 +232,13 @@ class OutboxDrainerTest {
 
     @Test
     fun `a refused action does not block the ones behind it`() = runTest {
-        outbox.add(PendingAction.CreatePreset("p", "local-1", "", 25, 5))
+        outbox.add(
+            PendingAction.CreatePreset(
+                id = "p",
+                subjectId = "local-1",
+                draft = PomodoroPresetDraft(name = "", focusMinutes = 25, breakMinutes = 5),
+            ),
+        )
         outbox.add(PendingAction.CreateNote(subjectId = "local-2", title = "Two", body = null))
         pomodoro.failure = ApiException(422, "The name field is required.")
 

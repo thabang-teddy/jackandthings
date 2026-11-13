@@ -8,6 +8,7 @@ import com.jackandthings.model.BudgetAccount
 import com.jackandthings.model.BudgetTransaction
 import com.jackandthings.model.Note
 import com.jackandthings.model.PomodoroPreset
+import com.jackandthings.model.PomodoroPresetDraft
 import com.jackandthings.model.ReminderState
 import com.jackandthings.model.WatchList
 import com.jackandthings.model.WatchListItem
@@ -89,27 +90,19 @@ class OfflinePomodoroRepository(
     override suspend fun list(): Result<List<PomodoroPreset>> =
         readThroughCache(cache.presets) { remote.list() }
 
-    override suspend fun create(
-        name: String,
-        focusMinutes: Int,
-        breakMinutes: Int,
-    ): Result<PomodoroPreset> =
-        orWhenOffline(remote.create(name, focusMinutes, breakMinutes)) {
-            val preset = PomodoroPreset(
-                id = PendingAction.newId(),
-                name = name,
-                focusMinutes = focusMinutes,
-                breakMinutes = breakMinutes,
-            )
-            outbox.add(
-                PendingAction.CreatePreset(
-                    subjectId = preset.id,
-                    name = name,
-                    focusMinutes = focusMinutes,
-                    breakMinutes = breakMinutes,
-                ),
-            )
+    override suspend fun create(draft: PomodoroPresetDraft): Result<PomodoroPreset> =
+        orWhenOffline(remote.create(draft)) {
+            val preset = draft.toPreset(PendingAction.newId())
+            outbox.add(PendingAction.CreatePreset(subjectId = preset.id, draft = draft))
             cache.presets.write(cache.presets.read() + preset)
+            Result.success(preset)
+        }
+
+    override suspend fun update(id: String, draft: PomodoroPresetDraft): Result<PomodoroPreset> =
+        orWhenOffline(remote.update(id, draft)) {
+            val preset = draft.toPreset(id)
+            outbox.add(PendingAction.UpdatePreset(subjectId = id, draft = draft))
+            cache.presets.write(cache.presets.read().map { if (it.id == id) preset else it })
             Result.success(preset)
         }
 

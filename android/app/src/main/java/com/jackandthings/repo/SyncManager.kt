@@ -78,7 +78,10 @@ class SyncManager(
         val remaining = mutableListOf<PomodoroPreset>()
         var pushed = 0
         for (preset in stores.presets.read()) {
-            remotePomodoro.create(preset.name, preset.focusMinutes, preset.breakMinutes)
+            // The whole preset, not just its minutes: a local preset carries
+            // its sounds, tag and strict-mode blocklist too, and a sync that
+            // dropped those would quietly reset them on sign-in.
+            remotePomodoro.create(preset.toDraft())
                 .onSuccess { pushed++ }
                 .onFailure {
                     remaining += preset

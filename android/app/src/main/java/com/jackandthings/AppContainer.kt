@@ -11,7 +11,10 @@ import com.jackandthings.data.remote.JackApi
 import com.jackandthings.repo.ApiAuthStore
 import com.jackandthings.repo.ApiBudgetRepository
 import com.jackandthings.repo.ApiNotesRepository
+import com.jackandthings.pomodoro.FocusGuard
+import com.jackandthings.pomodoro.PomodoroSessionRecorder
 import com.jackandthings.repo.ApiPomodoroRepository
+import com.jackandthings.repo.ApiPomodoroSessionRepository
 import com.jackandthings.repo.ApiWatchListRepository
 import com.jackandthings.repo.ApiWorkoutRepository
 import com.jackandthings.repo.AuthStore
@@ -21,6 +24,7 @@ import com.jackandthings.repo.LocalNotesRepository
 import com.jackandthings.repo.LocalPomodoroRepository
 import com.jackandthings.repo.LocalWatchListRepository
 import com.jackandthings.repo.LocalWorkoutRepository
+import com.jackandthings.repo.NoOpPomodoroSessionRepository
 import com.jackandthings.repo.NotesRepository
 import com.jackandthings.repo.OfflineBudgetRepository
 import com.jackandthings.repo.OfflineNotesRepository
@@ -29,9 +33,11 @@ import com.jackandthings.repo.OfflineWatchListRepository
 import com.jackandthings.repo.OfflineWorkoutRepository
 import com.jackandthings.repo.OutboxDrainer
 import com.jackandthings.repo.PomodoroRepository
+import com.jackandthings.repo.PomodoroSessionRepository
 import com.jackandthings.repo.SwitchingBudgetRepository
 import com.jackandthings.repo.SwitchingNotesRepository
 import com.jackandthings.repo.SwitchingPomodoroRepository
+import com.jackandthings.repo.SwitchingPomodoroSessionRepository
 import com.jackandthings.repo.SwitchingWatchListRepository
 import com.jackandthings.repo.SwitchingWorkoutRepository
 import com.jackandthings.repo.SyncManager
@@ -81,6 +87,7 @@ class AppContainer(context: Context) {
 
     private val apiNotes = ApiNotesRepository(api)
     private val apiPomodoro = ApiPomodoroRepository(api)
+    private val apiPomodoroSessions = ApiPomodoroSessionRepository(api)
     private val apiWatchList = ApiWatchListRepository(api)
     private val apiWorkout = ApiWorkoutRepository(api)
     private val apiBudget = ApiBudgetRepository(api)
@@ -103,6 +110,24 @@ class AppContainer(context: Context) {
 
     val notes: NotesRepository = SwitchingNotesRepository(auth, localNotes, remoteNotes)
     val pomodoro: PomodoroRepository = SwitchingPomodoroRepository(auth, localPomodoro, remotePomodoro)
+
+    /**
+     * No local half, unlike every other module: without an account there is
+     * nowhere to keep a focus history that would survive the app, and a local
+     * one that silently failed to sync on sign-in would be worse than none.
+     * The timer itself still works signed out, which is the part that matters.
+     */
+    val pomodoroSessions: PomodoroSessionRepository = SwitchingPomodoroSessionRepository(
+        auth = auth,
+        local = NoOpPomodoroSessionRepository(),
+        remote = apiPomodoroSessions,
+    )
+
+    /** Writes a finished interval; see PomodoroSessionRecorder for why it is not in the ViewModel. */
+    val pomodoroRecorder = PomodoroSessionRecorder(pomodoroSessions)
+
+    /** Strict mode's Do Not Disturb half, which needs a Context the engine does not have. */
+    val focusGuard = FocusGuard(appContext)
     val watchList: WatchListRepository = SwitchingWatchListRepository(auth, localWatchList, remoteWatchList)
     val workout: WorkoutRepository = SwitchingWorkoutRepository(auth, localWorkout, remoteWorkout)
     val budget: BudgetRepository = SwitchingBudgetRepository(auth, localBudget, remoteBudget)

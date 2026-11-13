@@ -5,6 +5,10 @@ import com.jackandthings.model.BudgetAccount
 import com.jackandthings.model.BudgetTransaction
 import com.jackandthings.model.Note
 import com.jackandthings.model.PomodoroPreset
+import com.jackandthings.model.PomodoroPresetDraft
+import com.jackandthings.model.PomodoroSession
+import com.jackandthings.model.PomodoroSessionDraft
+import com.jackandthings.model.PomodoroStats
 import com.jackandthings.model.ReminderState
 import com.jackandthings.model.WatchList
 import com.jackandthings.model.WatchListItem
@@ -14,6 +18,7 @@ import com.jackandthings.repo.AuthStore
 import com.jackandthings.repo.BudgetRepository
 import com.jackandthings.repo.NotesRepository
 import com.jackandthings.repo.PomodoroRepository
+import com.jackandthings.repo.PomodoroSessionRepository
 import com.jackandthings.repo.WatchListRepository
 import com.jackandthings.repo.WorkoutRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -235,15 +240,19 @@ class FakePomodoroRepository(
     override suspend fun list(): Result<List<PomodoroPreset>> =
         failure?.let { Result.failure(it) } ?: Result.success(presets.toList())
 
-    override suspend fun create(
-        name: String,
-        focusMinutes: Int,
-        breakMinutes: Int,
-    ): Result<PomodoroPreset> {
+    override suspend fun create(draft: PomodoroPresetDraft): Result<PomodoroPreset> {
         failure?.let { return Result.failure(it) }
 
-        val preset = PomodoroPreset("id-${presets.size + 1}", name, focusMinutes, breakMinutes)
+        val preset = draft.toPreset("id-${presets.size + 1}")
         presets.add(preset)
+        return Result.success(preset)
+    }
+
+    override suspend fun update(id: String, draft: PomodoroPresetDraft): Result<PomodoroPreset> {
+        failure?.let { return Result.failure(it) }
+
+        val preset = draft.toPreset(id)
+        presets.replaceAll { if (it.id == id) preset else it }
         return Result.success(preset)
     }
 
@@ -254,6 +263,57 @@ class FakePomodoroRepository(
         presets.removeAll { it.id == id }
         return Result.success(Unit)
     }
+}
+
+/**
+ * Records what was asked of it and hands back a session with an id, so a test
+ * can assert what the recorder posted without a server.
+ */
+class FakePomodoroSessionRepository(
+    var sessions: MutableList<PomodoroSession> = mutableListOf(),
+) : PomodoroSessionRepository {
+
+    var failure: Throwable? = null
+
+    var stats: PomodoroStats = PomodoroStats()
+
+    var created: MutableList<PomodoroSessionDraft> = mutableListOf()
+
+    var deletedIds: MutableList<String> = mutableListOf()
+
+    override suspend fun list(limit: Int): Result<List<PomodoroSession>> =
+        failure?.let { Result.failure(it) } ?: Result.success(sessions.toList())
+
+    override suspend fun create(draft: PomodoroSessionDraft): Result<PomodoroSession> {
+        failure?.let { return Result.failure(it) }
+
+        created.add(draft)
+        val session = PomodoroSession(
+            id = "session-${sessions.size + 1}",
+            presetId = draft.presetId,
+            presetName = draft.presetName,
+            tag = draft.tag,
+            phase = draft.phase,
+            startedAt = draft.startedAt,
+            endedAt = draft.endedAt,
+            durationSeconds = draft.durationSeconds,
+            completed = draft.completed,
+            source = draft.source,
+        )
+        sessions.add(session)
+        return Result.success(session)
+    }
+
+    override suspend fun delete(id: String): Result<Unit> {
+        failure?.let { return Result.failure(it) }
+
+        deletedIds.add(id)
+        sessions.removeAll { it.id == id }
+        return Result.success(Unit)
+    }
+
+    override suspend fun stats(timezone: String): Result<PomodoroStats> =
+        failure?.let { Result.failure(it) } ?: Result.success(stats.copy(timezone = timezone))
 }
 
 class FakeBudgetRepository(
