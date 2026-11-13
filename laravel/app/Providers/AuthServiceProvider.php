@@ -9,6 +9,7 @@ use App\Models\BudgetTransaction;
 use App\Models\HistoryEntry;
 use App\Models\Note;
 use App\Models\PomodoroPreset;
+use App\Models\PomodoroSession;
 use App\Models\RecurringTransaction;
 use App\Models\WatchList;
 use App\Models\WatchListItem;
@@ -19,6 +20,7 @@ use App\Policies\BudgetTransactionPolicy;
 use App\Policies\HistoryEntryPolicy;
 use App\Policies\NotePolicy;
 use App\Policies\PomodoroPresetPolicy;
+use App\Policies\PomodoroSessionPolicy;
 use App\Policies\RecurringTransactionPolicy;
 use App\Policies\WatchListItemPolicy;
 use App\Policies\WatchListPolicy;
@@ -38,6 +40,7 @@ class AuthServiceProvider extends ServiceProvider
 {
     private const POLICIES = [
         PomodoroPreset::class => PomodoroPresetPolicy::class,
+        PomodoroSession::class => PomodoroSessionPolicy::class,
         Note::class => NotePolicy::class,
         BudgetAccount::class => BudgetAccountPolicy::class,
         BudgetTransaction::class => BudgetTransactionPolicy::class,

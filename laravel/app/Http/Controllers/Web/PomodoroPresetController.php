@@ -30,6 +30,11 @@ class PomodoroPresetController extends Controller
         return to_route('pomodoro.index')->with('status', 'Preset updated.');
     }
 
+    /**
+     * Deleting a preset leaves its logged sessions in place - the foreign key
+     * is nullOnDelete and each row keeps its own `preset_name`, so last
+     * month's focus hours do not vanish because a preset was tidied up.
+     */
     public function destroy(PomodoroPreset $preset): RedirectResponse
     {
         $this->authorizeOwned('delete', $preset);

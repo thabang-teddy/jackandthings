@@ -41,6 +41,11 @@ class User extends Authenticatable
         return $this->hasMany(PomodoroPreset::class);
     }
 
+    public function pomodoroSessions(): HasMany
+    {
+        return $this->hasMany(PomodoroSession::class);
+    }
+
     public function notes(): HasMany
     {
         return $this->hasMany(Note::class);

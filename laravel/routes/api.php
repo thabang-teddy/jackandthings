@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\BudgetTransferController;
 use App\Http\Controllers\Api\V1\HistoryEntryController;
 use App\Http\Controllers\Api\V1\NoteController;
 use App\Http\Controllers\Api\V1\PomodoroPresetController;
+use App\Http\Controllers\Api\V1\PomodoroSessionController;
 use App\Http\Controllers\Api\V1\RecurringTransactionController;
 use App\Http\Controllers\Api\V1\WatchListController;
 use App\Http\Controllers\Api\V1\WatchListItemController;
@@ -34,6 +35,13 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         Route::apiResource('notes', NoteController::class);
         Route::apiResource('pomodoro-presets', PomodoroPresetController::class)->parameters(['pomodoro-presets' => 'preset']);
+
+        // Declared before the resource so "stats" is not read as a session id.
+        Route::get('pomodoro-sessions/stats', [PomodoroSessionController::class, 'stats'])
+            ->name('pomodoro-sessions.stats');
+        Route::apiResource('pomodoro-sessions', PomodoroSessionController::class)
+            ->except(['update']);
+
         Route::apiResource('watch-lists', WatchListController::class)->parameters(['watch-lists' => 'watchList']);
         Route::apiResource('watch-list-items', WatchListItemController::class)
             ->parameters(['watch-list-items' => 'watchListItem'])

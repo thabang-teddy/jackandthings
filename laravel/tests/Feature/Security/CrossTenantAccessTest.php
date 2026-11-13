@@ -8,6 +8,7 @@ use App\Models\BudgetAccount;
 use App\Models\HistoryEntry;
 use App\Models\Note;
 use App\Models\PomodoroPreset;
+use App\Models\PomodoroSession;
 use App\Models\RecurringTransaction;
 use App\Models\User;
 use App\Models\WatchList;
@@ -64,7 +65,10 @@ class CrossTenantAccessTest extends TestCase
 
         $this->victimRecords = [
             'note' => Note::factory()->for($this->victim)->create(),
-            'preset' => PomodoroPreset::factory()->for($this->victim)->create(),
+            'preset' => $preset = PomodoroPreset::factory()->for($this->victim)->create(),
+            'pomodoroSession' => PomodoroSession::factory()
+                ->for($this->victim)
+                ->create(['pomodoro_preset_id' => $preset->getKey()]),
             'watchList' => $watchList = WatchList::factory()->for($this->victim)->create(),
             'watchListItem' => WatchListItem::factory()
                 ->for($this->victim)
@@ -113,6 +117,7 @@ class CrossTenantAccessTest extends TestCase
                 'name' => 'x', 'focus_minutes' => 25, 'break_minutes' => 5,
             ]],
             'web preset.destroy' => ['DELETE', '/pomodoro/presets/{preset}', []],
+            'web pomodoro.sessions.destroy' => ['DELETE', '/pomodoro/sessions/{pomodoroSession}', []],
 
             'web watchlist.destroy' => ['DELETE', '/watchlist/{watchList}', []],
             'web watchlist.items.update' => ['PUT', '/watchlist/items/{watchListItem}', ['done' => true]],
@@ -143,6 +148,9 @@ class CrossTenantAccessTest extends TestCase
                 'name' => 'x', 'focus_minutes' => 25, 'break_minutes' => 5,
             ]],
             'api presets.destroy' => ['DELETE', '/api/v1/pomodoro-presets/{preset}', []],
+
+            'api pomodoro-sessions.show' => ['GET', '/api/v1/pomodoro-sessions/{pomodoroSession}', []],
+            'api pomodoro-sessions.destroy' => ['DELETE', '/api/v1/pomodoro-sessions/{pomodoroSession}', []],
 
             'api watchlist.show' => ['GET', '/api/v1/watch-lists/{watchList}', []],
             'api watchlist.update' => ['PUT', '/api/v1/watch-lists/{watchList}', ['name' => 'renamed']],
@@ -216,6 +224,7 @@ class CrossTenantAccessTest extends TestCase
         $endpoints = [
             '/api/v1/notes',
             '/api/v1/pomodoro-presets',
+            '/api/v1/pomodoro-sessions',
             '/api/v1/watch-lists',
             '/api/v1/watch-list-items',
             '/api/v1/workout-entries',
