@@ -41,7 +41,12 @@ function showSignedOut() {
     );
 }
 
-async function show(name) {
+/**
+ * `options` is view state that must survive a rerender but does not belong in
+ * storage - which preset the Pomodoro view is editing, for one. A view that
+ * takes none simply ignores the third argument.
+ */
+async function show(name, options = {}) {
     const render = VIEWS[name] ?? renderPomodoro;
 
     for (const tab of tabs.querySelectorAll('.tab')) {
@@ -50,7 +55,7 @@ async function show(name) {
     await ext.storage.local.set({ [LAST_VIEW_KEY]: name });
 
     try {
-        await render(view, () => show(name));
+        await render(view, (next = {}) => show(name, next), options);
     } catch (error) {
         clear(view).append(
             h('div', { class: 'alert', text: error?.message ?? 'Something went wrong.' }),
