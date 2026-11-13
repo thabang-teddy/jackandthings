@@ -46,7 +46,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Pomodoro — the running timer is still client-side; presets are stored,
     // and so is each interval once it finishes, which is what the daily and
     // weekly analytics are read from.
+    //
+    // Four pages rather than one with anchors. The GET pages are declared
+    // before the writes that share their path so "presets" and "sessions" are
+    // never read as a record id.
     Route::get('pomodoro', [PomodoroController::class, 'index'])->name('pomodoro.index');
+    Route::get('pomodoro/presets', [PomodoroController::class, 'presets'])->name('pomodoro.presets');
+    Route::get('pomodoro/sessions', [PomodoroController::class, 'sessions'])->name('pomodoro.sessions');
+    Route::get('pomodoro/stats', [PomodoroController::class, 'stats'])->name('pomodoro.stats');
+
     Route::post('pomodoro/presets', [PomodoroPresetController::class, 'store'])->name('pomodoro.presets.store');
     Route::put('pomodoro/presets/{preset}', [PomodoroPresetController::class, 'update'])->name('pomodoro.presets.update');
     Route::delete('pomodoro/presets/{preset}', [PomodoroPresetController::class, 'destroy'])->name('pomodoro.presets.destroy');

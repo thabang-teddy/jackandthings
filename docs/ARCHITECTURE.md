@@ -63,7 +63,7 @@ laravel/
     Components/        Breeze components + Pagination, EmptyState, PageShell
     Layouts/           AuthenticatedLayout (six-module nav)
     Lib/formatZar.js
-    Pages/             Dashboard hub + Pomodoro, Notes, Budget, Workout, Clipboard, History
+    Pages/             Dashboard hub + Pomodoro (Timer/Presets/Sessions/Stats), Notes, Budget, Workout, Clipboard, History
   routes/web.php, api.php, console.php, auth.php
 
 android/                 Kotlin/Compose client (five modules; no History)

@@ -18,7 +18,7 @@ class PomodoroPresetController extends Controller
     {
         $request->user()->pomodoroPresets()->create($request->validated());
 
-        return to_route('pomodoro.index')->with('status', 'Preset saved.');
+        return to_route('pomodoro.presets')->with('status', 'Preset saved.');
     }
 
     public function update(PomodoroPresetRequest $request, PomodoroPreset $preset): RedirectResponse
@@ -27,7 +27,7 @@ class PomodoroPresetController extends Controller
 
         $preset->update($request->validated());
 
-        return to_route('pomodoro.index')->with('status', 'Preset updated.');
+        return to_route('pomodoro.presets')->with('status', 'Preset updated.');
     }
 
     /**
@@ -41,6 +41,6 @@ class PomodoroPresetController extends Controller
 
         $preset->delete();
 
-        return to_route('pomodoro.index')->with('status', 'Preset deleted.');
+        return to_route('pomodoro.presets')->with('status', 'Preset deleted.');
     }
 }

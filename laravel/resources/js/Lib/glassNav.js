@@ -72,10 +72,10 @@ export const MODULES = [
 
 export const SUBMENUS = {
     pomodoro: [
-        { label: 'Timer', type: 'anchor', target: 'timer' },
-        { label: 'Presets', type: 'anchor', target: 'presets' },
-        { label: 'Sessions', type: 'anchor', target: 'sessions' },
-        { label: 'Stats', type: 'anchor', target: 'analytics' },
+        { label: 'Timer', type: 'link', target: 'pomodoro.index' },
+        { label: 'Presets', type: 'link', target: 'pomodoro.presets' },
+        { label: 'Sessions', type: 'link', target: 'pomodoro.sessions' },
+        { label: 'Stats', type: 'link', target: 'pomodoro.stats' },
     ],
     budget: [
         { label: 'Overview', type: 'link', target: 'budget.index' },

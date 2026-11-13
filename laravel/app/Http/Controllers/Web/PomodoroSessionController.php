@@ -48,6 +48,6 @@ class PomodoroSessionController extends Controller
 
         $pomodoroSession->delete();
 
-        return to_route('pomodoro.index')->with('status', 'Session removed.');
+        return to_route('pomodoro.sessions')->with('status', 'Session removed.');
     }
 }

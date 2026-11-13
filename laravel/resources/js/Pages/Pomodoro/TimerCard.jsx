@@ -9,17 +9,19 @@ import {
     PauseIcon,
     PlayIcon,
     RepeatIcon,
-    StarIcon,
-    StarOutlineIcon,
     StopIcon,
 } from '@/Components/Glass/icons';
 import { formatClock } from '@/Lib/formatClock';
 import { formatHoursMinutes } from '@/Lib/formatDuration';
 import { useFullscreen } from '@/Lib/useFullscreen';
-import { SOUND_LABELS } from '@/Lib/pomodoroSounds';
-import AnalyticsCard from './AnalyticsCard';
-import PresetForm from './PresetForm';
-import SessionsCard from './SessionsCard';
+
+/**
+ * The countdown and its controls — the whole of the Timer page.
+ *
+ * Lifted out of the old single Pomodoro page when the module was split into
+ * four. It takes the timer rather than reaching for it, so the Timer page
+ * owns the one subscription and this stays a presentational component.
+ */
 
 /**
  * Shows which focus run of the set is on the clock - "3 of 4" - so the long
@@ -65,46 +67,12 @@ function CycleDots({ cycle, phase }) {
     );
 }
 
-function PresetSummary({ preset }) {
-    const parts = [
-        `${preset.focus_minutes} min focus`,
-        preset.break_minutes > 0
-            ? `${preset.break_minutes} min break`
-            : 'no break',
-    ];
-
-    if (preset.long_break_minutes > 0) {
-        parts.push(
-            `${preset.long_break_minutes} min long every ${preset.cycles_before_long_break}`,
-        );
-    }
-
-    return (
-        <div className="min-w-0">
-            <p className="flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold">
-                {preset.name}
-                {preset.tag && (
-                    <span className="shrink-0 rounded-full bg-[var(--card-border)] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-[var(--muted)]">
-                        {preset.tag}
-                    </span>
-                )}
-            </p>
-            <p className="truncate text-xs text-[var(--muted)]">
-                {parts.join(' · ')}
-            </p>
-            <p className="truncate text-[10.5px] text-[var(--muted)] opacity-80">
-                {preset.auto_start_breaks ? 'auto breaks' : 'manual breaks'}
-                {' · '}
-                {preset.auto_start_focus ? 'auto focus' : 'manual focus'}
-                {preset.ambience !== 'none' &&
-                    ` · ${SOUND_LABELS[preset.ambience] ?? preset.ambience}`}
-                {preset.strict_mode && ' · strict'}
-            </p>
-        </div>
-    );
-}
-
-function PomodoroOverview({ presets, timer, todaySeconds, soundControl }) {
+export default function TimerCard({
+    presets,
+    timer,
+    todaySeconds,
+    soundControl,
+}) {
     const overviewRef = useRef(null);
     const { isFullscreen, toggle } = useFullscreen(overviewRef);
 
@@ -120,7 +88,8 @@ function PomodoroOverview({ presets, timer, todaySeconds, soundControl }) {
     return (
         <GlassCard
             id="timer"
-            title="Overview"
+            title="Timer"
+            className="flex-1"
             action={
                 <div className="flex items-center gap-3">
                     <button
@@ -170,7 +139,7 @@ function PomodoroOverview({ presets, timer, todaySeconds, soundControl }) {
                 className={
                     isFullscreen
                         ? 'flex min-h-screen flex-col items-center justify-center gap-5 bg-[var(--bg)] p-6'
-                        : 'flex flex-col items-center gap-4 py-2'
+                        : 'flex h-full flex-col items-center justify-center gap-5 py-6'
                 }
             >
                 <GlassSelect
@@ -199,7 +168,10 @@ function PomodoroOverview({ presets, timer, todaySeconds, soundControl }) {
                 </p>
 
                 <p
-                    className="my-1 font-mono text-5xl font-bold tabular-nums"
+                    className={
+                        'font-mono font-bold tabular-nums ' +
+                        (isFullscreen ? 'text-8xl' : 'text-7xl')
+                    }
                     // The countdown changes every second, so it is announced
                     // politely rather than assertively; a screen reader
                     // interrupting itself once a second is unusable.
@@ -271,125 +243,5 @@ function PomodoroOverview({ presets, timer, todaySeconds, soundControl }) {
                 )}
             </div>
         </GlassCard>
-    );
-}
-
-export default function PomodoroGlassView({
-    presets,
-    analytics,
-    recentSessions,
-    tags,
-    timer,
-    presetForm,
-    editing,
-    soundControl,
-    onSubmitPreset,
-    onCancelEdit,
-    onEditPreset,
-    onDestroyPreset,
-    onDestroySession,
-    onSetDefault,
-    onPreviewAlarm,
-}) {
-    return (
-        <div className="flex h-full min-h-0 flex-col gap-4">
-            <div className="grid min-h-0 grid-cols-1 gap-4 xl:grid-cols-2">
-                <PomodoroOverview
-                    presets={presets}
-                    timer={timer}
-                    todaySeconds={analytics.today.focus_seconds}
-                    soundControl={soundControl}
-                />
-                <AnalyticsCard analytics={analytics} />
-            </div>
-
-            <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-2">
-                <GlassCard
-                    id="presets"
-                    title="Presets"
-                    className="overflow-y-auto"
-                >
-                    {presets.length === 0 ? (
-                        <p className="text-sm text-[var(--muted)]">
-                            No presets yet — add one on the right.
-                        </p>
-                    ) : (
-                        <div className="flex flex-col gap-2">
-                            {presets.map((preset) => (
-                                <div
-                                    key={preset.id}
-                                    className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-3"
-                                >
-                                    <div className="flex min-w-0 items-center gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => onSetDefault(preset)}
-                                            aria-pressed={preset.is_default}
-                                            title={
-                                                preset.is_default
-                                                    ? 'Default preset (starts from home)'
-                                                    : 'Make default'
-                                            }
-                                            className={
-                                                'shrink-0 ' +
-                                                (preset.is_default
-                                                    ? 'text-[var(--accent)]'
-                                                    : 'text-[var(--muted)] hover:text-[var(--ink)]')
-                                            }
-                                        >
-                                            {preset.is_default ? (
-                                                <StarIcon size={15} />
-                                            ) : (
-                                                <StarOutlineIcon size={15} />
-                                            )}
-                                        </button>
-                                        <PresetSummary preset={preset} />
-                                    </div>
-                                    <div className="flex shrink-0 items-center gap-3">
-                                        <PillButton
-                                            primary
-                                            onClick={() => timer.start(preset)}
-                                            ariaLabel={`Start ${preset.name}`}
-                                        >
-                                            <PlayIcon size={14} />
-                                        </PillButton>
-                                        <button
-                                            type="button"
-                                            onClick={() => onEditPreset(preset)}
-                                            className="text-xs text-[var(--muted)] hover:text-[var(--ink)] hover:underline"
-                                        >
-                                            Edit
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                onDestroyPreset(preset)
-                                            }
-                                            className="text-xs text-[var(--neg)] hover:underline"
-                                        >
-                                            Delete
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </GlassCard>
-
-                <PresetForm
-                    form={presetForm}
-                    tags={tags}
-                    editing={editing}
-                    onSubmit={onSubmitPreset}
-                    onCancelEdit={onCancelEdit}
-                    onPreviewAlarm={onPreviewAlarm}
-                />
-            </div>
-
-            <SessionsCard
-                sessions={recentSessions}
-                onDelete={onDestroySession}
-            />
-        </div>
     );
 }

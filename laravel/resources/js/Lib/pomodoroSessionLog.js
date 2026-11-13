@@ -20,8 +20,18 @@ import { router } from '@inertiajs/react';
  */
 export const MIN_LOGGED_SECONDS = 5;
 
-/** Props the Pomodoro page needs re-fetched once a session is recorded. */
-const ANALYTICS_PROPS = ['analytics', 'recentSessions', 'tags'];
+/**
+ * Which props each Pomodoro page needs re-fetched once an interval lands.
+ *
+ * Keyed by page so a timer finishing on the Timer page pulls back one total
+ * rather than the whole analytics payload, and so a page that shows none of
+ * this costs nothing at all.
+ */
+const REFRESH_PROPS = {
+    'Pomodoro/Index': ['today', 'timezone'],
+    'Pomodoro/Sessions': ['sessions', 'today', 'timezone'],
+    'Pomodoro/Stats': ['analytics'],
+};
 
 function tz() {
     try {
@@ -74,16 +84,18 @@ export async function logSession({
 }
 
 /**
- * Pulls fresh analytics onto the Pomodoro page. A no-op anywhere else, so a
- * timer ending on another page costs nothing.
+ * Pulls the fresh figures onto whichever Pomodoro page is on screen. A no-op
+ * everywhere else, so an interval ending while the user is reading their
+ * notes costs nothing.
  */
 export function refreshAnalytics(component) {
-    if (component !== 'Pomodoro/Index') {
+    const only = REFRESH_PROPS[component];
+    if (!only) {
         return;
     }
 
     router.reload({
-        only: ANALYTICS_PROPS,
+        only,
         data: { tz: tz() },
         preserveScroll: true,
         preserveState: true,
