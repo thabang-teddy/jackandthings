@@ -1,3 +1,4 @@
+import { Link, useForm } from '@inertiajs/react';
 import GlassCard from '@/Components/Glass/GlassCard';
 import GlassPagination from '@/Components/Glass/GlassPagination';
 import PillButton from '@/Components/Glass/PillButton';
@@ -7,10 +8,11 @@ import {
     GlassError,
     GlassInput,
     GlassLabel,
+    GlassSelect,
 } from '@/Components/Glass/GlassFormControls';
 import { BellIcon, HeartIcon } from '@/Components/Glass/icons';
 import { formatWhen } from '@/Lib/formatWhen';
-import { Link, useForm } from '@inertiajs/react';
+import LiveSessionCard from './LiveSessionCard';
 
 function PresetManager({ presets, onDestroyPreset }) {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -27,7 +29,7 @@ function PresetManager({ presets, onDestroyPreset }) {
     };
 
     return (
-        <GlassCard id="presets" title="Preset workouts">
+        <GlassCard id="presets" title="Quick-log presets">
             {presets.length > 0 && (
                 <div className="mb-3 flex flex-col gap-2">
                     {presets.map((preset) => (
@@ -90,23 +92,89 @@ function PresetManager({ presets, onDestroyPreset }) {
     );
 }
 
+/**
+ * Starts a tracked workout, from a routine or from nothing.
+ *
+ * A freestyle session is a deliberate option: the issue asks for routines, but
+ * turning up and lifting without a plan is a real workout and refusing to track
+ * it would be a worse tracker.
+ */
+function StartWorkoutCard({ routines }) {
+    const { data, setData, post, processing } = useForm({
+        workout_routine_id: '',
+    });
+
+    const submit = (event) => {
+        event.preventDefault();
+        post(route('workouts.sessions.store'), { preserveScroll: true });
+    };
+
+    return (
+        <GlassCard title="Start a tracked workout">
+            <form
+                onSubmit={submit}
+                className="grid gap-3 sm:grid-cols-[1fr_auto]"
+            >
+                <div>
+                    <GlassLabel htmlFor="start_routine">Routine</GlassLabel>
+                    <GlassSelect
+                        id="start_routine"
+                        value={data.workout_routine_id}
+                        onChange={(event) =>
+                            setData('workout_routine_id', event.target.value)
+                        }
+                    >
+                        <option value="">No routine — freestyle</option>
+                        {routines.map((routine) => (
+                            <option key={routine.id} value={routine.id}>
+                                {routine.name}
+                            </option>
+                        ))}
+                    </GlassSelect>
+                </div>
+                <div className="flex items-end">
+                    <GlassButton type="submit" disabled={processing}>
+                        Start
+                    </GlassButton>
+                </div>
+            </form>
+
+            {routines.length === 0 && (
+                <p className="mt-3 text-xs text-[var(--muted)]">
+                    No routines yet —{' '}
+                    <Link
+                        href={route('workouts.routines')}
+                        className="text-[#8BB4FF] hover:underline"
+                    >
+                        build one
+                    </Link>{' '}
+                    to get targets and automatic rest times.
+                </p>
+            )}
+        </GlassCard>
+    );
+}
+
 export default function WorkoutGlassIndexView({
     entries,
     presets = [],
+    routines = [],
+    exercises = [],
+    openSession = null,
     dueForReminder,
     lastLoggedAt,
     onDestroy,
     onDestroyPreset,
 }) {
     return (
-        <div className="flex h-full min-h-0 flex-col gap-4">
+        <div className="flex h-full min-h-0 flex-col gap-4 overflow-y-auto">
             <div className="flex items-center justify-between">
                 <p className="text-sm text-[var(--muted)]">
-                    {entries.data.length} entr
+                    {entries.data.length} quick entr
                     {entries.data.length === 1 ? 'y' : 'ies'}
                 </p>
                 <PillButton href={route('workouts.create')} primary>
-                    + Log workout
+                    + Quick log
                 </PillButton>
             </div>
 
@@ -136,8 +204,8 @@ export default function WorkoutGlassIndexView({
                                     style={{ color: 'var(--warn-muted)' }}
                                 >
                                     {lastLoggedAt
-                                        ? `Last workout: ${formatWhen(lastLoggedAt)}.`
-                                        : 'No workouts logged yet.'}
+                                        ? `Last activity: ${formatWhen(lastLoggedAt)}.`
+                                        : 'Nothing logged yet.'}
                                 </p>
                             </div>
                         </div>
@@ -145,7 +213,7 @@ export default function WorkoutGlassIndexView({
                 ) : (
                     <GlassCard>
                         <p className="text-sm text-[var(--muted)]">
-                            You're up to date — last workout:{' '}
+                            You're up to date — last activity:{' '}
                             {lastLoggedAt
                                 ? formatWhen(lastLoggedAt)
                                 : 'none yet'}
@@ -155,19 +223,26 @@ export default function WorkoutGlassIndexView({
                 )}
             </div>
 
+            {openSession ? (
+                <LiveSessionCard
+                    session={openSession}
+                    routines={routines}
+                    exercises={exercises}
+                />
+            ) : (
+                <StartWorkoutCard routines={routines} />
+            )}
+
             <PresetManager
                 presets={presets}
                 onDestroyPreset={onDestroyPreset}
             />
 
-            <GlassCard
-                id="overview"
-                title="Entries"
-                className="min-h-0 flex-1 overflow-y-auto"
-            >
+            <GlassCard id="overview" title="Quick entries">
                 {entries.data.length === 0 ? (
                     <p className="text-sm text-[var(--muted)]">
-                        Log what you do through the day to build up a record.
+                        The quick log is for anything you don't want to track
+                        set by set — a walk, a swim, a class.
                     </p>
                 ) : (
                     entries.data.map((entry) => (

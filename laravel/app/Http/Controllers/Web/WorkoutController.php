@@ -72,6 +72,11 @@ class WorkoutController extends Controller
                 $user->workoutRoutines()->with('items.exercise')->oldest()->get()
             ),
             'openSession' => $this->openSessionFor($user),
+            // The set logger needs every exercise the user may pick, and a
+            // live workout is not always one that follows a routine.
+            'exercises' => ExercisePayload::collection(
+                Exercise::query()->visibleTo($user)->orderBy('name')->get()
+            ),
             // Rendered as an in-page banner, and polled separately by
             // resources/js/Lib/useWorkoutNudge.js for the desktop alert.
             'dueForReminder' => $this->reminderStatus->isDue($user),

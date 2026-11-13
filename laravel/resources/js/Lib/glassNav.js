@@ -85,11 +85,17 @@ export const SUBMENUS = {
         { label: 'Transactions', type: 'link', target: 'budget.transactions' },
     ],
     notes: [],
+    // Six pages since issue #4, the same move Pomodoro made with issue #3:
+    // an exercise library, a routine builder and a 90-day calendar do not fit
+    // under one scroll bar, and scrolling past them to log a set is not a
+    // workout tracker.
     workout: [
-        { label: 'Overview', type: 'anchor', target: 'overview' },
-        { label: 'Log entry', type: 'link', target: 'workouts.create' },
-        { label: 'Presets', type: 'anchor', target: 'presets' },
-        { label: 'Reminders', type: 'anchor', target: 'reminders' },
+        { label: 'Today', type: 'link', target: 'workouts.index' },
+        { label: 'Library', type: 'link', target: 'workouts.library' },
+        { label: 'Routines', type: 'link', target: 'workouts.routines' },
+        { label: 'Sessions', type: 'link', target: 'workouts.sessions' },
+        { label: 'Body', type: 'link', target: 'workouts.body' },
+        { label: 'Stats', type: 'link', target: 'workouts.stats' },
     ],
     watchlist: [
         { label: 'Lists', type: 'anchor', target: 'lists' },

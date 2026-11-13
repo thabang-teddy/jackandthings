@@ -41,13 +41,33 @@ export const DEFAULT_REST_SECONDS = 90;
 export function fieldsFor(metric) {
     switch (metric) {
         case METRIC_WEIGHT_REPS:
-            return { weight: true, reps: true, distance: false, duration: false };
+            return {
+                weight: true,
+                reps: true,
+                distance: false,
+                duration: false,
+            };
         case METRIC_REPS_ONLY:
-            return { weight: false, reps: true, distance: false, duration: false };
+            return {
+                weight: false,
+                reps: true,
+                distance: false,
+                duration: false,
+            };
         case METRIC_DISTANCE_DURATION:
-            return { weight: false, reps: false, distance: true, duration: true };
+            return {
+                weight: false,
+                reps: false,
+                distance: true,
+                duration: true,
+            };
         case METRIC_DURATION:
-            return { weight: false, reps: false, distance: false, duration: true };
+            return {
+                weight: false,
+                reps: false,
+                distance: false,
+                duration: true,
+            };
         default:
             // An unknown metric asks for everything rather than nothing: a
             // client one version behind should still be able to log a set.
@@ -118,10 +138,19 @@ export function bestOf(sets) {
             best.one_rep_max_grams,
             estimatedOneRepMax(set?.weight_grams, set?.reps),
         );
-        best.weight_grams = higher(best.weight_grams, toInteger(set?.weight_grams));
+        best.weight_grams = higher(
+            best.weight_grams,
+            toInteger(set?.weight_grams),
+        );
         best.reps = higher(best.reps, toInteger(set?.reps));
-        best.distance_metres = higher(best.distance_metres, toInteger(set?.distance_metres));
-        best.duration_seconds = higher(best.duration_seconds, toInteger(set?.duration_seconds));
+        best.distance_metres = higher(
+            best.distance_metres,
+            toInteger(set?.distance_metres),
+        );
+        best.duration_seconds = higher(
+            best.duration_seconds,
+            toInteger(set?.duration_seconds),
+        );
     });
 
     return best;
@@ -185,7 +214,9 @@ export function nextSet(items, loggedSets) {
     const counted = (loggedSets ?? []).filter((set) => !set?.is_warmup);
 
     for (const item of ordered) {
-        const done = counted.filter((set) => set?.exercise_id === item?.exercise_id).length;
+        const done = counted.filter(
+            (set) => set?.exercise_id === item?.exercise_id,
+        ).length;
         const target = toInteger(item?.target_sets) ?? 1;
 
         if (done < target) {

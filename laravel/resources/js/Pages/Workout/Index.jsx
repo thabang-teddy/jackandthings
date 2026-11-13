@@ -5,6 +5,9 @@ import { router } from '@inertiajs/react';
 export default function Index({
     entries,
     presets = [],
+    routines = [],
+    exercises = [],
+    openSession = null,
     dueForReminder,
     lastLoggedAt,
 }) {
@@ -28,6 +31,9 @@ export default function Index({
         <WorkoutGlassIndexView
             entries={entries}
             presets={presets}
+            routines={routines}
+            exercises={exercises}
+            openSession={openSession}
             dueForReminder={dueForReminder}
             lastLoggedAt={lastLoggedAt}
             onDestroy={destroy}
