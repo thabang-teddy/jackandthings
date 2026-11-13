@@ -18,7 +18,7 @@ Versions below are what is actually installed in `laravel/` (from `composer.lock
 | Browser add-ons | Manifest V3 WebExtension, plain ES modules, **no build step** (built) | Chrome + Firefox from `docs/init.txt`. No bundler because it loads unpacked as-is and stays auditable, which matters for an extension that can read browsing history | Chrome uses `background.service_worker`, Firefox `background.scripts`; the manifest carries both and each browser ignores the other's key. Firefox needs `browser_specific_settings.gecko.id` |
 
 ## System boundaries
-- Client owns (as built): presentation and local UX state only. The Pomodoro countdown is the one piece of real client-side logic and is deliberately ephemeral — nothing about a running timer is persisted.
+- Client owns (as built): presentation and local UX state only. The Pomodoro countdown is the one piece of real client-side logic, and a *running* timer is still deliberately ephemeral — nothing about one is persisted on any surface. Since issue #3 a *finished* interval is: each client posts the interval it just watched end to `pomodoro-sessions`, which is what the focus analytics are computed from. The cycle rules the clients run (which break follows which focus run, when the long one falls, whether the next phase auto-starts) are duplicated in three files on purpose — `laravel/resources/js/Lib/pomodoroCycle.js`, `android/.../pomodoro/PomodoroCycle.kt` and `extension/src/lib/pomodoroCycle.js` — and those three are where to look if the surfaces ever disagree.
 - Server owns (as built): all validation (FormRequests), authorization (policies), per-user data isolation, and business rules (budget math and transfer atomicity in `BudgetService`, reminder state in `WorkoutReminderStatus`, history deletion in `history:prune`).
 - External services own: none. No third-party service is used — notification delivery is deliberately not built (see PRD.md).
 - Out of scope: anything not in the six confirmed modules (PRD.md MVP scope).
@@ -32,7 +32,9 @@ As built:
 5. The response updates the UI (Inertia) or returns JSON (API). Verified: cross-tenant reads and writes return 404 on all nine web routes and five API routes tested, and a DB audit found zero cross-owner rows.
 
 ## Interfaces
-- API contract: **built** — 37 registered `api/v1/*` routes. Token: `POST /api/v1/auth/token` (throttled 6/min), `GET /api/v1/auth/me`, `DELETE /api/v1/auth/token`. Resources: `notes`, `pomodoro-presets`, `clipboard-items`, `workout-entries` (+ `GET workout-entries/due`), `history-entries` (no update), `budget-accounts`, `budget-transactions` (index/store/destroy), `POST budget-transfers`. All behind `auth:sanctum` + `throttle:60,1`.
+- API contract: **built**. Token: `POST /api/v1/auth/token` (throttled 6/min), `GET /api/v1/auth/me`, `DELETE /api/v1/auth/token`. Resources: `notes`, `pomodoro-presets`, `pomodoro-sessions` (index/store/show/destroy — no update, since a recorded interval is history — plus `GET pomodoro-sessions/stats`), `clipboard-items`, `workout-entries` (+ `GET workout-entries/due`), `history-entries` (no update), `budget-accounts`, `budget-transactions` (index/store/destroy), `POST budget-transfers`. All behind `auth:sanctum` + `throttle:60,1`.
+- A preset's wire shape lives in one place, `App\Http\Resources\PomodoroPresetPayload`, rather than being hand-assembled per controller. With fourteen fields, two hand-rolled copies drift; the web page, Android and the add-on all read the same mapping.
+- `pomodoro-sessions/stats` buckets in the **caller's** timezone, passed as `tz`. The app runs in UTC, and "focus hours today" or "most productive hour" computed in UTC is wrong for anybody not living there.
 - Events/jobs: `history:prune` is scheduled daily in `routes/console.php`. No queue work yet. Workout reminders have **no** scheduled job or delivery mechanism by design — clients poll `workout-entries/due` and raise their own notification.
 
 ## Project structure

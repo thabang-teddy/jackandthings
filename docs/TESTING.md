@@ -5,11 +5,11 @@ A suite now exists on all three surfaces and **all of it passes**. Figures below
 
 | Surface | Framework | Tests | Command |
 | --- | --- | --- | --- |
-| Laravel | PHPUnit 12.5 | **189** (2260 assertions) | `php artisan test` |
+| Laravel | PHPUnit 12.5 | **197** (2585 assertions) | `php artisan test` |
 | Web JS | `node --test` (no dependencies) | **24** | `npm test` in `laravel/` |
-| Android | JUnit 4 + `kotlinx-coroutines-test` | **183** | `.\gradlew.bat :app:testDebugUnitTest` |
-| Add-on | `node --test` (no dependencies) | **33** | `npm test` in `extension/` |
-| | | **429 total** | |
+| Android | JUnit 4 + `kotlinx-coroutines-test` | **184** | `.\gradlew.bat :app:testDebugUnitTest` |
+| Add-on | `node --test` (no dependencies) | **37** | `npm test` in `extension/` |
+| | | **442 total** | |
 
 The web JS runner needs no dependency: `laravel/package.json` is already
 `"type": "module"`, so Node loads the sources as they are. It reaches the
@@ -134,7 +134,7 @@ A route-table audit fails the build when a model-bound route is added without a 
 
 **Android ViewModels** — now testable because the five module repositories were extracted into interfaces (`NotesRepository` and friends are interfaces; `ApiNotesRepository` is the only production implementation). `BudgetViewModelTest` covers the submit flow — a rejected write keeps the composer open with the server's reason, a partial load failure keeps the balances already on screen rather than blanking them, and the typed amount string reaches the repository untouched.
 
-**`PomodoroTimerEngineTest`** — the countdown itself, on virtual time: ticking, focus rolling into the break, a no-break preset ending after focus, pause freezing the clock, resume continuing from where it stopped, restart and skip in every phase/running combination, and `stopIfPreset` leaving an unrelated running timer alone. This moved out of `PomodoroViewModel` into a process-wide `PomodoroTimerEngine` so the welcome page and the Pomodoro screen share one running timer instead of each keeping its own (starting one and finding it "stopped" on the other screen was a real bug this fixed) — and the engine is deliberately Context-free so it stays unit-testable without Robolectric; `JackApplication` is what notices the engine going active and starts the foreground notification service for it. `PomodoroViewModelTest` and `DashboardViewModelTest` now only cover what is actually theirs: preset CRUD, the reminder/workout flow, and that each ViewModel's `state` correctly mirrors the shared engine.
+**`PomodoroTimerEngineTest`** — the countdown itself, on virtual time: ticking, focus rolling into the break, a no-break preset ending after focus, pause freezing the clock, resume continuing from where it stopped, restart and skip in every phase/running combination, and `stopIfPreset` leaving an unrelated running timer alone. Issue #3 changed one of these with the behaviour it covers: a finished break used to end the session and now loads the next focus run and waits, since `auto_start_focus` defaults to off. A trap worth knowing about if more are added — a preset that auto-starts in both directions never stops on its own, and `runTest` drains the scheduler before it returns, so such a test must stop the engine itself or it hangs the suite rather than failing it; the `@After` teardown runs too late. This moved out of `PomodoroViewModel` into a process-wide `PomodoroTimerEngine` so the welcome page and the Pomodoro screen share one running timer instead of each keeping its own (starting one and finding it "stopped" on the other screen was a real bug this fixed) — and the engine is deliberately Context-free so it stays unit-testable without Robolectric; `JackApplication` is what notices the engine going active and starts the foreground notification service for it. `PomodoroViewModelTest` and `DashboardViewModelTest` now only cover what is actually theirs: preset CRUD, the reminder/workout flow, and that each ViewModel's `state` correctly mirrors the shared engine.
 
 **`AppUpdateCheckerTest`** — version-string comparison (`"0.1.10"` reading as newer than `"0.1.9"`, not the other way around as plain strings would have it) and parsing GitHub's "latest release" response, including a malformed or incomplete body degrading to "no update" rather than crashing on launch. The network call itself is untested, consistent with the rest of this app's HTTP-calling code.
 
@@ -146,10 +146,13 @@ A pattern worth keeping: each of these asserts that a rejected write leaves the 
 
 Fakes are hand-written (`app/src/test/.../testing/Fakes.kt`), not generated: they are short and they break loudly when an interface changes.
 
-**Add-on** — URL joining with and without a trailing slash, bearer header presence, the first-field-error-wins rule for a 422, an unreachable server reported as such, a 401 clearing the session while other failures do not, and history leaving the retention window `null` rather than guessing one. `pomodoro.test.js` covers the pure `restartPatch`/`skipPatch` functions the popup's Restart and Skip buttons use — pulled out of the `chrome.storage`/alarm side effects specifically so this logic is testable without a browser.
+**Add-on** — URL joining with and without a trailing slash, bearer header presence, the first-field-error-wins rule for a 422, an unreachable server reported as such, a 401 clearing the session while other failures do not, and history leaving the retention window `null` rather than guessing one. `pomodoro.test.js` covers the pure `restartPatch`/`skipPatch` functions the popup's Restart and Skip buttons use — pulled out of the `chrome.storage`/alarm side effects specifically so this logic is testable without a browser. Since issue #3 those two run on the shared cycle in `lib/pomodoroCycle.js`, so these cases also pin the long break landing on the fourth focus run and the set resetting after it.
 
 ## Known gaps
 - **Coverage is unmeasured** (no driver installed).
+- **The Pomodoro's generated audio is untested and unheard.** `ToneSynth`/`PomodoroSounds` on Android and `Lib/audio/` on the web synthesise every alarm, tick and ambience bed; none of it has been played on a real device or in a browser, and nothing asserts what comes out. Unit tests would only prove the graph was built, which is not the question — the question is whether a chime sounds like a chime. This needs listening to, by hand, on each surface.
+- **Strict mode's privileged halves are unexercised.** Android's `FocusGuard` needs `ACCESS_NOTIFICATION_POLICY` granted in Settings and a real `NotificationManager`, so neither the silencing nor the restore-the-previous-filter path has run. The add-on's `declarativeNetRequest` blocking has never run either — it inherits the existing gap that the extension has never been loaded as a real extension. Both are written to degrade to "asked for but not allowed" and say so in the UI, which is itself untested.
+- **Session logging has been verified on the web only** — a real start-then-skip was driven in a browser and produced `POST /pomodoro/sessions → 204` followed by the partial analytics reload. The Android recorder and the add-on's background logging are covered by neither a unit test nor a manual run.
 - Android **Compose UI** is untested — the ViewModels are covered, but nothing asserts a screen renders their state. That needs instrumented or Robolectric tests.
 - **`extension/src/lib/dom.js` is untested** — every function touches `document`, so it needs jsdom or a browser runner.
 - **The extension host is still unexercised**: service worker, `chrome.alarms`, notifications, permission prompts, `history.onVisited` and the auto-delete path. No unit test reaches these; they need Playwright against a loaded unpacked extension, or a manual checklist.
