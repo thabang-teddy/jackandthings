@@ -3,11 +3,11 @@
 ## Storage model
 - Database/provider: **SQLite** via Laravel's `sqlite` driver (built). One file at `laravel/database/database.sqlite`, git-ignored (`database/.gitignore`) and created by `composer.json`'s post-create-project script. It is the connection for local development and for the PHPUnit suite (`phpunit.xml` pins `:memory:`); nothing in the schema or queries is engine-specific.
 - Ownership model: Multi-tenant — each row is owned by exactly one user account; no shared/family ownership (confirmed via owner's answer: "Multi-tenant, separate accounts per user").
-- Key types: `users.id` stays Laravel's `bigIncrements` (so Breeze's `sessions` table and Sanctum's `tokenable` morphs work unchanged). **All seven module tables use UUIDv7 primary keys** (`HasUuids`) so record ids in URLs and API responses are not enumerable; their `user_id` is a `foreignId` to `users`.
+- Key types: `users.id` stays Laravel's `bigIncrements` (so Breeze's `sessions` table and Sanctum's `tokenable` morphs work unchanged). **Every module table uses UUIDv7 primary keys** (`HasUuids`) so record ids in URLs and API responses are not enumerable; their `user_id` is a `foreignId` to `users`. Two tables deviate, both deliberately: `exercises.user_id` is nullable (the seeded catalog has no owner) and `workout_routine_items` has no `user_id` at all (it is reached only through its routine).
 - Data classification:
-  - Sensitive: Budget accounts/transactions (financial), Clipboard contents (may contain passwords or other sensitive text), auth credentials.
-  - Personal: Notes, Workout entries, History/URLs.
-  - Internal: Pomodoro presets/sessions.
+  - Sensitive: Budget accounts/transactions (financial), Clipboard contents (may contain passwords or other sensitive text), **body metrics and progress photos** (health data; the photo files are the only user data stored outside the database), auth credentials.
+  - Personal: Notes, Workout entries, workout sessions and sets, History/URLs.
+  - Internal: Pomodoro presets/sessions, the seeded exercise catalog (reference data, owned by nobody).
 
 ## SQLite specifics
 - Connection settings: `config/database.php` opens the file with `busy_timeout` 5000 ms, `journal_mode` WAL and `synchronous` NORMAL, each overridable with `DB_BUSY_TIMEOUT`, `DB_JOURNAL_MODE` and `DB_SYNCHRONOUS`. The app writes from three places at once (web requests, the queue worker, the scheduler's `history:prune`), so a writer waits for the lock instead of failing with "database is locked". WAL keeps recent commits in `database.sqlite-wal` next to the file, which is why `database/.gitignore` ignores `*.sqlite*`.
@@ -24,7 +24,13 @@ As built (migrations in `laravel/database/migrations`).
 | Note | CRUD notes; may be starred to pin it to the home page | User | Indefinite |
 | BudgetAccount | One of a user's accounts/wallets | User | Indefinite |
 | BudgetTransaction | An immutable ledger entry (deposit/withdrawal/transfer leg) | User | Indefinite; no update path |
-| WorkoutEntry | A logged workout | User | Indefinite |
+| WorkoutEntry | A one-line logged workout; still the quick path and still what the hourly nudge reads | User | Indefinite |
+| Exercise | A library exercise: catalog (unowned) or the user's own | **User or nobody** — the one table here with unowned rows | Indefinite |
+| WorkoutRoutine / WorkoutRoutineItem | A saved workout template and its ordered exercises with targets | User (the item through its routine) | Indefinite |
+| WorkoutSession | One tracked workout, open while it runs | User | Indefinite |
+| WorkoutSet | A single logged set — the table personal records and volume are read from | User | Indefinite |
+| BodyMetric | A day's weight, body fat and tape measurements | User | Indefinite — **unresolved**, health data with no limit; see SECURITY.md |
+| ProgressPhoto | A private photo's record; the image lives on the private disk | User | Indefinite — **unresolved**, as above, and the only user data outside the database |
 | ClipboardItem | A saved snippet | User | Indefinite — **unresolved**, short retention is likely warranted given snippets may hold passwords |
 | HistoryEntry | A visited URL | User | Deleted by `history:prune` past the retention window — currently a **placeholder** 90 days, not an approved rule |
 
@@ -37,7 +43,25 @@ As built. Every table: `id` UUIDv7 primary key, `user_id` → `users.id` with `c
 - `notes`: title (255), body (text, nullable), is_starred (bool, default false — a starred note is pinned to the home page, and only starred ones appear there). Indexes `(user_id, created_at)` and `(user_id, is_starred, created_at)`, the second serving the home page's filtered read.
 - `budget_accounts`: name (60). **Unique `(user_id, name)`** so one user cannot have two accounts of the same name. Index `(user_id, created_at)`.
 - `budget_transactions`: account_id → budget_accounts (cascade), type (20: `deposit`/`withdrawal`/`transfer_in`/`transfer_out`), amount_cents (uint64), related_account_id → budget_accounts (nullable, **nullOnDelete** so a past transfer survives deletion of the counterpart account), transfer_group_id (uuid, nullable — links the two legs of one transfer), description (255, nullable). Indexes `(user_id, created_at)`, `(account_id, created_at)`, `transfer_group_id`.
-- `workout_entries`: activity (100), logged_at (timestamp), notes (text, nullable). Index `(user_id, logged_at)` — serves both the list and the hourly due-check.
+- `workout_entries`: activity (100), logged_at (timestamp), notes (text, nullable). Index `(user_id, logged_at)` — serves both the list and the hourly due-check. **Untouched by issue #4**: the tracked tables below sit beside it rather than replacing it, because the quick "I did a thing" log and the home page's popup still want exactly this shape.
+
+### Fitness tracking (issue #4)
+
+Every measure below is an **integer** — grams, metres, seconds, permille,
+millimetres — the same call this project already makes with cents. Nothing
+stores a float, and kilograms exist only at the point of display.
+
+- `exercises`: **`user_id` nullable** — null is a seeded catalog row — name (120), slug (140), category (20: `strength`/`cardio`/`flexibility`/`mobility`), primary_muscle (60, nullable), equipment (60, nullable), metric (20: `weight_reps`/`reps_only`/`distance_duration`/`duration`), instructions (text, nullable), cues (json, nullable). Unique `(user_id, slug)`, index `(user_id, category)`.
+
+  **The one exception to "every row has an owner".** A catalog exercise belongs to nobody, is readable by everybody and is editable by no one; `ExercisePolicy` splits `view` from `update` to enforce that, and `Exercise::scopeVisibleTo()` is the query-side half. Note the unique index does *not* constrain the catalog, because two NULLs are distinct in SQLite and MySQL alike — `ExerciseLibrarySeeder` keys on the slug itself so re-seeding updates rather than duplicates. There is no image or video column and there should not be one: instructions and cues are text, for the same reason the Pomodoro sounds are synthesised rather than sampled.
+- `workout_routines`: name (80), notes (text, nullable). Index `(user_id, created_at)`.
+- `workout_routine_items`: workout_routine_id → workout_routines (cascade), exercise_id → exercises (**restrictOnDelete**), position (uint16), target_sets / target_reps (uint16, nullable), target_weight_grams / target_distance_metres / target_duration_seconds (uint, nullable), rest_seconds (uint16, nullable). Index `(workout_routine_id, position)`. **No `user_id`**: the row is only ever reached through its routine, which is what a policy guards. Which targets mean anything depends on the exercise's `metric`; the rest stay null.
+- `workout_sessions`: workout_routine_id → workout_routines (**nullOnDelete**), routine_name (80, nullable), started_at, finished_at (nullable — null means in progress), notes (text, nullable). Index `(user_id, started_at)`. `routine_name` is denormalised for the same reason `pomodoro_sessions.preset_name` is: deleting or renaming a routine must not rewrite history. Unlike a Pomodoro interval, this row is written at the *start* — the sets have to attach to something while the workout is still happening. The rest countdown between sets is still never persisted anywhere, on any surface.
+- `workout_sets`: workout_session_id → workout_sessions (cascade), exercise_id → exercises (**restrictOnDelete**), position (uint16), is_warmup (bool, default false), reps (uint16, nullable), weight_grams / distance_metres / duration_seconds (uint, nullable), rpe (uint8, nullable), completed_at (timestamp). Indexes `(user_id, exercise_id, completed_at)` and `(workout_session_id, position)`. It carries `user_id` directly even though it could be reached through its session, so every ownership scope is one hop — the same call `budget_transactions` makes. **The first index is the feature**: it is what makes "what did I lift last time" and "is this a personal record" cheap enough to run mid-workout. A warm-up set is logged but never counts towards a record or towards volume.
+- `body_metrics`: measured_on (date), weight_grams (uint, nullable), body_fat_permille (uint16, nullable — 17.5% is 175, so nothing rounds), measurements (json, nullable: chest/waist/hips/arm/thigh/calf/neck in millimetres), notes (text, nullable). **Unique `(user_id, measured_on)`** — one reading a day, so logging again replaces it rather than giving the charts two points to plot.
+- `progress_photos`: body_metric_id → body_metrics (**nullOnDelete** — deleting a weigh-in must not silently destroy the photo taken that day), disk (20), path, mime (60), size_bytes (uint), taken_on (date), caption (120, nullable). Index `(user_id, taken_on)`. The file itself lives on the **private** disk and is reachable only through an authorizing controller action; `disk` is stored beside `path` so moving to S3 later does not orphan existing rows. See SECURITY.md "Uploads".
+
+**On the two restrictive foreign keys.** `exercise_id` is `restrictOnDelete` in both tables on purpose: cascading would quietly empty somebody's routine or erase logged training history when an exercise is removed. The controllers check for references first and refuse with a readable 422, so the constraint is a backstop rather than the error the user sees.
 - `clipboard_items`: title (100, nullable), content (text), source_device (30, nullable — written only by future Android/add-on clients). Index `(user_id, created_at)`.
 - `history_entries`: url (2048), title (255, nullable), visited_at (timestamp), source (20, nullable: `manual`/`seed`/future `extension`). Indexes `(user_id, visited_at)`, `visited_at`. **No `deleted_at`** — a soft delete would defeat the point of the prune job, so deletions are real.
 
@@ -46,7 +70,13 @@ No `currency` column anywhere: ZAR is fixed app-wide. Money is stored only as in
 ## Relationships
 - `User` has many of every other entity above (1-to-many), via explicit relation methods on the `User` model.
 - `BudgetAccount` has many `BudgetTransaction` (`account_id`).
-- Delete behavior (built): every module FK is `cascadeOnDelete` — deleting a user removes all their data, and deleting a budget account removes its transactions. The single exception is `budget_transactions.related_account_id`, which is `nullOnDelete` so the surviving account keeps its side of a past transfer.
+- `WorkoutRoutine` has many `WorkoutRoutineItem` (ordered by `position`); `WorkoutSession` has many `WorkoutSet`; `BodyMetric` has many `ProgressPhoto`.
+- Delete behavior (built): module FKs are `cascadeOnDelete` by default — deleting a user removes all their data, and deleting a budget account, a routine or a workout removes its children. The exceptions, each for a stated reason:
+  - `budget_transactions.related_account_id` — `nullOnDelete`, so the surviving account keeps its side of a past transfer.
+  - `workout_sessions.workout_routine_id` — `nullOnDelete`; the workout happened, and deleting the template must not erase it.
+  - `progress_photos.body_metric_id` — `nullOnDelete`; deleting a weigh-in must not silently destroy a photo.
+  - `workout_routine_items.exercise_id` and `workout_sets.exercise_id` — **`restrictOnDelete`**; see the note under Schema.
+- Deleting a `ProgressPhoto` row also deletes its file (`ProgressPhoto::deleteWithFile()`). That is application-level, not a database guarantee: a row removed by a raw cascade would leave the image behind.
 
 ## Access rules
 - Only the owning user can read/create/update/delete their records. There is no cross-user access path at all, since the owner confirmed strict multi-tenancy.
@@ -56,6 +86,7 @@ No `currency` column anywhere: ZAR is fixed app-wide. Money is stored only as in
   3. FormRequests that reference another of the user's records use `Rule::exists(...)->where('user_id', …)`, so a foreign id fails validation.
 - A bound-but-foreign record aborts **404, not 403** (`AuthorizesOwnership`), so existence is not confirmed to a non-owner.
 - Transactions and history entries have no `update` ability at all (immutable records).
+- **The exercise library is the one place these rules bend, and only in one direction.** A catalog row (`user_id` null) passes `view` for everybody and `update`/`delete` for nobody, so the shared library cannot be edited out from under other users. A user's own exercise behaves like every other record here. There is no case in which one user reaches another user's exercise. Any request naming an `exercise_id` — a routine item, a logged set — validates it with a `Rule::exists` scoped to "mine or unowned", never an open one.
 - Whether an admin/operator role exists: **unresolved** — open decision in PRD.md. Nothing in the code grants one.
 
 ## Queries and indexes

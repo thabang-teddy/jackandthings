@@ -45,7 +45,9 @@ The version catalog in `android/gradle/libs.versions.toml` is pinned as a **set*
 - Query through the authenticated user's relation; never `Model::where('user_id', $request->input(...))`.
 - A failed ownership check aborts 404, never 403.
 - Handle loading, empty, error, and success states explicitly — every list page has an `EmptyState`.
-- Money is integer cents end to end; formatting happens only in `Lib/formatZar.js`.
+- **Every measure is an integer end to end.** Money is cents; since issue #4 weight is grams, distance metres, duration seconds, body fat permille and tape millimetres. Nothing stores or sends a float. Formatting lives in one place per surface — `Lib/formatZar.js`, `Lib/formatWorkout.js`, `workout/WorkoutFormat.kt` — and never inside the rule files, so a locale change cannot alter a comparison.
+- **A rule the three clients must agree on gets written three times, on purpose**, and each copy says so in its header: `pomodoroCycle` and `workoutProgress` each exist as web JS, Kotlin and add-on JS, with the server as the authority. Change one, change all three. They stay pure — no React, no `chrome.*`, no Context, no storage, no network — which is what makes them testable and what keeps the three honest.
+- **A wire shape lives in one payload class**, not hand-assembled per controller (`App\Http\Resources\*Payload`). Spell every field out: adding a column must never silently widen the API.
 - Avoid silent failures and undocumented magic values.
 - Reuse existing components before introducing new abstractions.
 - No `console.log` in committed frontend code.
@@ -64,7 +66,8 @@ The version catalog in `android/gradle/libs.versions.toml` is pinned as a **set*
 ## Review checklist
 - Implementation matches the approved feature acceptance criteria.
 - Format and lint run clean using the confirmed commands below.
-- Ownership: new model → relation on `User`, policy registered in `AuthServiceProvider::POLICIES`, `authorizeOwned()` on every bound route, scoped `Rule::exists` for any cross-record reference.
+- Ownership: new model → relation on `User`, policy registered in `AuthServiceProvider::POLICIES`, `authorizeOwned()` on every bound route, scoped `Rule::exists` for any cross-record reference, `user_id` left out of `#[Fillable]`.
+- A new model-bound route also needs a case in `tests/Feature/Security/CrossTenantAccessTest.php`. Note the audit there only sees route parameters it has a fixture for, so adding the fixture is what switches the check on — it will not fail for a parameter name it has never heard of.
 - No credentials or unrelated files in the diff.
 
 ## Verified commands
