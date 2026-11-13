@@ -102,7 +102,7 @@ export function breakAfter(preset, completedFocusCycles) {
  * work. Both default to the traditional behaviour - breaks begin on their
  * own, the next work interval waits for you.
  */
-export function nextPhase({ phase, completedFocusCycles = 0 }, preset) {
+export function nextPhase({ phase, completedFocusCycles = 0 } = {}, preset) {
     if (!preset) {
         return null;
     }
@@ -136,7 +136,10 @@ export function nextPhase({ phase, completedFocusCycles = 0 }, preset) {
  * indicator. A break reports the interval it follows, so the number does not
  * jump forward while you are resting.
  */
-export function cyclePosition({ phase, completedFocusCycles = 0 }, preset) {
+export function cyclePosition(
+    { phase, completedFocusCycles = 0 } = {},
+    preset,
+) {
     const length = cycleLength(preset);
 
     if (phase === PHASE_FOCUS) {
