@@ -10,7 +10,7 @@
 
 ## MVP scope
 - Must ship (confirmed): all six modules below, across all three platforms (server, Android, browser add-ons) **in parallel**, per the owner's explicit choice.
-  - Pomodoro — start a timer, select a group/preset.
+  - Pomodoro — start a timer, select a group/preset. Extended by issue #3 into full time-and-focus management: long breaks on a cycle, auto-start, tags, sound, strict mode and analytics.
   - Notes — CRUD.
   - Budget — multiple accounts/wallets per user; dashboard, add transaction, transfer between accounts.
   - Workout — log workouts done throughout the day; hourly reminders.
@@ -39,7 +39,7 @@ All three surfaces now exist: the Laravel server (web UI + `api/v1`), the Kotlin
 
 | ID | User need | Behavior | Status | Priority |
 | --- | --- | --- | --- | --- |
-| F-01 | As a user, I need to run a Pomodoro timer | Save presets (name, focus/break minutes); start one; timer counts focus then rolls into the break | **Built (web + API + Android).** Android gives it the full-screen countdown `init.txt` asked for. Nothing about a running timer is persisted on either client | Must |
+| F-01 | As a user, I need to run a Pomodoro timer | Save presets (durations including a long break on a configurable cycle, auto-start choices, a category tag, alarm/ticking/background sound, strict mode); start one; the timer runs the cycle, and each finished interval feeds daily and weekly analytics | **Built on all three surfaces** (issue #3). Android gives it the full-screen countdown `init.txt` asked for. A *running* timer is still not persisted anywhere; a *finished* interval is. Three caveats are stated rather than papered over: the generated audio has never been listened to, strict mode's privileged halves (Android Do Not Disturb, add-on site blocking) have never run, and web strict mode cannot block notifications or lock a screen — it keeps the screen awake and warns before you leave, and says so | Must |
 | F-02 | As a user, I need to manage notes | Create, read, update, delete notes (title, body) | **Built (web + API + Android)** | Must |
 | F-03 | As a user, I need to track a budget | Multiple accounts; deposit/withdraw; transfer between own accounts; dashboard with per-account and total balances | **Built (web + API + Android).** Fixed ZAR, integer cents, derived balances, atomic two-leg transfers, overdrafts rejected. No categories | Must |
 | F-04 | As a user, I need to track workouts | Log entries (activity, when, notes); know when an hour has passed without one | **Built (web + API + Android + add-on).** The server reports due-state only and sends nothing; each client polls it and raises its own local notification — Android hourly via WorkManager, the add-on via alarms, the web page while a tab is open (it also keeps the in-page banner) | Must |
@@ -61,7 +61,15 @@ that a page can only notify while one of its tabs is open; delivering to a
 closed browser would need Web Push, which means a server that sends, and that
 is still ruled out.
 
+**Settled by issue #3:** whether Pomodoro session history is stored. It is, and
+that reverses what ARCHITECTURE.md and DATABASE.md said. Only half the earlier
+decision changed: a *running* timer is still never persisted on any surface,
+and only an interval that has already finished is written, once, by whichever
+client watched it end. The analytics the issue asked for are computed from
+those rows and from nothing else.
+
 **Still open:**
+- **Retention for `pomodoro_sessions`.** It is a timestamped record of when the user works and on what — personal data with no limit on it today. Worth deciding alongside the clipboard and history windows, not separately. See SECURITY.md "Privacy".
 - History auto-delete rule: schedule, which browsers/profiles, per-domain exceptions — needed before F-06 is complete. A 90-day placeholder is in `config/history.php`, clearly marked as not approved.
 - Clipboard sensitivity: snippets are stored in plaintext and may contain passwords. Decide on a retention window and/or encryption at rest — see SECURITY.md.
 - Sanctum token expiry (currently none) and whether a password change should revoke all tokens.

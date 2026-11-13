@@ -10,6 +10,7 @@ use App\Http\Controllers\Web\HomeController;
 use App\Http\Controllers\Web\NoteController;
 use App\Http\Controllers\Web\PomodoroController;
 use App\Http\Controllers\Web\PomodoroPresetController;
+use App\Http\Controllers\Web\PomodoroSessionController;
 use App\Http\Controllers\Web\RecurringTransactionController;
 use App\Http\Controllers\Web\WatchListController;
 use App\Http\Controllers\Web\WatchListItemController;
@@ -42,11 +43,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Notes
     Route::resource('notes', NoteController::class)->except(['show']);
 
-    // Pomodoro — the timer runs client-side; only presets are stored.
+    // Pomodoro — the running timer is still client-side; presets are stored,
+    // and so is each interval once it finishes, which is what the daily and
+    // weekly analytics are read from.
+    //
+    // Four pages rather than one with anchors. The GET pages are declared
+    // before the writes that share their path so "presets" and "sessions" are
+    // never read as a record id.
     Route::get('pomodoro', [PomodoroController::class, 'index'])->name('pomodoro.index');
+    Route::get('pomodoro/presets', [PomodoroController::class, 'presets'])->name('pomodoro.presets');
+    Route::get('pomodoro/sessions', [PomodoroController::class, 'sessions'])->name('pomodoro.sessions');
+    Route::get('pomodoro/stats', [PomodoroController::class, 'stats'])->name('pomodoro.stats');
+
     Route::post('pomodoro/presets', [PomodoroPresetController::class, 'store'])->name('pomodoro.presets.store');
     Route::put('pomodoro/presets/{preset}', [PomodoroPresetController::class, 'update'])->name('pomodoro.presets.update');
     Route::delete('pomodoro/presets/{preset}', [PomodoroPresetController::class, 'destroy'])->name('pomodoro.presets.destroy');
+    Route::post('pomodoro/sessions', [PomodoroSessionController::class, 'store'])->name('pomodoro.sessions.store');
+    Route::delete('pomodoro/sessions/{pomodoroSession}', [PomodoroSessionController::class, 'destroy'])
+        ->name('pomodoro.sessions.destroy');
 
     // Watch list — a group of named lists, each holding items.
     Route::get('watchlist', [WatchListController::class, 'index'])->name('watchlist.index');

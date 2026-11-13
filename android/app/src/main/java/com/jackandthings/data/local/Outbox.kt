@@ -1,5 +1,6 @@
 package com.jackandthings.data.local
 
+import com.jackandthings.model.PomodoroPresetDraft
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.sync.Mutex
@@ -60,14 +61,25 @@ sealed interface PendingAction {
         override val subjectId: String,
     ) : PendingAction
 
+    /**
+     * The whole draft rather than a field per column: a preset carries
+     * fourteen since issue #3, and a queued one has to replay as exactly what
+     * was asked for, down to the sounds and the blocklist.
+     */
     @Serializable
     @SerialName("preset.create")
     data class CreatePreset(
         override val id: String = newId(),
         override val subjectId: String,
-        val name: String,
-        val focusMinutes: Int,
-        val breakMinutes: Int,
+        val draft: PomodoroPresetDraft,
+    ) : PendingAction
+
+    @Serializable
+    @SerialName("preset.update")
+    data class UpdatePreset(
+        override val id: String = newId(),
+        override val subjectId: String,
+        val draft: PomodoroPresetDraft,
     ) : PendingAction
 
     @Serializable

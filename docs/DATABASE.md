@@ -19,7 +19,8 @@ As built (migrations in `laravel/database/migrations`).
 | Entity | Purpose | Owner | Retention |
 | --- | --- | --- | --- |
 | User | Account identity/auth | System | Indefinite; deleting a user cascades every row below |
-| PomodoroPreset | Saved timer preset | User | Indefinite. No session/run history is stored — a running timer is ephemeral client state |
+| PomodoroPreset | Saved timer preset: durations, the long-break cycle, auto-start, tag, sounds, strict mode | User | Indefinite |
+| PomodoroSession | One finished (or abandoned) focus/break interval, logged by whichever client watched it end | User | Indefinite. **Reverses the earlier "no session history" decision** — see the note under Schema |
 | Note | CRUD notes; may be starred to pin it to the home page | User | Indefinite |
 | BudgetAccount | One of a user's accounts/wallets | User | Indefinite |
 | BudgetTransaction | An immutable ledger entry (deposit/withdrawal/transfer leg) | User | Indefinite; no update path |
@@ -29,7 +30,10 @@ As built (migrations in `laravel/database/migrations`).
 
 ## Schema
 As built. Every table: `id` UUIDv7 primary key, `user_id` → `users.id` with `cascadeOnDelete`, plus `timestamps()`.
-- `pomodoro_presets`: name (60), focus_minutes (uint16), break_minutes (uint16). Index `(user_id, created_at)`.
+- `pomodoro_presets`: name (60), focus_minutes (uint16), break_minutes (uint16, default 5), long_break_minutes (uint16, default 15), cycles_before_long_break (uint8, default 4), auto_start_breaks (bool, default true), auto_start_focus (bool, default false), tag (40, nullable), alarm_sound / ticking_sound / ambience (20 each, validated against `App\Enums\PomodoroSound` / `PomodoroTicking` / `PomodoroAmbience`), strict_mode (bool, default false), blocked_sites (json, nullable — host patterns the browser add-on blocks), is_default (bool). Index `(user_id, created_at)`. Every column added for issue #3 has a default reproducing the pre-issue behaviour, so the four-field payload older clients send still validates.
+- `pomodoro_sessions`: pomodoro_preset_id → pomodoro_presets (**nullOnDelete**), preset_name (60), tag (40, nullable), phase (20: `focus`/`short_break`/`long_break`), started_at, ended_at, duration_seconds (uint), completed (bool — false when the interval was stopped or skipped early), source (20, nullable: `web`/`android`/`extension`). Indexes `(user_id, started_at)` and `(user_id, phase, started_at)`.
+
+  **On the reversed decision.** Earlier drafts of this file and of ARCHITECTURE.md stated that no Pomodoro session history is stored. Issue #3's daily and weekly analytics need one, so that is no longer true — but only half of it changed. A *running* timer is still never persisted anywhere; it lives as long as the client that owns it. Only an interval that has already ended is written, once, by whichever client saw it end, which is why rows carry a `source`. `preset_name` is denormalised deliberately: deleting a preset must not rewrite history, so the row keeps the name it ran under while the foreign key goes null.
 - `notes`: title (255), body (text, nullable), is_starred (bool, default false — a starred note is pinned to the home page, and only starred ones appear there). Indexes `(user_id, created_at)` and `(user_id, is_starred, created_at)`, the second serving the home page's filtered read.
 - `budget_accounts`: name (60). **Unique `(user_id, name)`** so one user cannot have two accounts of the same name. Index `(user_id, created_at)`.
 - `budget_transactions`: account_id → budget_accounts (cascade), type (20: `deposit`/`withdrawal`/`transfer_in`/`transfer_out`), amount_cents (uint64), related_account_id → budget_accounts (nullable, **nullOnDelete** so a past transfer survives deletion of the counterpart account), transfer_group_id (uuid, nullable — links the two legs of one transfer), description (255, nullable). Indexes `(user_id, created_at)`, `(account_id, created_at)`, `transfer_group_id`.

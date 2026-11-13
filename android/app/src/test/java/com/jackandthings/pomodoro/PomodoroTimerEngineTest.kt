@@ -63,20 +63,47 @@ class PomodoroTimerEngineTest {
         advanceTimeBy(60_100)
 
         val state = PomodoroTimerEngine.state.value
-        assertEquals(TimerPhase.Break, state.phase)
+        assertEquals(TimerPhase.ShortBreak, state.phase)
         assertEquals(60, state.secondsLeft)
         assertTrue(state.running)
     }
 
+    /**
+     * Changed by issue #3. A finished break used to end the session; it now
+     * loads the next focus run and waits, because `autoStartFocus` defaults to
+     * false - the classic Pomodoro behaviour, where the break starts on its
+     * own but going back to work is your decision.
+     */
     @Test
-    fun `the session stops once the break is done`() = runTest(mainDispatcherRule.dispatcher.scheduler) {
-        PomodoroTimerEngine.start(oneMinute)
+    fun `a finished break loads the next focus run and waits for you`() =
+        runTest(mainDispatcherRule.dispatcher.scheduler) {
+            PomodoroTimerEngine.start(oneMinute)
 
-        advanceTimeBy(121_000)
+            advanceTimeBy(121_000)
 
-        assertFalse(PomodoroTimerEngine.state.value.running)
-        assertEquals(0, PomodoroTimerEngine.state.value.secondsLeft)
-    }
+            val state = PomodoroTimerEngine.state.value
+            assertFalse(state.running)
+            assertEquals(TimerPhase.Focus, state.phase)
+            assertEquals(60, state.secondsLeft)
+        }
+
+    @Test
+    fun `a finished break rolls straight on when the preset auto-starts focus`() =
+        runTest(mainDispatcherRule.dispatcher.scheduler) {
+            PomodoroTimerEngine.start(oneMinute.copy(autoStartFocus = true))
+
+            advanceTimeBy(121_000)
+
+            val state = PomodoroTimerEngine.state.value
+            assertTrue(state.running)
+            assertEquals(TimerPhase.Focus, state.phase)
+
+            // A preset that auto-starts both ways never stops on its own, and
+            // runTest drains the scheduler before it returns - so leaving the
+            // ticker running here would hang the suite rather than fail it.
+            // @After's resetForTesting() comes too late to prevent that.
+            PomodoroTimerEngine.stop()
+        }
 
     @Test
     fun `a preset with no break ends after the focus phase`() = runTest(mainDispatcherRule.dispatcher.scheduler) {
@@ -153,7 +180,7 @@ class PomodoroTimerEngineTest {
         PomodoroTimerEngine.skip()
 
         val state = PomodoroTimerEngine.state.value
-        assertEquals(TimerPhase.Break, state.phase)
+        assertEquals(TimerPhase.ShortBreak, state.phase)
         assertEquals(60, state.secondsLeft)
         assertTrue(state.running)
     }
@@ -191,7 +218,7 @@ class PomodoroTimerEngineTest {
         PomodoroTimerEngine.skip()
 
         val state = PomodoroTimerEngine.state.value
-        assertEquals(TimerPhase.Break, state.phase)
+        assertEquals(TimerPhase.ShortBreak, state.phase)
         assertFalse(state.running)
     }
 

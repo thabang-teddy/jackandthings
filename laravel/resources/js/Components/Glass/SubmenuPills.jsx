@@ -21,8 +21,14 @@ export default function SubmenuPills({ items, activeAnchor }) {
                     );
                 }
 
+                // A link pill highlights when its own route is the one being
+                // viewed. Before the Pomodoro module was split into pages
+                // every submenu that used links — Budget's, and now this one —
+                // rendered with nothing marked active at all.
                 const isActive =
-                    item.type === 'anchor' && item.target === activeAnchor;
+                    item.type === 'link'
+                        ? route().current(item.target)
+                        : item.target === activeAnchor;
                 const classes =
                     'rounded-full px-3.5 py-2 text-xs font-semibold transition ' +
                     (isActive

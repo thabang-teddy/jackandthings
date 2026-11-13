@@ -9,6 +9,12 @@
          controls survive the app being backgrounded. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Strict mode (issue #3): silences notifications for the length of a
+         focus run and restores the user's own filter afterwards. Not a runtime
+         permission - it is granted in a Settings screen, which FocusGuard
+         links to - so the feature degrades to "asked for but not allowed"
+         rather than failing, and the Pomodoro screen says which it is. -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
     <application
         android:name=".JackApplication"

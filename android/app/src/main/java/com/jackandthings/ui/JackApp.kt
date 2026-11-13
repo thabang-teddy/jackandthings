@@ -165,7 +165,11 @@ private fun MainApp(container: AppContainer, sharedText: String?, signedIn: Bool
         composable("pomodoro") {
             PomodoroScreen(
                 viewModel = viewModel(
-                    factory = PomodoroViewModel.factory(container.pomodoro),
+                    factory = PomodoroViewModel.factory(
+                        repo = container.pomodoro,
+                        sessions = container.pomodoroSessions,
+                        strictModeAvailable = container.focusGuard::canSilence,
+                    ),
                 ),
                 onBack = navController::popBackStack,
             )

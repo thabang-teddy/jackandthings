@@ -4,6 +4,10 @@ import com.jackandthings.model.BudgetAccount
 import com.jackandthings.model.BudgetTransaction
 import com.jackandthings.model.Note
 import com.jackandthings.model.PomodoroPreset
+import com.jackandthings.model.PomodoroPresetDraft
+import com.jackandthings.model.PomodoroSession
+import com.jackandthings.model.PomodoroSessionDraft
+import com.jackandthings.model.PomodoroStats
 import com.jackandthings.model.RecurringTransaction
 import com.jackandthings.model.ReminderState
 import com.jackandthings.model.TokenPayload
@@ -12,8 +16,10 @@ import com.jackandthings.model.WatchListItem
 import com.jackandthings.model.WorkoutEntry
 import com.jackandthings.model.WorkoutPreset
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 
@@ -66,23 +72,33 @@ class JackApi(private val client: ApiClient) {
 
     suspend fun presets(): List<PomodoroPreset> = client.get("pomodoro-presets").decodeList()
 
-    suspend fun createPreset(
-        name: String,
-        focusMinutes: Int,
-        breakMinutes: Int,
-        isDefault: Boolean = false,
-    ): PomodoroPreset =
-        client.post(
-            "pomodoro-presets",
-            buildJsonObject {
-                put("name", name)
-                put("focus_minutes", focusMinutes)
-                put("break_minutes", breakMinutes)
-                put("is_default", isDefault)
-            },
-        ).decode()
+    /**
+     * The draft is serialised whole rather than assembled field by field with
+     * buildJsonObject: its @SerialName annotations already spell the wire
+     * names, and hand-copying fourteen of them is one typo away from a field
+     * that silently never reaches the server.
+     */
+    suspend fun createPreset(draft: PomodoroPresetDraft): PomodoroPreset =
+        client.post("pomodoro-presets", draft.asJsonObject()).decode()
+
+    suspend fun updatePreset(id: String, draft: PomodoroPresetDraft): PomodoroPreset =
+        client.put("pomodoro-presets/$id", draft.asJsonObject()).decode()
 
     suspend fun deletePreset(id: String) = client.delete("pomodoro-presets/$id")
+
+    // ── Pomodoro sessions ──────────────────────────────────────────────────
+
+    suspend fun pomodoroSessions(limit: Int = 50): List<PomodoroSession> =
+        client.get("pomodoro-sessions", mapOf("limit" to limit.toString())).decodeList()
+
+    suspend fun createPomodoroSession(draft: PomodoroSessionDraft): PomodoroSession =
+        client.post("pomodoro-sessions", draft.asJsonObject()).decode()
+
+    suspend fun deletePomodoroSession(id: String) = client.delete("pomodoro-sessions/$id")
+
+    /** [timezone] is an IANA zone; the server buckets in it rather than UTC. */
+    suspend fun pomodoroStats(timezone: String): PomodoroStats =
+        client.get("pomodoro-sessions/stats", mapOf("tz" to timezone)).decode()
 
     // ── Watch list ─────────────────────────────────────────────────────────
 
@@ -250,4 +266,8 @@ class JackApi(private val client: ApiClient) {
 
     private inline fun <reified T> JsonElement.decodeList(): List<T> =
         client.json.decodeFromJsonElement(payload())
+
+    /** A @Serializable request body, as the JsonObject the client posts. */
+    private inline fun <reified T> T.asJsonObject(): JsonObject =
+        client.json.encodeToJsonElement(this).jsonObject
 }

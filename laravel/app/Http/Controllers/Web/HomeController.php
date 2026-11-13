@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PomodoroPresetPayload;
 use App\Models\Note;
 use App\Models\WorkoutPreset;
 use App\Services\WorkoutReminderStatus;
@@ -60,12 +61,13 @@ class HomeController extends Controller
             'presets' => $presets,
             'dueForReminder' => $this->reminderStatus->isDue($user),
             'lastLoggedAt' => $this->reminderStatus->lastLoggedAt($user)?->toIso8601String(),
-            'defaultPreset' => $defaultPreset === null ? null : [
-                'id' => $defaultPreset->id,
-                'name' => $defaultPreset->name,
-                'focus_minutes' => $defaultPreset->focus_minutes,
-                'break_minutes' => $defaultPreset->break_minutes,
-            ],
+            // The whole preset, not just its minutes: the home page starts a
+            // real session on the shared timer, so it needs the long break,
+            // the auto-start toggles, the tag and the sounds too. Hand-listing
+            // four of fourteen fields here is how the surfaces drift apart.
+            'defaultPreset' => $defaultPreset === null
+                ? null
+                : PomodoroPresetPayload::from($defaultPreset),
         ]);
     }
 }

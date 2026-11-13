@@ -22,9 +22,17 @@ export function GlassInput({ className = '', ...props }) {
     return <input {...props} className={`${fieldClasses} ${className}`} />;
 }
 
+/**
+ * `glass-select` is what app.css hangs the <option> colours on. A native
+ * select's popup is drawn by the OS, so the options cannot inherit the
+ * translucent card styling the control itself uses — see themeTokens.js.
+ */
 export function GlassSelect({ className = '', children, ...props }) {
     return (
-        <select {...props} className={`${fieldClasses} ${className}`}>
+        <select
+            {...props}
+            className={`glass-select ${fieldClasses} ${className}`}
+        >
             {children}
         </select>
     );

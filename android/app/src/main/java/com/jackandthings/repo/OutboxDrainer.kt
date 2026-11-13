@@ -97,8 +97,10 @@ class OutboxDrainer(
             notes.delete(idMap.resolve(action.subjectId))
 
         is PendingAction.CreatePreset ->
-            pomodoro.create(action.name, action.focusMinutes, action.breakMinutes)
-                .record(action.subjectId, idMap) { it.id }
+            pomodoro.create(action.draft).record(action.subjectId, idMap) { it.id }
+
+        is PendingAction.UpdatePreset ->
+            pomodoro.update(idMap.resolve(action.subjectId), action.draft).unit()
 
         is PendingAction.DeletePreset ->
             pomodoro.delete(idMap.resolve(action.subjectId))

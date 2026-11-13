@@ -102,19 +102,27 @@ export const api = {
 
     // Pomodoro
     presets: async () => data(await request('pomodoro-presets')) ?? [],
-    createPreset: async (name, focusMinutes, breakMinutes, isDefault = false) =>
-        data(
-            await request('pomodoro-presets', {
-                method: 'POST',
-                body: {
-                    name,
-                    focus_minutes: focusMinutes,
-                    break_minutes: breakMinutes,
-                    is_default: isDefault,
-                },
-            }),
-        ),
+    /**
+     * `body` is the preset payload in wire spelling, built by the caller.
+     * Fourteen named arguments would be worse than one object, and the server
+     * defaults everything but `name` and `focus_minutes`, so a partial body
+     * is valid - see PomodoroPresetRequest.
+     */
+    createPreset: async (body) =>
+        data(await request('pomodoro-presets', { method: 'POST', body })),
+    updatePreset: async (id, body) =>
+        data(await request(`pomodoro-presets/${id}`, { method: 'PUT', body })),
     deletePreset: (id) => request(`pomodoro-presets/${id}`, { method: 'DELETE' }),
+
+    // Pomodoro sessions — finished intervals, and the analytics read off them.
+    pomodoroSessions: async (limit = 30) =>
+        data(await request(`pomodoro-sessions?limit=${limit}`)) ?? [],
+    createPomodoroSession: async (body) =>
+        data(await request('pomodoro-sessions', { method: 'POST', body })),
+    deletePomodoroSession: (id) => request(`pomodoro-sessions/${id}`, { method: 'DELETE' }),
+    /** `tz` is an IANA zone; the server buckets in it rather than UTC. */
+    pomodoroStats: async (tz) =>
+        data(await request(`pomodoro-sessions/stats?tz=${encodeURIComponent(tz)}`)),
 
     // Watch list — named lists, each holding items.
     watchLists: async () => data(await request('watch-lists')) ?? [],

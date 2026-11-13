@@ -1,16 +1,33 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePage } from '@inertiajs/react';
 import { ALERT_TAGS, notify } from '@/Lib/desktopAlerts';
+import {
+    PHASE_FOCUS,
+    cyclePosition,
+    isBreak,
+    nextPhase,
+    phaseLabel,
+    phaseMessage,
+    secondsFor,
+} from '@/Lib/pomodoroCycle';
+import { alarm, ambience, stopAll, tick } from '@/Lib/pomodoroSounds';
+import { logSession, refreshAnalytics } from '@/Lib/pomodoroSessionLog';
+import { disengageStrictMode, engageStrictMode } from '@/Lib/strictMode';
 
-const PHASE_FOCUS = 'focus';
-const PHASE_BREAK = 'break';
 const STORAGE_KEY = 'jackandthings:pomodoro';
 
-function durationFor(preset, phase) {
-    return (
-        (phase === PHASE_FOCUS ? preset.focus_minutes : preset.break_minutes) *
-        60
-    );
-}
+/**
+ * Client-side Pomodoro countdown.
+ *
+ * The timing rules themselves live in Lib/pomodoroCycle.js - this hook is the
+ * part that cannot be pure: the interval, localStorage, the alarm, the
+ * ambience bed, strict mode, and posting each finished interval to the server.
+ *
+ * State round-trips through localStorage so a running or paused session
+ * survives a reload. Presets and the analytics come from the server; the
+ * running timer does not, by design - see the create_pomodoro_sessions_table
+ * migration for where that line now sits.
+ */
 
 function readStoredState() {
     try {
@@ -34,6 +51,7 @@ function writeStoredState(state) {
     try {
         if (state.preset === null) {
             window.localStorage.removeItem(STORAGE_KEY);
+
             return;
         }
 
@@ -57,6 +75,8 @@ function restoreInitialState() {
             phase: PHASE_FOCUS,
             secondsLeft: 0,
             running: false,
+            completedFocusCycles: 0,
+            phaseStartedAt: null,
         };
     }
 
@@ -66,18 +86,16 @@ function restoreInitialState() {
 
     return {
         preset: stored.preset,
-        phase: stored.phase,
+        // A pre-issue-#3 entry saved phase 'break'; map it onto the short
+        // break rather than falling back to focus and losing the user's place.
+        phase: stored.phase === 'break' ? 'short_break' : stored.phase,
         secondsLeft: Math.max(0, stored.secondsLeft - elapsed),
         running: stored.running,
+        completedFocusCycles: stored.completedFocusCycles ?? 0,
+        phaseStartedAt: stored.phaseStartedAt ?? null,
     };
 }
 
-/**
- * Client-side Pomodoro countdown. State round-trips through localStorage so
- * a running or paused session survives a reload; only presets themselves
- * come from the server. Shared by the Pomodoro page and the home page's
- * time/Pomodoro toggle.
- */
 export function useCountdown() {
     const initialRef = useRef(null);
     if (initialRef.current === null) {
@@ -85,10 +103,21 @@ export function useCountdown() {
     }
     const initial = initialRef.current;
 
+    const { component } = usePage();
+
     const [preset, setPreset] = useState(initial.preset);
     const [phase, setPhase] = useState(initial.phase);
     const [secondsLeft, setSecondsLeft] = useState(initial.secondsLeft);
     const [running, setRunning] = useState(initial.running);
+    const [completedFocusCycles, setCompletedFocusCycles] = useState(
+        initial.completedFocusCycles,
+    );
+    const [leftPageDuringFocus, setLeftPageDuringFocus] = useState(false);
+
+    // When the current phase began, used as the logged session's start. A ref
+    // rather than state: it must be readable from the tick effect without
+    // making that effect re-run, and nothing renders from it.
+    const phaseStartedAt = useRef(initial.phaseStartedAt);
     const intervalRef = useRef(null);
 
     useEffect(() => {
@@ -97,10 +126,42 @@ export function useCountdown() {
             phase,
             secondsLeft,
             running,
+            completedFocusCycles,
+            phaseStartedAt: phaseStartedAt.current,
             updatedAt: Date.now(),
         });
-    }, [preset, phase, secondsLeft, running]);
+    }, [preset, phase, secondsLeft, running, completedFocusCycles]);
 
+    /** Posts the phase that just ended, then refreshes the analytics on screen. */
+    const record = useCallback(
+        async (endedPhase, completed) => {
+            const startedAt = phaseStartedAt.current;
+            if (startedAt === null) {
+                return;
+            }
+
+            const stored = await logSession({
+                preset,
+                phase: endedPhase,
+                startedAt,
+                completed,
+            });
+
+            if (stored) {
+                refreshAnalytics(component);
+            }
+        },
+        [preset, component],
+    );
+
+    const beginPhase = useCallback((chosen, nextPhaseName, shouldRun) => {
+        phaseStartedAt.current = shouldRun ? Date.now() : null;
+        setPhase(nextPhaseName);
+        setSecondsLeft(secondsFor(chosen, nextPhaseName));
+        setRunning(shouldRun);
+    }, []);
+
+    // ── The ticker ────────────────────────────────────────────────────────
     useEffect(() => {
         if (!running) {
             return undefined;
@@ -113,102 +174,209 @@ export function useCountdown() {
         return () => window.clearInterval(intervalRef.current);
     }, [running]);
 
+    // The optional per-second tick. Focus only: ticking through a break is
+    // the opposite of resting.
+    useEffect(() => {
+        if (!running || !preset || phase !== PHASE_FOCUS || secondsLeft <= 0) {
+            return;
+        }
+
+        tick(preset.ticking_sound);
+    }, [secondsLeft, running, preset, phase]);
+
+    // The background bed, which follows the same focus-only rule and stops
+    // the moment the timer is paused.
+    useEffect(() => {
+        if (running && preset && phase === PHASE_FOCUS) {
+            ambience(preset.ambience);
+
+            return;
+        }
+
+        ambience('none');
+    }, [running, preset, phase]);
+
+    // Strict mode, for as long as a focus interval is actually running. See
+    // Lib/strictMode.js for what a web page can and cannot do here.
+    useEffect(() => {
+        if (!running || !preset?.strict_mode || phase !== PHASE_FOCUS) {
+            disengageStrictMode();
+
+            return undefined;
+        }
+
+        setLeftPageDuringFocus(false);
+        engageStrictMode({ onLeave: () => setLeftPageDuringFocus(true) });
+
+        return disengageStrictMode;
+    }, [running, preset, phase]);
+
+    // ── The roll-over ─────────────────────────────────────────────────────
     useEffect(() => {
         if (secondsLeft !== 0 || !running || preset === null) {
             return;
         }
 
-        // Focus rolls into the break, then the timer stops. Each roll-over
-        // also raises a desktop alert, since the whole point of a timer is
-        // that you are not watching it. Only the clock running out notifies:
-        // skip and stop are the user's own doing and need no telling.
-        if (phase === PHASE_FOCUS && preset.break_minutes > 0) {
-            setPhase(PHASE_BREAK);
-            setSecondsLeft(preset.break_minutes * 60);
-            notify('Focus done — break time', {
-                body: `${preset.break_minutes} minute break started.`,
+        const endedPhase = phase;
+        record(endedPhase, true);
+
+        alarm(preset.alarm_sound);
+
+        const next = nextPhase({ phase, completedFocusCycles }, preset);
+
+        // No break of either length configured: the session ends after focus,
+        // exactly as it did before issue #3.
+        if (next === null) {
+            phaseStartedAt.current = null;
+            setRunning(false);
+            notify('Focus session done', {
+                body: `${preset.name} finished.`,
                 tag: ALERT_TAGS.pomodoro,
             });
-        } else {
-            setRunning(false);
-            notify(
-                phase === PHASE_BREAK ? 'Break over' : 'Focus session done',
-                {
-                    body: `${preset.name} finished.`,
-                    tag: ALERT_TAGS.pomodoro,
-                },
-            );
+
+            return;
         }
-    }, [secondsLeft, running, phase, preset]);
 
-    const start = (chosen) => {
-        setPreset(chosen);
-        setPhase(PHASE_FOCUS);
-        setSecondsLeft(chosen.focus_minutes * 60);
-        setRunning(true);
-    };
+        setCompletedFocusCycles(next.completedFocusCycles);
+        beginPhase(preset, next.phase, next.autoStart);
 
-    // Load a preset's focus time onto the clock without starting it, so the
-    // Overview's preset picker can preview a choice before pressing Start.
-    const select = (chosen) => {
-        setPreset(chosen);
-        setPhase(PHASE_FOCUS);
-        setSecondsLeft(chosen.focus_minutes * 60);
-        setRunning(false);
-    };
+        notify(
+            `${phaseLabel(endedPhase)} done — ${phaseLabel(next.phase).toLowerCase()}`,
+            {
+                body: next.autoStart
+                    ? `${phaseMessage(next.phase)}. Started automatically.`
+                    : `${phaseMessage(next.phase)}. Press start when you are ready.`,
+                tag: ALERT_TAGS.pomodoro,
+            },
+        );
+    }, [
+        secondsLeft,
+        running,
+        phase,
+        preset,
+        completedFocusCycles,
+        record,
+        beginPhase,
+    ]);
 
-    const stop = () => {
+    useEffect(() => stopAll, []);
+
+    // ── Controls ──────────────────────────────────────────────────────────
+    const start = useCallback(
+        (chosen) => {
+            setPreset(chosen);
+            setCompletedFocusCycles(0);
+            setLeftPageDuringFocus(false);
+            beginPhase(chosen, PHASE_FOCUS, true);
+        },
+        [beginPhase],
+    );
+
+    /** Load a preset onto the clock without starting it, for the preset picker. */
+    const select = useCallback(
+        (chosen) => {
+            setPreset(chosen);
+            setCompletedFocusCycles(0);
+            beginPhase(chosen, PHASE_FOCUS, false);
+        },
+        [beginPhase],
+    );
+
+    const stop = useCallback(() => {
+        if (running) {
+            record(phase, false);
+        }
+
+        phaseStartedAt.current = null;
         setRunning(false);
         setSecondsLeft(0);
         setPreset(null);
         setPhase(PHASE_FOCUS);
-    };
+        setCompletedFocusCycles(0);
+        setLeftPageDuringFocus(false);
+    }, [running, phase, record]);
 
-    // Restart the current preset from the top of the focus phase, paused.
-    const restart = () => {
+    /** Back to the top of the focus phase, paused, and the set starts again. */
+    const restart = useCallback(() => {
         if (preset === null) {
             return;
         }
 
-        setPhase(PHASE_FOCUS);
-        setSecondsLeft(preset.focus_minutes * 60);
-        setRunning(false);
-    };
+        if (running) {
+            record(phase, false);
+        }
 
-    // Jump straight to the other phase (focus <-> break) without waiting for
-    // the clock to run out. Mirrors the natural roll-over when there's no
-    // break to skip into.
-    const skip = () => {
+        setCompletedFocusCycles(0);
+        beginPhase(preset, PHASE_FOCUS, false);
+    }, [preset, running, phase, record, beginPhase]);
+
+    /**
+     * Jump to the next phase without waiting for the clock. The interval is
+     * still logged - as abandoned, not completed - because "I skipped four of
+     * six today" is exactly the kind of thing the analytics should show.
+     */
+    const skip = useCallback(() => {
         if (preset === null) {
             return;
         }
 
-        if (phase === PHASE_FOCUS) {
-            if (preset.break_minutes > 0) {
-                setPhase(PHASE_BREAK);
-                setSecondsLeft(durationFor(preset, PHASE_BREAK));
-            } else {
-                setRunning(false);
-                setSecondsLeft(0);
-            }
+        if (running) {
+            record(phase, false);
+        }
+
+        const next = nextPhase({ phase, completedFocusCycles }, preset);
+
+        if (next === null) {
+            phaseStartedAt.current = null;
+            setRunning(false);
+            setSecondsLeft(0);
+
             return;
         }
 
-        setPhase(PHASE_FOCUS);
-        setSecondsLeft(durationFor(preset, PHASE_FOCUS));
-    };
+        setCompletedFocusCycles(next.completedFocusCycles);
+        // Keep whatever running/paused state it was in, rather than obeying
+        // the auto-start toggle: the user pressed Skip, which is already the
+        // manual decision that toggle is about.
+        beginPhase(preset, next.phase, running);
+    }, [preset, running, phase, completedFocusCycles, record, beginPhase]);
+
+    const pause = useCallback(() => setRunning(false), []);
+
+    const resume = useCallback(() => {
+        if (preset === null) {
+            return;
+        }
+
+        // A phase resumed after a pause keeps its original start time only if
+        // it had one; a phase that never ran gets its clock now, so the logged
+        // duration reflects wall time rather than counting the pause.
+        if (phaseStartedAt.current === null) {
+            phaseStartedAt.current = Date.now();
+        }
+
+        setRunning(true);
+    }, [preset]);
 
     return {
         preset,
         phase,
+        phaseLabel: phaseLabel(phase),
+        phaseMessage: phaseMessage(phase),
+        onBreak: isBreak(phase),
         secondsLeft,
+        totalSeconds: secondsFor(preset, phase),
         running,
+        completedFocusCycles,
+        cycle: cyclePosition({ phase, completedFocusCycles }, preset),
+        strict: Boolean(preset?.strict_mode),
+        leftPageDuringFocus,
         start,
         select,
         stop,
         restart,
         skip,
-        pause: () => setRunning(false),
-        resume: () => setRunning(true),
+        pause,
+        resume,
     };
 }

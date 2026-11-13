@@ -4,6 +4,7 @@ import com.jackandthings.model.BudgetAccount
 import com.jackandthings.model.BudgetTransaction
 import com.jackandthings.model.Note
 import com.jackandthings.model.PomodoroPreset
+import com.jackandthings.model.PomodoroPresetDraft
 import com.jackandthings.model.ReminderState
 import com.jackandthings.model.WatchList
 import com.jackandthings.model.WatchListItem
@@ -39,8 +40,8 @@ class SwitchingPomodoroRepository(
     private val active: PomodoroRepository get() = if (auth.signedIn.value) remote else local
 
     override suspend fun list(): Result<List<PomodoroPreset>> = active.list()
-    override suspend fun create(name: String, focusMinutes: Int, breakMinutes: Int) =
-        active.create(name, focusMinutes, breakMinutes)
+    override suspend fun create(draft: PomodoroPresetDraft) = active.create(draft)
+    override suspend fun update(id: String, draft: PomodoroPresetDraft) = active.update(id, draft)
     override suspend fun delete(id: String) = active.delete(id)
 }
 
