@@ -74,8 +74,8 @@ export const SUBMENUS = {
     pomodoro: [
         { label: 'Timer', type: 'anchor', target: 'timer' },
         { label: 'Presets', type: 'anchor', target: 'presets' },
-        { label: 'Sessions', type: 'disabled' },
-        { label: 'Stats', type: 'disabled' },
+        { label: 'Sessions', type: 'anchor', target: 'sessions' },
+        { label: 'Stats', type: 'anchor', target: 'analytics' },
     ],
     budget: [
         { label: 'Overview', type: 'link', target: 'budget.index' },

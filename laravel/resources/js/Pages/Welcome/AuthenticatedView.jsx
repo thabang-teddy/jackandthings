@@ -91,11 +91,16 @@ function PomodoroDisplay({ timer, defaultPreset }) {
             <p className="text-xs uppercase tracking-widest text-[var(--muted)]">
                 {idle
                     ? defaultPreset.name
-                    : `${timer.phase === 'focus' ? 'Focus' : 'Break'} · ${timer.preset.name}`}
+                    : `${timer.phaseLabel} · ${timer.preset.name}`}
             </p>
             <p className="font-mono text-6xl font-bold tabular-nums sm:text-7xl lg:text-8xl">
                 {formatClock(seconds)}
             </p>
+            {!idle && timer.cycle.length > 1 && (
+                <p className="text-[11px] tabular-nums text-[var(--muted)]">
+                    Focus run {timer.cycle.index} of {timer.cycle.length}
+                </p>
+            )}
             <div className="flex gap-2">
                 {idle ? (
                     <PillButton

@@ -1,13 +1,7 @@
 import { useRef } from 'react';
 import GlassCard from '@/Components/Glass/GlassCard';
 import PillButton from '@/Components/Glass/PillButton';
-import {
-    GlassButton,
-    GlassError,
-    GlassInput,
-    GlassLabel,
-    GlassSelect,
-} from '@/Components/Glass/GlassFormControls';
+import { GlassSelect } from '@/Components/Glass/GlassFormControls';
 import {
     CompressIcon,
     ExpandIcon,
@@ -20,14 +14,97 @@ import {
     StopIcon,
 } from '@/Components/Glass/icons';
 import { formatClock } from '@/Lib/formatClock';
+import { formatHoursMinutes } from '@/Lib/formatDuration';
 import { useFullscreen } from '@/Lib/useFullscreen';
+import { SOUND_LABELS } from '@/Lib/pomodoroSounds';
+import AnalyticsCard from './AnalyticsCard';
+import PresetForm from './PresetForm';
+import SessionsCard from './SessionsCard';
 
-const PHASE_MESSAGES = {
-    focus: 'Time to focus',
-    break: 'Take a short break',
-};
+/**
+ * Shows which focus run of the set is on the clock - "3 of 4" - so the long
+ * break is never a surprise. A preset that never takes a long break has no
+ * set to be in, so the dots are hidden rather than showing one lonely dot.
+ */
+function CycleDots({ cycle, phase }) {
+    if (cycle.length <= 1) {
+        return null;
+    }
 
-function PomodoroOverview({ presets, timer }) {
+    return (
+        <div
+            className="flex items-center gap-1.5"
+            aria-label={`Focus run ${cycle.index} of ${cycle.length}`}
+        >
+            {Array.from({ length: cycle.length }, (_, index) => {
+                const position = index + 1;
+                const done = position < cycle.index;
+                const current = position === cycle.index;
+
+                return (
+                    <span
+                        key={position}
+                        aria-hidden="true"
+                        className={
+                            'h-1.5 rounded-full transition-all ' +
+                            (current
+                                ? 'w-5 bg-[var(--accent)]'
+                                : done
+                                  ? 'w-1.5 bg-[var(--accent)] opacity-60'
+                                  : 'w-1.5 bg-[var(--card-border)]')
+                        }
+                    />
+                );
+            })}
+            <span className="ml-1 text-[10px] tabular-nums text-[var(--muted)]">
+                {phase === 'long_break'
+                    ? 'set complete'
+                    : `${cycle.index}/${cycle.length}`}
+            </span>
+        </div>
+    );
+}
+
+function PresetSummary({ preset }) {
+    const parts = [
+        `${preset.focus_minutes} min focus`,
+        preset.break_minutes > 0
+            ? `${preset.break_minutes} min break`
+            : 'no break',
+    ];
+
+    if (preset.long_break_minutes > 0) {
+        parts.push(
+            `${preset.long_break_minutes} min long every ${preset.cycles_before_long_break}`,
+        );
+    }
+
+    return (
+        <div className="min-w-0">
+            <p className="flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold">
+                {preset.name}
+                {preset.tag && (
+                    <span className="shrink-0 rounded-full bg-[var(--card-border)] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-[var(--muted)]">
+                        {preset.tag}
+                    </span>
+                )}
+            </p>
+            <p className="truncate text-xs text-[var(--muted)]">
+                {parts.join(' · ')}
+            </p>
+            <p className="truncate text-[10.5px] text-[var(--muted)] opacity-80">
+                {preset.auto_start_breaks ? 'auto breaks' : 'manual breaks'}
+                {' · '}
+                {preset.auto_start_focus ? 'auto focus' : 'manual focus'}
+                {preset.ambience !== 'none' &&
+                    ` · ${SOUND_LABELS[preset.ambience] ?? preset.ambience}`}
+                {preset.strict_mode && ' · strict'}
+            </p>
+        </div>
+    );
+}
+
+function PomodoroOverview({ presets, timer, todaySeconds, soundControl }) {
     const overviewRef = useRef(null);
     const { isFullscreen, toggle } = useFullscreen(overviewRef);
 
@@ -45,21 +122,47 @@ function PomodoroOverview({ presets, timer }) {
             id="timer"
             title="Overview"
             action={
-                <button
-                    type="button"
-                    onClick={toggle}
-                    title={isFullscreen ? 'Exit full screen' : 'Full screen'}
-                    aria-label={
-                        isFullscreen ? 'Exit full screen' : 'Full screen'
-                    }
-                    className="text-[var(--muted)] hover:text-[var(--ink)]"
-                >
-                    {isFullscreen ? (
-                        <CompressIcon size={14} />
-                    ) : (
-                        <ExpandIcon size={14} />
-                    )}
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={soundControl.toggle}
+                        disabled={!soundControl.supported}
+                        aria-pressed={soundControl.enabled}
+                        title={
+                            soundControl.supported
+                                ? soundControl.enabled
+                                    ? 'Mute Pomodoro sounds'
+                                    : 'Unmute Pomodoro sounds'
+                                : 'This browser cannot play the generated sounds'
+                        }
+                        className={
+                            'text-[11px] font-bold transition ' +
+                            (soundControl.enabled
+                                ? 'text-[var(--accent)]'
+                                : 'text-[var(--muted)] hover:text-[var(--ink)]') +
+                            (soundControl.supported ? '' : ' opacity-40')
+                        }
+                    >
+                        {soundControl.enabled ? 'Sound on' : 'Sound off'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={toggle}
+                        title={
+                            isFullscreen ? 'Exit full screen' : 'Full screen'
+                        }
+                        aria-label={
+                            isFullscreen ? 'Exit full screen' : 'Full screen'
+                        }
+                        className="text-[var(--muted)] hover:text-[var(--ink)]"
+                    >
+                        {isFullscreen ? (
+                            <CompressIcon size={14} />
+                        ) : (
+                            <ExpandIcon size={14} />
+                        )}
+                    </button>
+                </div>
             }
         >
             <div
@@ -75,6 +178,7 @@ function PomodoroOverview({ presets, timer }) {
                     onChange={onSelectPreset}
                     disabled={presets.length === 0}
                     className="max-w-xs"
+                    aria-label="Preset"
                 >
                     <option value="" disabled>
                         {presets.length === 0
@@ -90,13 +194,24 @@ function PomodoroOverview({ presets, timer }) {
 
                 <p className="text-xs uppercase tracking-widest text-[var(--muted)]">
                     {timer.preset
-                        ? `${timer.phase === 'focus' ? 'Focus' : 'Break'} · ${PHASE_MESSAGES[timer.phase]} · ${timer.preset.name}`
+                        ? `${timer.phaseLabel} · ${timer.phaseMessage} · ${timer.preset.name}`
                         : 'Pick a preset to start a session'}
                 </p>
 
-                <p className="my-1 font-mono text-5xl font-bold tabular-nums">
+                <p
+                    className="my-1 font-mono text-5xl font-bold tabular-nums"
+                    // The countdown changes every second, so it is announced
+                    // politely rather than assertively; a screen reader
+                    // interrupting itself once a second is unusable.
+                    role="timer"
+                    aria-live="off"
+                >
                     {formatClock(timer.secondsLeft)}
                 </p>
+
+                {timer.preset && (
+                    <CycleDots cycle={timer.cycle} phase={timer.phase} />
+                )}
 
                 <div className="flex gap-2">
                     <PillButton
@@ -139,6 +254,21 @@ function PomodoroOverview({ presets, timer }) {
                         <StopIcon size={14} />
                     </PillButton>
                 </div>
+
+                <p className="text-[11px] text-[var(--muted)]">
+                    {formatHoursMinutes(todaySeconds)} focused today
+                </p>
+
+                {/* Focus only: strict mode is not engaged during a break, so
+                    saying it is would be a claim the page is not backing. */}
+                {timer.strict && timer.running && !timer.onBreak && (
+                    <p className="max-w-sm text-center text-[11px] leading-snug text-[var(--muted)]">
+                        Strict mode: the screen stays awake and leaving this
+                        page will ask first.
+                        {timer.leftPageDuringFocus &&
+                            ' You switched away during this run.'}
+                    </p>
+                )}
             </div>
         </GlassCard>
     );
@@ -146,17 +276,32 @@ function PomodoroOverview({ presets, timer }) {
 
 export default function PomodoroGlassView({
     presets,
+    analytics,
+    recentSessions,
+    tags,
     timer,
     presetForm,
+    editing,
+    soundControl,
     onSubmitPreset,
+    onCancelEdit,
+    onEditPreset,
     onDestroyPreset,
+    onDestroySession,
     onSetDefault,
+    onPreviewAlarm,
 }) {
-    const { data, setData, errors, processing } = presetForm;
-
     return (
         <div className="flex h-full min-h-0 flex-col gap-4">
-            <PomodoroOverview presets={presets} timer={timer} />
+            <div className="grid min-h-0 grid-cols-1 gap-4 xl:grid-cols-2">
+                <PomodoroOverview
+                    presets={presets}
+                    timer={timer}
+                    todaySeconds={analytics.today.focus_seconds}
+                    soundControl={soundControl}
+                />
+                <AnalyticsCard analytics={analytics} />
+            </div>
 
             <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-2">
                 <GlassCard
@@ -198,16 +343,7 @@ export default function PomodoroGlassView({
                                                 <StarOutlineIcon size={15} />
                                             )}
                                         </button>
-                                        <div className="min-w-0">
-                                            <p className="truncate text-sm font-semibold">
-                                                {preset.name}
-                                            </p>
-                                            <p className="text-xs text-[var(--muted)]">
-                                                {preset.focus_minutes} min focus
-                                                · {preset.break_minutes} min
-                                                break
-                                            </p>
-                                        </div>
+                                        <PresetSummary preset={preset} />
                                     </div>
                                     <div className="flex shrink-0 items-center gap-3">
                                         <PillButton
@@ -217,6 +353,13 @@ export default function PomodoroGlassView({
                                         >
                                             <PlayIcon size={14} />
                                         </PillButton>
+                                        <button
+                                            type="button"
+                                            onClick={() => onEditPreset(preset)}
+                                            className="text-xs text-[var(--muted)] hover:text-[var(--ink)] hover:underline"
+                                        >
+                                            Edit
+                                        </button>
                                         <button
                                             type="button"
                                             onClick={() =>
@@ -233,65 +376,20 @@ export default function PomodoroGlassView({
                     )}
                 </GlassCard>
 
-                <GlassCard title="New preset">
-                    <form onSubmit={onSubmitPreset} className="space-y-3">
-                        <div>
-                            <GlassLabel htmlFor="glass_preset_name">
-                                Name
-                            </GlassLabel>
-                            <GlassInput
-                                id="glass_preset_name"
-                                value={data.name}
-                                onChange={(e) =>
-                                    setData('name', e.target.value)
-                                }
-                                placeholder="Deep work"
-                                required
-                            />
-                            <GlassError message={errors.name} />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <GlassLabel htmlFor="glass_focus_minutes">
-                                    Focus minutes
-                                </GlassLabel>
-                                <GlassInput
-                                    id="glass_focus_minutes"
-                                    type="number"
-                                    min="1"
-                                    max="180"
-                                    value={data.focus_minutes}
-                                    onChange={(e) =>
-                                        setData('focus_minutes', e.target.value)
-                                    }
-                                    required
-                                />
-                                <GlassError message={errors.focus_minutes} />
-                            </div>
-                            <div>
-                                <GlassLabel htmlFor="glass_break_minutes">
-                                    Break minutes
-                                </GlassLabel>
-                                <GlassInput
-                                    id="glass_break_minutes"
-                                    type="number"
-                                    min="0"
-                                    max="60"
-                                    value={data.break_minutes}
-                                    onChange={(e) =>
-                                        setData('break_minutes', e.target.value)
-                                    }
-                                    required
-                                />
-                                <GlassError message={errors.break_minutes} />
-                            </div>
-                        </div>
-                        <GlassButton type="submit" disabled={processing}>
-                            Add preset
-                        </GlassButton>
-                    </form>
-                </GlassCard>
+                <PresetForm
+                    form={presetForm}
+                    tags={tags}
+                    editing={editing}
+                    onSubmit={onSubmitPreset}
+                    onCancelEdit={onCancelEdit}
+                    onPreviewAlarm={onPreviewAlarm}
+                />
             </div>
+
+            <SessionsCard
+                sessions={recentSessions}
+                onDelete={onDestroySession}
+            />
         </div>
     );
 }

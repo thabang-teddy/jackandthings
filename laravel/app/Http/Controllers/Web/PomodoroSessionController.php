@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\PomodoroSessionRequest;
 use App\Models\PomodoroSession;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 
 /**
  * Logs a finished interval from the web page, and lets one be deleted again.
@@ -20,16 +21,25 @@ class PomodoroSessionController extends Controller
 {
     use AuthorizesOwnership;
 
-    public function store(PomodoroSessionRequest $request): RedirectResponse
+    /**
+     * Answers 204 rather than redirecting.
+     *
+     * The page posts this from a timer callback, not a form submit, so there
+     * is nothing to flash and nowhere to send the user - and a redirect would
+     * be actively wrong: an interval finishing while they were reading their
+     * notes would navigate them to the Pomodoro page. This is the same
+     * "the open page talks to the session guard directly" shape
+     * `workouts/due` already uses; see resources/js/Lib/pomodoroSessionLog.js
+     * for the other half.
+     */
+    public function store(PomodoroSessionRequest $request): Response
     {
         $request->user()->pomodoroSessions()->create([
             ...$request->validated(),
             'source' => 'web',
         ]);
 
-        // The page posts this from a timer callback, not a form submit, so it
-        // only needs the refreshed analytics props back - no flash message.
-        return to_route('pomodoro.index');
+        return response()->noContent();
     }
 
     public function destroy(PomodoroSession $pomodoroSession): RedirectResponse
