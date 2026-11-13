@@ -24,30 +24,6 @@ class WorkoutEntryController extends Controller
 
     public function __construct(private readonly WorkoutReminderStatus $reminderStatus) {}
 
-    public function index(Request $request): Response
-    {
-        $user = $request->user();
-
-        $entries = $user->workoutEntries()
-            ->latest('logged_at')
-            ->paginate(15)
-            ->through(fn (WorkoutEntry $entry): array => [
-                'id' => $entry->id,
-                'activity' => $entry->activity,
-                'notes' => $entry->notes,
-                'logged_at' => $entry->logged_at?->toIso8601String(),
-            ]);
-
-        return Inertia::render('Workout/Index', [
-            'entries' => $entries,
-            'presets' => $this->presetsFor($user),
-            // Rendered as an in-page banner, and polled separately by
-            // resources/js/Lib/useWorkoutNudge.js for the desktop alert.
-            'dueForReminder' => $this->reminderStatus->isDue($user),
-            'lastLoggedAt' => $this->reminderStatus->lastLoggedAt($user)?->toIso8601String(),
-        ]);
-    }
-
     /**
      * Reminder state for the open page to act on, mirroring api.v1
      * workout-entries.due for the session guard. The server still sends

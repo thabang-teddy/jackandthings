@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * An exercise, either from the seeded catalog (`user_id` null) or one the user
@@ -48,6 +49,22 @@ class Exercise extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * What stops an exercise being deleted. Both foreign keys are restrictive,
+     * so these two relations are checked before a delete is attempted and the
+     * refusal is reported as a validation error rather than a constraint
+     * violation.
+     */
+    public function routineItems(): HasMany
+    {
+        return $this->hasMany(WorkoutRoutineItem::class);
+    }
+
+    public function sets(): HasMany
+    {
+        return $this->hasMany(WorkoutSet::class);
     }
 
     /**
