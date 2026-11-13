@@ -175,6 +175,46 @@ export const api = {
         ),
     deleteWorkoutPreset: (id) => request(`workout-presets/${id}`, { method: 'DELETE' }),
 
+    // Fitness tracking (issue #4)
+    //
+    // The library is the server's seeded catalog plus the user's own, in one
+    // list. The add-on reads it and logs against it; building routines and
+    // keeping body metrics stay on the web app and the phone, where there is
+    // room for them - a popup is not where you plan a training block.
+    exercises: async () => data(await request('exercises')) ?? [],
+
+    /** Null when the exercise has never been trained, not an empty history. */
+    exerciseHistory: async (id) => data(await request(`exercises/${id}/history`)) ?? null,
+
+    workoutRoutines: async () => data(await request('workout-routines')) ?? [],
+
+    /** Null when nothing is running, which is the normal case. */
+    currentWorkoutSession: async () => data(await request('workout-sessions/current')) ?? null,
+
+    startWorkoutSession: async (routineId) =>
+        data(
+            await request('workout-sessions', {
+                method: 'POST',
+                body: routineId ? { workout_routine_id: routineId } : {},
+            }),
+        ),
+
+    finishWorkoutSession: async (id) =>
+        data(await request(`workout-sessions/${id}/finish`, { method: 'POST' })),
+
+    /**
+     * Seven named arguments would be worse than one object, so the set rides
+     * in whole - the same call createWorkoutPreset's neighbours make.
+     *
+     * The whole reply is returned rather than its `data`, because `is_record`
+     * sits beside the row and is the point of logging a set: the popup
+     * celebrates a personal best without a second request.
+     */
+    logWorkoutSet: async (sessionId, set) =>
+        request(`workout-sessions/${sessionId}/sets`, { method: 'POST', body: set }),
+
+    deleteWorkoutSet: (id) => request(`workout-sets/${id}`, { method: 'DELETE' }),
+
     // Budget
     budgetAccounts: async () => data(await request('budget-accounts')) ?? [],
     createBudgetAccount: async (name) =>

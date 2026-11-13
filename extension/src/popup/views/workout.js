@@ -1,8 +1,23 @@
 import { api } from '../../lib/api.js';
 import { h, clear, muted, notice, guard } from '../../lib/dom.js';
 import { formatWhen } from '../../lib/format.js';
+import { renderTraining } from './workoutTraining.js';
 
-export async function renderWorkout(view, rerender) {
+/**
+ * Workout in the popup: the quick one-line log, and a way through to the
+ * tracked side.
+ *
+ * The sub-view is not registered in popup.js's VIEWS map - it is reached from
+ * here, the way pomodoro.js reaches its preset form and its analytics. The tab
+ * stays "Workout"; `options.tracking` decides which half is drawn, and it is
+ * not persisted, so reopening the popup lands back on the quick log.
+ */
+export async function renderWorkout(view, rerender, options = {}) {
+    if (options.tracking) {
+        await renderTraining(view, rerender);
+        return;
+    }
+
     clear(view).append(muted('Loading workouts…'));
 
     const [entries, reminder] = await Promise.all([
@@ -21,6 +36,15 @@ export async function renderWorkout(view, rerender) {
             ),
         );
     }
+
+    view.append(
+        h('button', {
+            class: 'btn-link',
+            type: 'button',
+            text: 'Track a workout →',
+            onClick: () => rerender({ tracking: true }),
+        }),
+    );
 
     view.append(
         h('form', {

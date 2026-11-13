@@ -7,14 +7,21 @@ import { logSession, rolloverMessage } from '../lib/pomodoroSession.js';
 /**
  * Background work for the extension.
  *
- * Three jobs, all alarm-driven so they survive the popup being closed and the
+ * Four jobs, all alarm-driven so they survive the popup being closed and the
  * service worker being torn down: the hourly workout nudge, the browsing-
- * history clean-up, and the end of a Pomodoro phase.
+ * history clean-up, the end of a Pomodoro phase, and the end of a rest
+ * between sets.
+ *
+ * The rest timer in particular has to live here rather than in the popup. A
+ * popup is closed for almost all of a rest - that is what resting is - and a
+ * countdown that only runs while its window is open would never once reach
+ * zero in normal use.
  */
 
 const ALARM_WORKOUT = 'workout-reminder';
 const ALARM_HISTORY = 'history-prune';
 const ALARM_POMODORO = 'pomodoro-phase-end';
+const ALARM_REST = 'workout-rest-end';
 
 const HOUR_IN_MINUTES = 60;
 const DAY_IN_MINUTES = 60 * 24;
@@ -221,10 +228,30 @@ ext.alarms.onAlarm.addListener((alarm) => {
         case ALARM_POMODORO:
             runPomodoroPhaseEnd();
             break;
+        case ALARM_REST:
+            runRestEnd();
+            break;
         default:
             break;
     }
 });
+
+/**
+ * A rest ran out. Nothing is written anywhere - a rest is not a record of
+ * anything - so this only notifies and clears the stored deadline the popup
+ * reads to draw its clock.
+ */
+async function runRestEnd() {
+    const { workoutRest } = await readSettings();
+
+    await writeSettings({ workoutRest: null });
+
+    await notify(
+        'workout-rest',
+        'Rest over',
+        workoutRest?.label ? `Next: ${workoutRest.label}` : 'Back to it.',
+    );
+}
 
 /** The popup asks for these so it does not have to duplicate the logic. */
 ext.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -245,6 +272,25 @@ ext.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         Promise.all([ext.alarms.clear(ALARM_POMODORO), stopBlocking()]).then(() =>
             sendResponse({ ok: true }),
         );
+        return true;
+    }
+    if (message?.type === 'start-rest') {
+        // The deadline is stored as well as scheduled: the alarm fires the
+        // notification, and the stored value is what lets the popup draw a
+        // live clock when it is reopened mid-rest.
+        const endsAt = Date.now() + message.seconds * 1000;
+
+        Promise.all([
+            ext.alarms.create(ALARM_REST, { when: endsAt }),
+            writeSettings({ workoutRest: { endsAt, label: message.label ?? null } }),
+        ]).then(() => sendResponse({ ok: true, endsAt }));
+        return true;
+    }
+    if (message?.type === 'cancel-rest') {
+        Promise.all([
+            ext.alarms.clear(ALARM_REST),
+            writeSettings({ workoutRest: null }),
+        ]).then(() => sendResponse({ ok: true }));
         return true;
     }
     return false;

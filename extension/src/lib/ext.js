@@ -16,6 +16,11 @@ const DEFAULTS = {
     historyAutoDelete: false,
     retentionDays: 90,
     pomodoro: null,
+    // { endsAt, label } while a rest between sets is running, else null. Held
+    // here rather than in the popup because the popup is shut for nearly all
+    // of a rest; the service worker owns the alarm and this is what lets a
+    // reopened popup draw the remaining time.
+    workoutRest: null,
 };
 
 export async function readSettings() {
