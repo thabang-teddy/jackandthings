@@ -56,6 +56,19 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="pomodoro-timer" />
         </service>
+
+        <!-- Same reasoning as the Pomodoro timer above: a rest countdown
+             between sets fits no existing foregroundServiceType category, and
+             a rest timer that stops when you put the phone down is not a rest
+             timer. Not exported: only this app starts it. -->
+        <service
+            android:name=".workout.WorkoutRestService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="workout-rest-timer" />
+        </service>
     </application>
 
 </manifest>

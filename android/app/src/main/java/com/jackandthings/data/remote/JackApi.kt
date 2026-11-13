@@ -1,13 +1,19 @@
 package com.jackandthings.data.remote
 
+import com.jackandthings.model.BodyMetric
+import com.jackandthings.model.BodyMetricDraft
 import com.jackandthings.model.BudgetAccount
 import com.jackandthings.model.BudgetTransaction
+import com.jackandthings.model.Exercise
+import com.jackandthings.model.ExerciseDraft
+import com.jackandthings.model.ExerciseHistory
 import com.jackandthings.model.Note
 import com.jackandthings.model.PomodoroPreset
 import com.jackandthings.model.PomodoroPresetDraft
 import com.jackandthings.model.PomodoroSession
 import com.jackandthings.model.PomodoroSessionDraft
 import com.jackandthings.model.PomodoroStats
+import com.jackandthings.model.ProgressPhoto
 import com.jackandthings.model.RecurringTransaction
 import com.jackandthings.model.ReminderState
 import com.jackandthings.model.TokenPayload
@@ -15,13 +21,29 @@ import com.jackandthings.model.WatchList
 import com.jackandthings.model.WatchListItem
 import com.jackandthings.model.WorkoutEntry
 import com.jackandthings.model.WorkoutPreset
+import com.jackandthings.model.WorkoutRoutine
+import com.jackandthings.model.WorkoutRoutineDraft
+import com.jackandthings.model.WorkoutSession
+import com.jackandthings.model.WorkoutSessionDraft
+import com.jackandthings.model.WorkoutSet
+import com.jackandthings.model.WorkoutSetDraft
+import com.jackandthings.model.WorkoutStats
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
+
+/**
+ * A logged set with the server's own verdict on whether it was a personal
+ * best. The flag rides along with the row because the screen has to celebrate
+ * it immediately, and asking a second endpoint mid-workout would be a round
+ * trip for something the server already knew.
+ */
+data class LoggedSet(val set: WorkoutSet, val isRecord: Boolean)
 
 /**
  * One method per endpoint of the `api/v1` contract, so the shape of the server
@@ -173,6 +195,151 @@ class JackApi(private val client: ApiClient) {
 
     suspend fun deleteWorkoutPreset(id: String) = client.delete("workout-presets/$id")
 
+    // ── Exercise library ───────────────────────────────────────────────────
+
+    /** The seeded catalog plus this user's own exercises, in one list. */
+    suspend fun exercises(): List<Exercise> =
+        client.get("exercises").decodeList()
+
+    suspend fun createExercise(draft: ExerciseDraft): Exercise =
+        client.post("exercises", draft.asJsonObject()).decode()
+
+    suspend fun updateExercise(id: String, draft: ExerciseDraft): Exercise =
+        client.put("exercises/$id", draft.asJsonObject()).decode()
+
+    /** Refused with a 422 while a routine or a logged set still uses it. */
+    suspend fun deleteExercise(id: String) = client.delete("exercises/$id")
+
+    /**
+     * What the user did the last few times they trained this exercise, plus
+     * their bests. The reply's `data` is null when they never have, which is
+     * why this returns a nullable rather than an empty history - "no data yet"
+     * and "no progress" are different things to show.
+     */
+    suspend fun exerciseHistory(id: String): ExerciseHistory? =
+        client.get("exercises/$id/history").optionalPayload()?.let {
+            client.json.decodeFromJsonElement(it)
+        }
+
+    // ── Workout routines ───────────────────────────────────────────────────
+
+    suspend fun workoutRoutines(): List<WorkoutRoutine> =
+        client.get("workout-routines").decodeList()
+
+    /**
+     * Sent whole rather than field by field: a routine without its items is
+     * not half-saved, it is broken, so the two travel together.
+     */
+    suspend fun createWorkoutRoutine(draft: WorkoutRoutineDraft): WorkoutRoutine =
+        client.post("workout-routines", draft.asJsonObject()).decode()
+
+    suspend fun updateWorkoutRoutine(id: String, draft: WorkoutRoutineDraft): WorkoutRoutine =
+        client.put("workout-routines/$id", draft.asJsonObject()).decode()
+
+    suspend fun deleteWorkoutRoutine(id: String) = client.delete("workout-routines/$id")
+
+    // ── Workout sessions and sets ──────────────────────────────────────────
+
+    suspend fun workoutSessions(): List<WorkoutSession> =
+        client.get("workout-sessions").decodeList()
+
+    /**
+     * The workout in progress, or null. Null is a normal answer here, not an
+     * error: most of the time there is no workout running.
+     */
+    suspend fun currentWorkoutSession(): WorkoutSession? =
+        client.get("workout-sessions/current").optionalPayload()?.let {
+            client.json.decodeFromJsonElement(it)
+        }
+
+    suspend fun startWorkoutSession(draft: WorkoutSessionDraft): WorkoutSession =
+        client.post("workout-sessions", draft.asJsonObject()).decode()
+
+    /**
+     * Closes the workout. The server stamps the time, so a stopwatch on the
+     * phone cannot drift into the stored record.
+     */
+    suspend fun finishWorkoutSession(id: String): WorkoutSession =
+        client.post("workout-sessions/$id/finish").decode()
+
+    suspend fun deleteWorkoutSession(id: String) = client.delete("workout-sessions/$id")
+
+    /**
+     * Logs one set. The reply's `is_record` is the server's own verdict on
+     * whether it was a personal best, which is what the screen celebrates -
+     * WorkoutProgress.beatsPrevious only has to agree with it.
+     */
+    suspend fun logWorkoutSet(sessionId: String, draft: WorkoutSetDraft): LoggedSet {
+        val reply = client.post("workout-sessions/$sessionId/sets", draft.asJsonObject())
+
+        return LoggedSet(
+            set = client.json.decodeFromJsonElement(reply.payload()),
+            isRecord = reply.jsonObject["is_record"]?.let { element ->
+                runCatching { client.json.decodeFromJsonElement<Boolean>(element) }.getOrDefault(false)
+            } ?: false,
+        )
+    }
+
+    suspend fun deleteWorkoutSet(id: String) = client.delete("workout-sets/$id")
+
+    // ── Body metrics ───────────────────────────────────────────────────────
+
+    suspend fun bodyMetrics(): List<BodyMetric> =
+        client.get("body-metrics").decodeList()
+
+    /** A day that already has a reading is updated rather than refused. */
+    suspend fun saveBodyMetric(draft: BodyMetricDraft): BodyMetric =
+        client.post("body-metrics", draft.asJsonObject()).decode()
+
+    suspend fun deleteBodyMetric(id: String) = client.delete("body-metrics/$id")
+
+    // ── Progress photos ────────────────────────────────────────────────────
+
+    /**
+     * The records only. The images themselves are fetched from each row's
+     * `url`, which is an authorized endpoint - uploading one is a multipart
+     * request and is deliberately not queued offline; see
+     * OfflineRepositories and docs/TESTING.md.
+     */
+    suspend fun progressPhotos(): List<ProgressPhoto> =
+        client.get("progress-photos").decodeList()
+
+    /**
+     * Uploads one image. [bytes] is the picked file already read into memory,
+     * and [mimeType] comes from the picker rather than from a filename - the
+     * server validates it again against its own four-type allow-list and
+     * decides the stored extension from that, so a wrong guess here is
+     * refused rather than trusted.
+     */
+    suspend fun uploadProgressPhoto(
+        bytes: ByteArray,
+        fileName: String,
+        mimeType: String,
+        takenOn: String,
+        caption: String? = null,
+        bodyMetricId: String? = null,
+    ): ProgressPhoto =
+        client.postMultipart(
+            path = "progress-photos",
+            fileField = "photo",
+            fileName = fileName,
+            mimeType = mimeType,
+            bytes = bytes,
+            fields = buildMap {
+                put("taken_on", takenOn)
+                caption?.takeIf { it.isNotBlank() }?.let { put("caption", it) }
+                bodyMetricId?.let { put("body_metric_id", it) }
+            },
+        ).decode()
+
+    suspend fun deleteProgressPhoto(id: String) = client.delete("progress-photos/$id")
+
+    // ── Workout stats ──────────────────────────────────────────────────────
+
+    /** [timezone] is an IANA zone; the server buckets in it rather than UTC. */
+    suspend fun workoutStats(timezone: String): WorkoutStats =
+        client.get("workout-stats", mapOf("tz" to timezone)).decode()
+
     // ── Budget ─────────────────────────────────────────────────────────────
 
     suspend fun budgetAccounts(): List<BudgetAccount> =
@@ -260,6 +427,17 @@ class JackApi(private val client: ApiClient) {
     /** Every reply wraps its payload in `data`. */
     private fun JsonElement.payload(): JsonElement =
         jsonObject["data"] ?: throw ApiException(0, "Reply had no data field")
+
+    /**
+     * The payload of a reply whose `data` may legitimately be null - "no
+     * workout in progress", "never trained this exercise". A missing `data`
+     * key is still an error; `data: null` is an answer.
+     */
+    private fun JsonElement.optionalPayload(): JsonElement? =
+        when (val data = jsonObject["data"] ?: throw ApiException(0, "Reply had no data field")) {
+            is JsonNull -> null
+            else -> data
+        }
 
     private inline fun <reified T> JsonElement.decode(): T =
         client.json.decodeFromJsonElement(payload())
