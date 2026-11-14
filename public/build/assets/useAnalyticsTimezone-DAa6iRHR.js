@@ -1,0 +1,1 @@
+import{a as o,r as a}from"./app-Dm6mjJiN.js";import{t as s}from"./pomodoroSessionLog-Cl8X6AgT.js";function c(r,e){o.useEffect(()=>{const t=s();!t||r===t||a.reload({only:e,data:{tz:t},preserveScroll:!0,preserveState:!0})},[r])}export{c as useAnalyticsTimezone};
