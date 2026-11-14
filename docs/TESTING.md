@@ -8,12 +8,12 @@ A suite now exists on all three surfaces and **all of it passes**. Figures below
 | Laravel | PHPUnit 12.5 | **461** (10009 assertions) | `php artisan test` |
 | Web JS | `node --test` (no dependencies) | **110** | `npm test` in `laravel/` |
 | Android | JUnit 4 + `kotlinx-coroutines-test` | **313** | `.\gradlew.bat :app:testDebugUnitTest` |
-| Add-on | `node --test` (no dependencies) | **98** | `npm test` in `extension/` |
-| | | **982 total** | |
+| Add-on | `node --test` (no dependencies) | **102** | `npm test` in `extension/` |
+| | | **986 total** | |
 
 Issue #4 added 362 of those: 163 on the server, 54 in the web app's shared logic, 102 on Android and 43 in the add-on.
 
-Issue #5 added the personal-finance work: the budget service, rules and reports unit tests plus the new cross-tenant cases on the server, the mirrored budget logic in the web client and the Android budget repository/outbox changes, and the add-on's quick-expense surface. The extension's suite went from 55 to 98 across the branch — the quick-expense and limit-meter code runs on the shared pure modules the existing tests already cover, and the budget wire shape fix in `transferFlow` landed in the format tests.
+Issue #5 added the personal-finance work: the budget service, rules and reports unit tests plus the new cross-tenant cases on the server, the mirrored budget logic in the web client and the Android budget repository/outbox changes, and the add-on's quick-expense surface. The extension's suite went from 55 to 102 across the branch - the quick-expense and limit-meter code runs on the shared pure modules the existing tests already cover, the budget wire shape fix in `transferFlow` landed in the format tests, and this session added the four budget API tests for the new endpoints and the optional transaction columns.
 
 The web JS runner needs no dependency: `laravel/package.json` is already
 `"type": "module"`, so Node loads the sources as they are. It reaches the
