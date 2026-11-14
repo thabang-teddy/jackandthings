@@ -14,6 +14,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -99,6 +101,38 @@ class ApiClient(
         client.newCall(request(path).delete().build()).execute().use { response ->
             response.requireSuccess(response.body?.string().orEmpty())
         }
+    }
+
+    /**
+     * The one multipart path, used only for a progress photo.
+     *
+     * [bytes] is the image already read into memory. That is acceptable here
+     * and nowhere else: the server caps an upload at 8 MB, and streaming
+     * straight from a content URI would mean holding the picker's stream open
+     * across a retry. [fileName] and [mimeType] are both decided by the
+     * caller from the picker's own metadata, never from user text.
+     */
+    suspend fun postMultipart(
+        path: String,
+        fileField: String,
+        fileName: String,
+        mimeType: String,
+        bytes: ByteArray,
+        fields: Map<String, String> = emptyMap(),
+    ): JsonElement = withContext(io) {
+        val body = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .apply {
+                fields.forEach { (name, value) -> addFormDataPart(name, value) }
+                addFormDataPart(
+                    fileField,
+                    fileName,
+                    bytes.toRequestBody(mimeType.toMediaTypeOrNull()),
+                )
+            }
+            .build()
+
+        client.newCall(request(path).post(body).build()).execute().use { it.parseBody() }
     }
 
     // ── Plumbing ───────────────────────────────────────────────────────────

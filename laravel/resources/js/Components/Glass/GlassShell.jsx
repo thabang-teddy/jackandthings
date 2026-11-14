@@ -5,6 +5,7 @@ import PomodoroFloatingRing from '@/Components/Glass/PomodoroFloatingRing';
 import Rail from '@/Components/Glass/Rail';
 import SubmenuPills from '@/Components/Glass/SubmenuPills';
 import ThemeToggle from '@/Components/Glass/ThemeToggle';
+import WorkoutRestPill from '@/Components/Glass/WorkoutRestPill';
 import { getModule, getSubmenu } from '@/Lib/glassNav';
 import { getThemeVars } from '@/Lib/themeTokens';
 import { useTheme } from '@/Lib/ThemeContext';
@@ -127,6 +128,7 @@ export default function GlassShell({
                 but still inside this div, which is what carries the theme's
                 CSS custom properties via `style={vars}` above. */}
             <PomodoroFloatingRing />
+            <WorkoutRestPill />
         </div>
     );
 }

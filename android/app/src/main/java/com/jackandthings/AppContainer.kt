@@ -16,7 +16,13 @@ import com.jackandthings.pomodoro.PomodoroSessionRecorder
 import com.jackandthings.repo.ApiPomodoroRepository
 import com.jackandthings.repo.ApiPomodoroSessionRepository
 import com.jackandthings.repo.ApiWatchListRepository
+import com.jackandthings.repo.ApiBodyRepository
+import com.jackandthings.repo.ApiExerciseRepository
+import com.jackandthings.repo.ApiTrainingRepository
 import com.jackandthings.repo.ApiWorkoutRepository
+import com.jackandthings.repo.BodyRepository
+import com.jackandthings.repo.ExerciseRepository
+import com.jackandthings.repo.TrainingRepository
 import com.jackandthings.repo.AuthStore
 import com.jackandthings.repo.BudgetRepository
 import com.jackandthings.repo.LocalBudgetRepository
@@ -130,6 +136,26 @@ class AppContainer(context: Context) {
     val focusGuard = FocusGuard(appContext)
     val watchList: WatchListRepository = SwitchingWatchListRepository(auth, localWatchList, remoteWatchList)
     val workout: WorkoutRepository = SwitchingWorkoutRepository(auth, localWorkout, remoteWorkout)
+
+    /*
+     * Fitness tracking (issue #4). These three have no local, signed-out half
+     * and no offline queue, unlike the modules above.
+     *
+     * The exercise library is server-seeded reference data - there is nothing
+     * sensible to show a signed-out user, and shipping a second copy inside
+     * the app would mean two catalogs to keep in step. Sets and routines could
+     * in principle be queued, but a set belongs to a session that may not
+     * exist on the server yet, so the outbox would need session-id remapping
+     * inside the drainer before any of it could be replayed. That is a feature
+     * of its own rather than a line in PendingAction.
+     *
+     * The one-line workout entry log above keeps its offline queue, so logging
+     * "went for a run" on a train still works. docs/TESTING.md records the
+     * limit.
+     */
+    val exercises: ExerciseRepository = ApiExerciseRepository(api)
+    val training: TrainingRepository = ApiTrainingRepository(api)
+    val body: BodyRepository = ApiBodyRepository(api)
     val budget: BudgetRepository = SwitchingBudgetRepository(auth, localBudget, remoteBudget)
 
     /**

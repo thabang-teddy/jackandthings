@@ -8,6 +8,9 @@ import com.jackandthings.pomodoro.PomodoroTimerService
 import com.jackandthings.update.AppUpdateChecker
 import com.jackandthings.work.OutboxSync
 import com.jackandthings.work.WorkoutReminders
+import com.jackandthings.workout.RestTimerEvent
+import com.jackandthings.workout.WorkoutRestService
+import com.jackandthings.workout.WorkoutRestTimer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -95,6 +98,28 @@ class JackApplication : Application() {
                     // written.
                     is PomodoroEvent.IntervalEnded ->
                         container.pomodoroRecorder.record(event)
+                }
+            }
+            .launchIn(scope)
+
+        // WorkoutRestTimer is Context-free for the same reason the Pomodoro
+        // engine is, so the service and the chime are attached to it here.
+
+        // "A rest started" becomes "the foreground notification is showing",
+        // which is what makes a rest survive the phone going in a pocket.
+        WorkoutRestTimer.state
+            .map { it.running }
+            .distinctUntilChanged()
+            .onEach { resting -> if (resting) WorkoutRestService.start(this) }
+            .launchIn(scope)
+
+        // Synthesised through the Pomodoro recipes - no audio file ships with
+        // this project - and deliberately the alarm rather than a tick: the
+        // end of a rest is the only moment worth interrupting.
+        WorkoutRestTimer.events
+            .onEach { event ->
+                when (event) {
+                    is RestTimerEvent.Finished -> PomodoroSounds.playAlarm("chime")
                 }
             }
             .launchIn(scope)

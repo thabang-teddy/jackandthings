@@ -1,21 +1,28 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Web\BodyMetricController;
 use App\Http\Controllers\Web\BudgetAccountController;
 use App\Http\Controllers\Web\BudgetController;
 use App\Http\Controllers\Web\BudgetTransactionController;
 use App\Http\Controllers\Web\BudgetTransferController;
+use App\Http\Controllers\Web\ExerciseController;
 use App\Http\Controllers\Web\HistoryEntryController;
 use App\Http\Controllers\Web\HomeController;
 use App\Http\Controllers\Web\NoteController;
 use App\Http\Controllers\Web\PomodoroController;
 use App\Http\Controllers\Web\PomodoroPresetController;
 use App\Http\Controllers\Web\PomodoroSessionController;
+use App\Http\Controllers\Web\ProgressPhotoController;
 use App\Http\Controllers\Web\RecurringTransactionController;
 use App\Http\Controllers\Web\WatchListController;
 use App\Http\Controllers\Web\WatchListItemController;
+use App\Http\Controllers\Web\WorkoutController;
 use App\Http\Controllers\Web\WorkoutEntryController;
 use App\Http\Controllers\Web\WorkoutPresetController;
+use App\Http\Controllers\Web\WorkoutRoutineController;
+use App\Http\Controllers\Web\WorkoutSessionController;
+use App\Http\Controllers\Web\WorkoutSetController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -70,13 +77,61 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('watchlist/items/{watchListItem}', [WatchListItemController::class, 'update'])->name('watchlist.items.update');
     Route::delete('watchlist/items/{watchListItem}', [WatchListItemController::class, 'destroy'])->name('watchlist.items.destroy');
 
-    // Workout
+    /*
+     * Workout — six pages since issue #4: Today, the exercise library, the
+     * routine builder, the session history, body metrics and stats.
+     *
+     * Everything with a literal path segment is declared *before*
+     * Route::resource('workouts'), whose {workout} parameter would otherwise
+     * swallow "library", "routines" and the rest as entry ids. The one-line
+     * entry log and its presets are untouched by issue #4.
+     */
+    Route::get('workouts', [WorkoutController::class, 'index'])->name('workouts.index');
+    Route::get('workouts/library', [WorkoutController::class, 'library'])->name('workouts.library');
+    Route::get('workouts/routines', [WorkoutController::class, 'routines'])->name('workouts.routines');
+    Route::get('workouts/sessions', [WorkoutController::class, 'sessions'])->name('workouts.sessions');
+    Route::get('workouts/body', [WorkoutController::class, 'body'])->name('workouts.body');
+    Route::get('workouts/stats', [WorkoutController::class, 'stats'])->name('workouts.stats');
+
     Route::post('workouts/presets', [WorkoutPresetController::class, 'store'])->name('workouts.presets.store');
     Route::delete('workouts/presets/{workoutPreset}', [WorkoutPresetController::class, 'destroy'])->name('workouts.presets.destroy');
+
+    // The user's own exercises. The seeded catalog is read-only to everybody.
+    // "history" is declared before the {exercise} writes for the same reason
+    // the page routes are declared before the workouts resource.
+    Route::get('workouts/exercises/{exercise}/history', [ExerciseController::class, 'history'])
+        ->name('workouts.exercises.history');
+    Route::post('workouts/exercises', [ExerciseController::class, 'store'])->name('workouts.exercises.store');
+    Route::put('workouts/exercises/{exercise}', [ExerciseController::class, 'update'])->name('workouts.exercises.update');
+    Route::delete('workouts/exercises/{exercise}', [ExerciseController::class, 'destroy'])->name('workouts.exercises.destroy');
+
+    Route::post('workouts/routines', [WorkoutRoutineController::class, 'store'])->name('workouts.routines.store');
+    Route::put('workouts/routines/{routine}', [WorkoutRoutineController::class, 'update'])->name('workouts.routines.update');
+    Route::delete('workouts/routines/{routine}', [WorkoutRoutineController::class, 'destroy'])->name('workouts.routines.destroy');
+
+    Route::post('workouts/sessions', [WorkoutSessionController::class, 'store'])->name('workouts.sessions.store');
+    Route::put('workouts/sessions/{session}', [WorkoutSessionController::class, 'update'])->name('workouts.sessions.update');
+    Route::post('workouts/sessions/{session}/finish', [WorkoutSessionController::class, 'finish'])->name('workouts.sessions.finish');
+    Route::delete('workouts/sessions/{session}', [WorkoutSessionController::class, 'destroy'])->name('workouts.sessions.destroy');
+
+    Route::post('workouts/sessions/{session}/sets', [WorkoutSetController::class, 'store'])->name('workouts.sets.store');
+    Route::put('workouts/sets/{set}', [WorkoutSetController::class, 'update'])->name('workouts.sets.update');
+    Route::delete('workouts/sets/{set}', [WorkoutSetController::class, 'destroy'])->name('workouts.sets.destroy');
+
+    Route::post('workouts/body', [BodyMetricController::class, 'store'])->name('workouts.body.store');
+    Route::put('workouts/body/{metric}', [BodyMetricController::class, 'update'])->name('workouts.body.update');
+    Route::delete('workouts/body/{metric}', [BodyMetricController::class, 'destroy'])->name('workouts.body.destroy');
+
+    // The only route to a stored progress photo, and it authorizes first.
+    Route::post('workouts/photos', [ProgressPhotoController::class, 'store'])->name('progress-photos.store');
+    Route::get('workouts/photos/{photo}/file', [ProgressPhotoController::class, 'file'])->name('progress-photos.file');
+    Route::delete('workouts/photos/{photo}', [ProgressPhotoController::class, 'destroy'])->name('progress-photos.destroy');
+
     // Polled by the open page for its hourly desktop nudge; declared before
     // the resource so "due" is not read as a {workout} id.
     Route::get('workouts/due', [WorkoutEntryController::class, 'due'])->name('workouts.due');
-    Route::resource('workouts', WorkoutEntryController::class)->except(['show']);
+    // index lives on WorkoutController above, as the Today page.
+    Route::resource('workouts', WorkoutEntryController::class)->except(['show', 'index']);
 
     // History — immutable entries: add and remove only, no edit.
     Route::get('history', [HistoryEntryController::class, 'index'])->name('history.index');

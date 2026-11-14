@@ -19,6 +19,10 @@ const STORAGE_KEY = 'jackandthings:desktop-alerts';
 
 export const ALERT_TAGS = {
     workoutDue: 'jack-workout-due',
+    // Tagged separately from workoutDue so an "hourly nudge" notification and
+    // a "rest is over" one never replace each other - they say different
+    // things and arrive for different reasons.
+    workoutRestOver: 'jack-workout-rest',
     pomodoro: 'jack-pomodoro-phase',
 };
 

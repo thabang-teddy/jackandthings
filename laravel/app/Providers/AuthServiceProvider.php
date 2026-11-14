@@ -4,28 +4,40 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Models\BodyMetric;
 use App\Models\BudgetAccount;
 use App\Models\BudgetTransaction;
+use App\Models\Exercise;
 use App\Models\HistoryEntry;
 use App\Models\Note;
 use App\Models\PomodoroPreset;
 use App\Models\PomodoroSession;
+use App\Models\ProgressPhoto;
 use App\Models\RecurringTransaction;
 use App\Models\WatchList;
 use App\Models\WatchListItem;
 use App\Models\WorkoutEntry;
 use App\Models\WorkoutPreset;
+use App\Models\WorkoutRoutine;
+use App\Models\WorkoutSession;
+use App\Models\WorkoutSet;
+use App\Policies\BodyMetricPolicy;
 use App\Policies\BudgetAccountPolicy;
 use App\Policies\BudgetTransactionPolicy;
+use App\Policies\ExercisePolicy;
 use App\Policies\HistoryEntryPolicy;
 use App\Policies\NotePolicy;
 use App\Policies\PomodoroPresetPolicy;
 use App\Policies\PomodoroSessionPolicy;
+use App\Policies\ProgressPhotoPolicy;
 use App\Policies\RecurringTransactionPolicy;
 use App\Policies\WatchListItemPolicy;
 use App\Policies\WatchListPolicy;
 use App\Policies\WorkoutEntryPolicy;
 use App\Policies\WorkoutPresetPolicy;
+use App\Policies\WorkoutRoutinePolicy;
+use App\Policies\WorkoutSessionPolicy;
+use App\Policies\WorkoutSetPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -47,6 +59,12 @@ class AuthServiceProvider extends ServiceProvider
         RecurringTransaction::class => RecurringTransactionPolicy::class,
         WorkoutEntry::class => WorkoutEntryPolicy::class,
         WorkoutPreset::class => WorkoutPresetPolicy::class,
+        Exercise::class => ExercisePolicy::class,
+        WorkoutRoutine::class => WorkoutRoutinePolicy::class,
+        WorkoutSession::class => WorkoutSessionPolicy::class,
+        WorkoutSet::class => WorkoutSetPolicy::class,
+        BodyMetric::class => BodyMetricPolicy::class,
+        ProgressPhoto::class => ProgressPhotoPolicy::class,
         WatchList::class => WatchListPolicy::class,
         WatchListItem::class => WatchListItemPolicy::class,
         HistoryEntry::class => HistoryEntryPolicy::class,

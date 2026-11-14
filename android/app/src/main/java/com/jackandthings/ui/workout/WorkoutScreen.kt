@@ -36,13 +36,28 @@ import com.jackandthings.ui.common.LoadingBox
 import com.jackandthings.ui.common.ModuleScaffold
 import com.jackandthings.ui.common.formatWhen
 
+/**
+ * The quick one-line workout log, unchanged by issue #4: it is still the fast
+ * "I did a thing" path and the hourly nudge is still read from it.
+ *
+ * [onOpenTraining] is the way through to the tracked side - routines, sets and
+ * stats - which lives on its own destinations rather than being piled on top
+ * of this list.
+ */
 @Composable
-fun WorkoutScreen(viewModel: WorkoutViewModel, onBack: () -> Unit) {
+fun WorkoutScreen(
+    viewModel: WorkoutViewModel,
+    onBack: () -> Unit,
+    onOpenTraining: () -> Unit = {},
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     ModuleScaffold(
         title = "Workout",
         onBack = onBack,
+        actions = {
+            TextButton(onClick = onOpenTraining) { Text("Track a workout") }
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = viewModel::startNew) {
                 Icon(Icons.Filled.Add, contentDescription = "Log workout")

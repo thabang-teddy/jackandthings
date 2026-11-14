@@ -19,7 +19,8 @@ Versions below are what is actually installed in `laravel/` (from `composer.lock
 
 ## System boundaries
 - Client owns (as built): presentation and local UX state only. The Pomodoro countdown is the one piece of real client-side logic, and a *running* timer is still deliberately ephemeral — nothing about one is persisted on any surface. Since issue #3 a *finished* interval is: each client posts the interval it just watched end to `pomodoro-sessions`, which is what the focus analytics are computed from. The cycle rules the clients run (which break follows which focus run, when the long one falls, whether the next phase auto-starts) are duplicated in three files on purpose — `laravel/resources/js/Lib/pomodoroCycle.js`, `android/.../pomodoro/PomodoroCycle.kt` and `extension/src/lib/pomodoroCycle.js` — and those three are where to look if the surfaces ever disagree.
-- Server owns (as built): all validation (FormRequests), authorization (policies), per-user data isolation, and business rules (budget math and transfer atomicity in `BudgetService`, reminder state in `WorkoutReminderStatus`, history deletion in `history:prune`).
+- Server owns (as built): all validation (FormRequests), authorization (policies), per-user data isolation, and business rules (budget math and transfer atomicity in `BudgetService`, reminder state in `WorkoutReminderStatus`, personal records and progressive-overload history in `WorkoutRecords`, training volume and streaks in `WorkoutAnalytics`, upload handling in `ProgressPhotoStorage`, history deletion in `history:prune`).
+- **The second triplicated rule set**, added by issue #4 and following the same pattern as the Pomodoro cycle: `workoutProgress` exists as `laravel/resources/js/Lib/workoutProgress.js`, `android/.../workout/WorkoutProgress.kt` and `extension/src/lib/workoutProgress.js`. It answers which inputs an exercise asks for, what the estimated one-rep max is, whether a set beat a previous best, and what comes next in a routine. The server's `WorkoutRecords` is the authority — a logged set's reply carries `is_record` — but each client needs the same answer locally to flag a personal best before the round trip finishes, and if a client's answer differed the user would see a record the server never recorded. The rest timer between sets is client-side and, like a running Pomodoro, is never persisted anywhere.
 - External services own: none. No third-party service is used — notification delivery is deliberately not built (see PRD.md).
 - Out of scope: anything not in the six confirmed modules (PRD.md MVP scope).
 
@@ -33,6 +34,9 @@ As built:
 
 ## Interfaces
 - API contract: **built**. Token: `POST /api/v1/auth/token` (throttled 6/min), `GET /api/v1/auth/me`, `DELETE /api/v1/auth/token`. Resources: `notes`, `pomodoro-presets`, `pomodoro-sessions` (index/store/show/destroy — no update, since a recorded interval is history — plus `GET pomodoro-sessions/stats`), `clipboard-items`, `workout-entries` (+ `GET workout-entries/due`), `history-entries` (no update), `budget-accounts`, `budget-transactions` (index/store/destroy), `POST budget-transfers`. All behind `auth:sanctum` + `throttle:60,1`.
+- Fitness tracking (issue #4) adds: `exercises` (+ `GET exercises/{id}/history` for the progressive-overload panel), `workout-routines`, `workout-sessions` (+ `GET workout-sessions/current` and `POST workout-sessions/{id}/finish`), sets nested under a session on write and addressed directly on update/delete, `body-metrics`, `progress-photos` (+ `GET progress-photos/{id}/file`, the only route to a stored image), and `GET workout-stats`. Same guards as everything else.
+- The progressive-overload panel is a fetch, not a page prop: the live set logger asks `exercises/{id}/history` as the picker changes (the web has its own session-guarded twin of that route). Shipping a history for all 44 exercises with the page to show one of them would be absurd, and the panel has to keep up as the workout goes on.
+- Three shapes there are worth knowing: the server assigns every `position` (a routine's from the order items arrive in, a set's from the session's count inside a transaction, so two devices cannot claim one slot); finishing a session is its own action so the *server* stamps the time and a repeat tap cannot move it; and a photo's `url` names an authorized route rather than a file, with the route name chosen per guard — session for the web pages, bearer token for Android — because the two cannot use each other's.
 - A preset's wire shape lives in one place, `App\Http\Resources\PomodoroPresetPayload`, rather than being hand-assembled per controller. With fourteen fields, two hand-rolled copies drift; the web page, Android and the add-on all read the same mapping.
 - `pomodoro-sessions/stats` buckets in the **caller's** timezone, passed as `tz`. The app runs in UTC, and "focus hours today" or "most productive hour" computed in UTC is wrong for anybody not living there.
 - Events/jobs: `history:prune` is scheduled daily in `routes/console.php`. No queue work yet. Workout reminders have **no** scheduled job or delivery mechanism by design — clients poll `workout-entries/due` and raise their own notification.
@@ -48,23 +52,31 @@ laravel/
     Exceptions/InsufficientFundsException.php
     Http/Controllers/
       Auth/            Breeze-generated session auth
-      Web/             10 session-guard controllers (one area per module)
-      Api/V1/          9 token-guard controllers (incl. AuthController)
+      Web/             17 session-guard controllers (one area per module)
+      Api/V1/          16 token-guard controllers (incl. AuthController)
       Concerns/AuthorizesOwnership.php   the 404-not-403 ownership check
-    Http/Requests/     9 FormRequests
-    Models/            User + 7 module models (UUID keys via HasUuids)
-    Policies/          7 policies, registered explicitly
+    Http/Requests/     14 FormRequests
+    Http/Resources/    wire-shape payloads (Pomodoro + the issue #4 set)
+    Models/            User + 14 module models (UUID keys via HasUuids)
+    Policies/          14 policies, registered explicitly
     Providers/AuthServiceProvider.php
-    Services/          BudgetService, WorkoutReminderStatus
+    Services/          BudgetService, WorkoutReminderStatus, PomodoroAnalytics,
+                       WorkoutRecords, WorkoutAnalytics, WorkoutRoutineWriter,
+                       ProgressPhotoStorage
   config/history.php   retention placeholder
-  database/migrations  7 module tables + Laravel/Sanctum defaults
-  database/factories   7 factories;  seeders/DemoDataSeeder.php (local only)
+  database/migrations  14 module tables + Laravel/Sanctum defaults
+  database/factories   factories;  seeders/ExerciseLibrarySeeder.php (the
+                       unowned catalog, every environment) + DemoDataSeeder
   resources/js/
     Components/        Breeze components + Pagination, EmptyState, PageShell
-    Layouts/           AuthenticatedLayout (six-module nav)
-    Lib/formatZar.js
-    Pages/             Dashboard hub + Pomodoro (Timer/Presets/Sessions/Stats), Notes, Budget, Workout, Clipboard, History
+    Layouts/           AuthenticatedLayout (six-module nav; hosts both timers)
+    Lib/               formatZar, pomodoroCycle, workoutProgress, formatWorkout,
+                       useCountdown, useRestTimer + their two context providers
+    Pages/             Dashboard hub + Pomodoro (Timer/Presets/Sessions/Stats),
+                       Notes, Budget, Workout (Today/Library/Routines/Sessions/
+                       Body/Stats), Clipboard, History
   routes/web.php, api.php, console.php, auth.php
+  storage/app/private/progress-photos/{user}/   the only uploaded files
 
 android/                 Kotlin/Compose client (five modules; no History)
   app/src/main/java/com/jackandthings/
@@ -100,11 +112,13 @@ extension/               MV3 add-on (five modules + the history add-on)
 - Laravel 13 + Inertia + React + Tailwind, Breeze auth scaffolding, SQLite, Sanctum tokens.
 - Budget: multiple accounts per user, fixed ZAR, integer-cent storage, derived balances, atomic two-leg transfers, overdraft rejection.
 - History: hard-delete model plus a daily `history:prune` with a clearly-marked placeholder retention window.
-- Workout: reminder *state* only, polled via API; no delivery.
+- Workout: reminder *state* only, polled via API; no delivery. Since issue #4 a logged set or a finished session also counts as activity for the hour, not just a one-line entry — nudging somebody who has just finished a tracked workout would be worse than staying quiet.
+- Workout (issue #4): seven tables, six web pages, server-computed records and analytics, and the project's first file upload. Scope limits are recorded in PRD.md "Settled by issue #4" — no wearable sync, text-only exercise instructions, fixed metric units.
 
 **Built (Android):**
 - Kotlin/Compose client for Pomodoro, Notes, Budget, Workout and Clipboard, consuming `api/v1` with Sanctum bearer tokens. History is deliberately excluded — it is browser history, which `docs/init.txt` assigns to the add-ons and the web app.
 - The app reaches a local server at `http://10.0.2.2:8000/api/v1/` by default (the emulator's route to the host), and the address is editable in Settings so a LAN or deployed host needs no rebuild. Note Herd serves the web app at `http://jackandthings.test`, which the emulator cannot resolve — hence `php artisan serve` for device testing.
+- Workout is the first module here with **more than one destination** — `workout/training`, `/library`, `/routines`, `/body`, `/stats` — because issue #4's four surfaces are not four dialogs behind one app bar. The quick one-line log keeps its own screen and reaches them through a single action. The three repositories behind them (`ExerciseRepository`, `TrainingRepository`, `BodyRepository`) deliberately have **no local half and no offline queue**, unlike the five before them: the exercise catalog is server-seeded reference data with nothing sensible to show a signed-out user, and a set queued offline belongs to a session that may not exist on the server yet, so the outbox would need session-id remapping inside `OutboxDrainer` first. `WorkoutRestTimer` mirrors `PomodoroTimerEngine` exactly — process-wide, Context-free, injected clock — with `WorkoutRestService` rendering it in the shade, because a rest timer that stops when the phone goes in a pocket is not a rest timer.
 - **Offline while signed in.** A signed-in session still calls the server on every operation; the `Offline*Repository` decorators (`repo/OfflineRepositories.kt`) only act when it cannot be reached. Reads then serve the last list seen (`OfflineCache`), and writes go into an ordered queue (`Outbox`) and report success so the screen moves on. `OutboxDrainer` replays the queue oldest-first when the network returns — driven by `OutboxSync` (WorkManager, network-constrained), on app open, and before sign-out — remapping the local ids given to rows created offline onto the real ones as each create lands. The distinction that makes it safe is `Throwable.isOffline`: `ApiException` extends `IOException`, so only a *plain* `IOException` means "unreachable"; anything the server actually answered (a 422, a 404) is surfaced immediately rather than queued to fail forever. Separate from the signed-*out* path, which still writes to `LocalStores` and is pushed once by `SyncManager` at sign-in.
 
 **Built (browser add-on):**
