@@ -28,10 +28,18 @@ export function formatWhen(value) {
     });
 }
 
-/** Transfer rows must read source → destination whichever leg this is. */
+/**
+ * Transfer rows must read source → destination whichever leg this is.
+ *
+ * The API sends the two account projections as names with the ids beside them
+ * (`account`, `related_account`), so these are strings. The `?.name` fallback
+ * keeps a row shaped the old way (an object) readable rather than '—'.
+ */
+const accountName = (value) => (typeof value === 'string' ? value : (value?.name ?? null));
+
 export function transferFlow(transaction) {
-    const own = transaction.account?.name ?? '—';
-    const other = transaction.related_account?.name;
+    const own = accountName(transaction.account) ?? '—';
+    const other = accountName(transaction.related_account);
     if (!other) return own;
     return transaction.type === 'transfer_in' ? `${other} → ${own}` : `${own} → ${other}`;
 }
