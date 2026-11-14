@@ -228,7 +228,7 @@ class OfflineRepositoriesTest {
         repo.post("a1", "deposit", "25.50", "Refund").getOrThrow()
 
         assertEquals(12_550L, cache.budgetAccounts.read().single().balanceCents)
-        assertEquals("Everyday", cache.budgetTransactions.read().single().account?.name)
+        assertEquals("Everyday", cache.budgetTransactions.read().single().account)
     }
 
     @Test

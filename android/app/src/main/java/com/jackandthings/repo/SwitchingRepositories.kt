@@ -1,7 +1,15 @@
 package com.jackandthings.repo
 
 import com.jackandthings.model.BudgetAccount
+import com.jackandthings.model.BudgetCategory
+import com.jackandthings.model.BudgetDue
+import com.jackandthings.model.BudgetGoal
+import com.jackandthings.model.BudgetGoalDraft
+import com.jackandthings.model.BudgetLimitState
+import com.jackandthings.model.BudgetReceipt
+import com.jackandthings.model.BudgetReport
 import com.jackandthings.model.BudgetTransaction
+import com.jackandthings.model.BudgetTransactionDraft
 import com.jackandthings.model.Note
 import com.jackandthings.model.PomodoroPreset
 import com.jackandthings.model.PomodoroPresetDraft
@@ -88,8 +96,8 @@ class SwitchingBudgetRepository(
     override suspend fun createAccount(name: String) = active.createAccount(name)
     override suspend fun deleteAccount(id: String) = active.deleteAccount(id)
     override suspend fun transactions(): Result<List<BudgetTransaction>> = active.transactions()
-    override suspend fun post(accountId: String, type: String, amount: String, description: String?) =
-        active.post(accountId, type, amount, description)
+    override suspend fun postTransaction(draft: BudgetTransactionDraft) =
+        active.postTransaction(draft)
     override suspend fun deleteTransaction(id: String) = active.deleteTransaction(id)
     override suspend fun transfer(
         fromAccountId: String,
@@ -97,4 +105,31 @@ class SwitchingBudgetRepository(
         amount: String,
         description: String?,
     ) = active.transfer(fromAccountId, toAccountId, amount, description)
+
+    // These have no signed-out half; the interface default says so. Routing
+    // them through `active` keeps one switch rule for the whole module rather
+    // than five special cases in the ViewModel.
+    override suspend fun categories(): Result<List<BudgetCategory>> = active.categories()
+    override suspend fun createCategory(name: String, kind: String) = active.createCategory(name, kind)
+    override suspend fun updateCategory(id: String, name: String, kind: String) =
+        active.updateCategory(id, name, kind)
+    override suspend fun deleteCategory(id: String) = active.deleteCategory(id)
+    override suspend fun limits(period: String): Result<List<BudgetLimitState>> = active.limits(period)
+    override suspend fun saveLimit(categoryId: String, period: String, limit: String) =
+        active.saveLimit(categoryId, period, limit)
+    override suspend fun deleteLimit(id: String) = active.deleteLimit(id)
+    override suspend fun goals(): Result<List<BudgetGoal>> = active.goals()
+    override suspend fun createGoal(draft: BudgetGoalDraft) = active.createGoal(draft)
+    override suspend fun updateGoal(id: String, draft: BudgetGoalDraft) = active.updateGoal(id, draft)
+    override suspend fun deleteGoal(id: String) = active.deleteGoal(id)
+    override suspend fun report(period: String, months: Int): Result<BudgetReport> =
+        active.report(period, months)
+    override suspend fun due(period: String): Result<BudgetDue> = active.due(period)
+    override suspend fun uploadReceipt(
+        transactionId: String,
+        bytes: ByteArray,
+        fileName: String,
+        mimeType: String,
+    ) = active.uploadReceipt(transactionId, bytes, fileName, mimeType)
+    override suspend fun deleteReceipt(id: String) = active.deleteReceipt(id)
 }

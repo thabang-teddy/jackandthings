@@ -8,6 +8,7 @@ use App\Enums\BudgetTransactionType;
 use App\Http\Controllers\Concerns\AuthorizesOwnership;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\BudgetTransactionRequest;
+use App\Http\Resources\BudgetTransactionPayload;
 use App\Models\BudgetTransaction;
 use App\Services\BudgetService;
 use Illuminate\Http\JsonResponse;
@@ -21,22 +22,41 @@ class BudgetTransactionController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $transactions = $request->user()
+            ->budgetTransactions()
+            ->with(['account:id,name', 'relatedAccount:id,name', 'category:id,name', 'receipt'])
+            ->orderByDesc('occurred_on')
+            ->orderByDesc('created_at')
+            ->limit(100)
+            ->get();
+
         return response()->json([
-            'data' => $request->user()->budgetTransactions()
-                ->with(['account:id,name', 'relatedAccount:id,name'])
-                ->latest()
-                ->limit(100)
-                ->get(),
+            'data' => BudgetTransactionPayload::collection($transactions, BudgetTransactionPayload::API_FILE_ROUTE),
         ]);
     }
 
     public function store(BudgetTransactionRequest $request): JsonResponse
     {
-        $transaction = $request->string('type')->value() === BudgetTransactionType::Deposit->value
-            ? $this->budget->deposit($request->user(), $request->account(), $request->amountCents(), $request->input('description'))
-            : $this->budget->withdraw($request->user(), $request->account(), $request->amountCents(), $request->input('description'));
+        $type = $request->string('type')->value();
+        $arguments = [
+            $request->user(),
+            $request->account(),
+            $request->amountCents(),
+            $request->input('description'),
+            $request->occurredOn(),
+            $request->merchant(),
+            $request->categoryId(),
+        ];
 
-        return response()->json(['data' => $transaction], 201);
+        $transaction = $type === BudgetTransactionType::Deposit->value
+            ? $this->budget->deposit(...$arguments)
+            : $this->budget->withdraw(...$arguments);
+
+        $transaction->load(['account:id,name', 'category:id,name', 'receipt']);
+
+        return response()->json([
+            'data' => BudgetTransactionPayload::from($transaction, BudgetTransactionPayload::API_FILE_ROUTE),
+        ], 201);
     }
 
     public function destroy(BudgetTransaction $transaction): JsonResponse

@@ -23,8 +23,8 @@ class BudgetTransactionTest {
         id = "id",
         type = type,
         amountCents = 10_000,
-        account = account?.let { AccountRef("a", it) },
-        relatedAccount = related?.let { AccountRef("b", it) },
+        account = account,
+        relatedAccount = related,
     )
 
     @Test

@@ -2,10 +2,11 @@ package com.jackandthings.repo
 
 import com.jackandthings.data.local.JsonFileStore
 import com.jackandthings.data.local.PendingTransfer
-import com.jackandthings.model.AccountRef
 import com.jackandthings.model.BudgetAccount
 import com.jackandthings.model.BudgetTransaction
+import com.jackandthings.model.BudgetTransactionDraft
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 
 /**
@@ -25,7 +26,7 @@ class LocalBudgetRepository(
     override suspend fun accounts(): Result<List<BudgetAccount>> {
         val txns = transactions.read()
         val withBalances = accounts.read().map { account ->
-            val balance = txns.filter { it.account?.id == account.id }
+            val balance = txns.filter { it.accountId == account.id }
                 .sumOf { if (it.isCredit) it.amountCents else -it.amountCents }
             account.copy(balanceCents = balance)
         }
@@ -46,23 +47,26 @@ class LocalBudgetRepository(
     override suspend fun transactions(): Result<List<BudgetTransaction>> =
         Result.success(transactions.read())
 
-    override suspend fun post(
-        accountId: String,
-        type: String,
-        amount: String,
-        description: String?,
+    override suspend fun postTransaction(
+        draft: BudgetTransactionDraft,
     ): Result<BudgetTransaction> {
-        val account = accounts.read().find { it.id == accountId }
+        val account = accounts.read().find { it.id == draft.accountId }
             ?: return Result.failure(IllegalArgumentException("Account not found"))
-        val cents = amount.amountStringToCentsOrNull()
-            ?: return Result.failure(IllegalArgumentException("\"$amount\" is not a valid amount"))
+        val cents = draft.amount.amountStringToCentsOrNull()
+            ?: return Result.failure(
+                IllegalArgumentException("\"${draft.amount}\" is not a valid amount"),
+            )
 
         val txn = BudgetTransaction(
             id = UUID.randomUUID().toString(),
-            type = type,
+            type = draft.type,
             amountCents = cents,
-            description = description,
-            account = AccountRef(account.id, account.name),
+            description = draft.description,
+            accountId = account.id,
+            account = account.name,
+            categoryId = draft.categoryId,
+            occurredOn = draft.occurredOn ?: LocalDate.now().toString(),
+            merchant = draft.merchant,
             createdAt = Instant.now().toString(),
         )
         transactions.write(transactions.read() + txn)
@@ -89,13 +93,17 @@ class LocalBudgetRepository(
             ?: return Result.failure(IllegalArgumentException("\"$amount\" is not a valid amount"))
 
         val now = Instant.now().toString()
+        val today = LocalDate.now().toString()
         val out = BudgetTransaction(
             id = UUID.randomUUID().toString(),
             type = "transfer_out",
             amountCents = cents,
             description = description,
-            account = AccountRef(from.id, from.name),
-            relatedAccount = AccountRef(to.id, to.name),
+            accountId = from.id,
+            account = from.name,
+            relatedAccountId = to.id,
+            relatedAccount = to.name,
+            occurredOn = today,
             createdAt = now,
         )
         val inbound = BudgetTransaction(
@@ -103,8 +111,11 @@ class LocalBudgetRepository(
             type = "transfer_in",
             amountCents = cents,
             description = description,
-            account = AccountRef(to.id, to.name),
-            relatedAccount = AccountRef(from.id, from.name),
+            accountId = to.id,
+            account = to.name,
+            relatedAccountId = from.id,
+            relatedAccount = from.name,
+            occurredOn = today,
             createdAt = now,
         )
         transactions.write(transactions.read() + out + inbound)

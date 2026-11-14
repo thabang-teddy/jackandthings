@@ -61,6 +61,26 @@ class User extends Authenticatable
         return $this->hasMany(BudgetTransaction::class);
     }
 
+    public function budgetCategories(): HasMany
+    {
+        return $this->hasMany(BudgetCategory::class);
+    }
+
+    public function budgetLimits(): HasMany
+    {
+        return $this->hasMany(BudgetLimit::class);
+    }
+
+    public function budgetGoals(): HasMany
+    {
+        return $this->hasMany(BudgetGoal::class);
+    }
+
+    public function budgetReceipts(): HasMany
+    {
+        return $this->hasMany(BudgetReceipt::class);
+    }
+
     public function recurringTransactions(): HasMany
     {
         return $this->hasMany(RecurringTransaction::class);

@@ -3,9 +3,14 @@ import Sparkline from '@/Components/Glass/Sparkline';
 import StatPill from '@/Components/Glass/StatPill';
 import { Link } from '@inertiajs/react';
 import { formatZar } from '@/Lib/formatZar';
-import { budgetLayout, buildBalanceTrend, summarizeInOut } from './shared';
+import {
+    budgetLayout,
+    buildBalanceTrend,
+    DueList,
+    summarizeInOut,
+} from './shared';
 
-export default function Overview({ accounts, transactions, totalCents }) {
+export default function Overview({ accounts, transactions, totalCents, due }) {
     const trend = buildBalanceTrend(transactions);
     const { inCents, outCents } = summarizeInOut(transactions);
 
@@ -63,6 +68,25 @@ export default function Overview({ accounts, transactions, totalCents }) {
                         ))}
                     </div>
                 )}
+            </GlassCard>
+
+            <GlassCard
+                title="Due soon"
+                className="lg:col-span-3"
+                action={
+                    <Link
+                        href={route('budget.recurring')}
+                        className="text-[11px] font-semibold text-[var(--accent)] hover:underline"
+                    >
+                        Recurring
+                    </Link>
+                }
+            >
+                <DueList due={due} />
+                <p className="mt-3 text-[10.5px] text-[var(--muted)]">
+                    The server sends no notifications. This page checks when it
+                    loads, and only while it is open.
+                </p>
             </GlassCard>
         </div>
     );

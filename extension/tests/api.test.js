@@ -169,3 +169,58 @@ describe('response shapes', () => {
         assert.equal((await api.historyEntries()).retentionDays, null);
     });
 });
+
+describe('budget api', () => {
+    test('the monthly caps are read for one period', async () => {
+        respondWith(200, { data: [{ id: 'l1', category: 'Groceries', limit_cents: 30000, spent_cents: 12000 }] });
+
+        assert.deepEqual(await api.budgetLimits('2026-11'), [
+            { id: 'l1', category: 'Groceries', limit_cents: 30000, spent_cents: 12000 },
+        ]);
+        assert.equal(fetchCalls[0].url, 'http://127.0.0.1:8000/api/v1/budget-limits?period=2026-11');
+    });
+
+    test('categories are read through the same envelope', async () => {
+        respondWith(200, { data: [{ id: 'c1', name: 'Groceries', kind: 'expense' }] });
+
+        assert.deepEqual(await api.budgetCategories(), [{ id: 'c1', name: 'Groceries', kind: 'expense' }]);
+        assert.equal(fetchCalls[0].url, 'http://127.0.0.1:8000/api/v1/budget-categories');
+    });
+
+    test('posting a transaction sends the issue #5 columns only when they are present', async () => {
+        respondWith(201, { data: { id: 't1', amount_cents: 12550, occurred_on: '2026-11-14' } });
+
+        await api.createTransaction(
+            'acc1',
+            'withdrawal',
+            '125.50',
+            null,
+            { occurredOn: '2026-11-14', merchant: 'Woolworths', categoryId: 'cat1' },
+        );
+
+        const body = JSON.parse(fetchCalls[0].init.body);
+        assert.equal(body.account_id, 'acc1');
+        assert.equal(body.type, 'withdrawal');
+        assert.equal(body.amount, '125.50');
+        assert.equal(body.occurred_on, '2026-11-14');
+        assert.equal(body.merchant, 'Woolworths');
+        assert.equal(body.category_id, 'cat1');
+    });
+
+    test('a plain ledger post keeps the old body and adds none of the optional columns', async () => {
+        respondWith(201, { data: { id: 't1' } });
+
+        await api.createTransaction('acc1', 'deposit', '50', 'Saved up');
+
+        const body = JSON.parse(fetchCalls[0].init.body);
+        assert.equal(body.account_id, 'acc1');
+        assert.equal(body.type, 'deposit');
+        assert.equal(body.amount, '50');
+        assert.equal(body.description, 'Saved up');
+        // The server defaults occurred_on to today and treats an absent category
+        // as uncategorised, so sending empty strings would be a regression.
+        assert.equal('occurred_on' in body, false);
+        assert.equal('merchant' in body, false);
+        assert.equal('category_id' in body, false);
+    });
+});

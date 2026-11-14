@@ -364,6 +364,21 @@ button {
     color: var(--muted);
 }
 
+/* A cap's spend as a bar: the tone follows the shared limit rule, so an
+   add-on flag cannot disagree with the web app about what "near" means. */
+.meter {
+    height: 6px;
+    margin-top: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--border);
+}
+
+.meter-fill {
+    height: 100%;
+    border-radius: 999px;
+}
+
 /* A checkbox reads as a row, not as a stacked label with a box under it. */
 label.check {
     display: flex;

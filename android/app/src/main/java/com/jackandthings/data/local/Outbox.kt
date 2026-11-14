@@ -177,6 +177,10 @@ sealed interface PendingAction {
         @SerialName("transaction_type") val type: String,
         val amount: String,
         val description: String?,
+        /** Issue #5 columns; null on rows queued before they existed. */
+        val occurredOn: String? = null,
+        val merchant: String? = null,
+        val categoryId: String? = null,
     ) : PendingAction
 
     @Serializable

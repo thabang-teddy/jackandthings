@@ -22,8 +22,12 @@ As built (migrations in `laravel/database/migrations`).
 | PomodoroPreset | Saved timer preset: durations, the long-break cycle, auto-start, tag, sounds, strict mode | User | Indefinite |
 | PomodoroSession | One finished (or abandoned) focus/break interval, logged by whichever client watched it end | User | Indefinite. **Reverses the earlier "no session history" decision** — see the note under Schema |
 | Note | CRUD notes; may be starred to pin it to the home page | User | Indefinite |
-| BudgetAccount | One of a user's accounts/wallets | User | Indefinite |
-| BudgetTransaction | An immutable ledger entry (deposit/withdrawal/transfer leg) | User | Indefinite; no update path |
+| BudgetAccount | One of a user's wallets: kind, opening balance, archived flag | User | Indefinite |
+| BudgetTransaction | An immutable ledger entry (deposit/withdrawal/transfer leg, with the business date, merchant and category) | User | Indefinite; no update path |
+| BudgetCategory | A per-user spending/income bucket, seeded on first use | User | Indefinite |
+| BudgetLimit | One monthly cap for one category, period `YYYY-MM` | User | Indefinite |
+| BudgetGoal | A virtual savings jar (target, saved, optional source account, target date) | User | Indefinite |
+| BudgetReceipt | A transaction's receipt image: disk, path, mime, size | User | Indefinite; deleted with its transaction |
 | WorkoutEntry | A one-line logged workout; still the quick path and still what the hourly nudge reads | User | Indefinite |
 | Exercise | A library exercise: catalog (unowned) or the user's own | **User or nobody** — the one table here with unowned rows | Indefinite |
 | WorkoutRoutine / WorkoutRoutineItem | A saved workout template and its ordered exercises with targets | User (the item through its routine) | Indefinite |
@@ -41,8 +45,16 @@ As built. Every table: `id` UUIDv7 primary key, `user_id` → `users.id` with `c
 
   **On the reversed decision.** Earlier drafts of this file and of ARCHITECTURE.md stated that no Pomodoro session history is stored. Issue #3's daily and weekly analytics need one, so that is no longer true — but only half of it changed. A *running* timer is still never persisted anywhere; it lives as long as the client that owns it. Only an interval that has already ended is written, once, by whichever client saw it end, which is why rows carry a `source`. `preset_name` is denormalised deliberately: deleting a preset must not rewrite history, so the row keeps the name it ran under while the foreign key goes null.
 - `notes`: title (255), body (text, nullable), is_starred (bool, default false — a starred note is pinned to the home page, and only starred ones appear there). Indexes `(user_id, created_at)` and `(user_id, is_starred, created_at)`, the second serving the home page's filtered read.
-- `budget_accounts`: name (60). **Unique `(user_id, name)`** so one user cannot have two accounts of the same name. Index `(user_id, created_at)`.
-- `budget_transactions`: account_id → budget_accounts (cascade), type (20: `deposit`/`withdrawal`/`transfer_in`/`transfer_out`), amount_cents (uint64), related_account_id → budget_accounts (nullable, **nullOnDelete** so a past transfer survives deletion of the counterpart account), transfer_group_id (uuid, nullable — links the two legs of one transfer), description (255, nullable). Indexes `(user_id, created_at)`, `(account_id, created_at)`, `transfer_group_id`.
+- `budget_accounts`: name (60). **Unique `(user_id, name)`** so one user cannot have two accounts of the same name; `kind` (20: `cash`/`bank`/`credit`/`savings`, default `cash`) labels the source, `opening_balance_cents` (uint64, default 0) is the only balance stored, and `archived_at` (nullable) retires an account without deleting its transactions. Index `(user_id, created_at)`, plus `(user_id, archived_at)`. The opening balance is a starting figure, not a running one — the ledger derives the current balance.
+- `budget_transactions`: account_id → budget_accounts (cascade), type (20: `deposit`/`withdrawal`/`transfer_in`/`transfer_out`), amount_cents (uint64), related_account_id → budget_accounts (nullable, **nullOnDelete** so a past transfer survives deletion of the counterpart account), transfer_group_id (uuid, nullable — links the two legs of one transfer), description (255, nullable), occurred_on (date, nullable — backfilled from `created_at` for existing rows, which is the only date the ledger had before), merchant (120, nullable), category_id (uuid, nullable → budget_categories, **nullOnDelete** — a deleted category leaves its transactions uncategorized rather than destroying the money spent under it). Indexes `(user_id, created_at)`, `(account_id, created_at)`, `transfer_group_id`, plus `(user_id, occurred_on)` and `(category_id, occurred_on)`.
+- `budget_categories`: id (uuid), user_id → users (cascade), name (40), kind (10: `expense`/`income`, default `expense`), timestamps; unique `(user_id, name)`, index `(user_id, kind)`. Seeded with the first five examples on first use.
+
+### Personal finance (issue #5)
+
+- `budget_limits`: id (uuid), user_id, category_id → budget_categories (cascade), period (7: `YYYY-MM`), limit_cents (uint64), timestamps; unique `(user_id, category_id, period)` — one cap per category per month, raising edits the row — and index `(user_id, period)`.
+- `budget_goals`: id (uuid), user_id, name (60), target_cents, saved_cents (uint64, default 0 — a running total the user keeps up to date, not a bank balance), account_id → budget_accounts (nullable, **nullOnDelete** — naming an account is optional and only says where the money is meant to come from), target_date (date, nullable), archived_at (timestamp, nullable), timestamps; index `(user_id, archived_at)`.
+- `budget_receipts`: id (uuid), user_id, transaction_id → budget_transactions (cascade, unique — one receipt per transaction), disk (20), path, mime (80), size_bytes (uint, default 0), timestamps; index `(user_id)`. The file lives on the **private** disk and is deleted with the row (`BudgetReceiptStorage`, the same rules as progress photos).
+
 - `workout_entries`: activity (100), logged_at (timestamp), notes (text, nullable). Index `(user_id, logged_at)` — serves both the list and the hourly due-check. **Untouched by issue #4**: the tracked tables below sit beside it rather than replacing it, because the quick "I did a thing" log and the home page's popup still want exactly this shape.
 
 ### Fitness tracking (issue #4)
@@ -68,8 +80,8 @@ stores a float, and kilograms exist only at the point of display.
 No `currency` column anywhere: ZAR is fixed app-wide. Money is stored only as integer cents and formatted client-side (`resources/js/Lib/formatZar.js`), so no float arithmetic touches money.
 
 ## Relationships
-- `User` has many of every other entity above (1-to-many), via explicit relation methods on the `User` model.
-- `BudgetAccount` has many `BudgetTransaction` (`account_id`).
+- `User` has many of every other entity above (1-to-many), via explicit relation methods on the `User` model. `BudgetCategory` has many `BudgetLimit` rows and many `BudgetTransaction` rows, both scoped to the owner.
+- `BudgetAccount` has many `BudgetTransaction` (`account_id`). `BudgetGoal` optionally names an `BudgetAccount` as its source, without owning the row.
 - `WorkoutRoutine` has many `WorkoutRoutineItem` (ordered by `position`); `WorkoutSession` has many `WorkoutSet`; `BodyMetric` has many `ProgressPhoto`.
 - Delete behavior (built): module FKs are `cascadeOnDelete` by default — deleting a user removes all their data, and deleting a budget account, a routine or a workout removes its children. The exceptions, each for a stated reason:
   - `budget_transactions.related_account_id` — `nullOnDelete`, so the surviving account keeps its side of a past transfer.
@@ -88,6 +100,7 @@ No `currency` column anywhere: ZAR is fixed app-wide. Money is stored only as in
 - Transactions and history entries have no `update` ability at all (immutable records).
 - **The exercise library is the one place these rules bend, and only in one direction.** A catalog row (`user_id` null) passes `view` for everybody and `update`/`delete` for nobody, so the shared library cannot be edited out from under other users. A user's own exercise behaves like every other record here. There is no case in which one user reaches another user's exercise. Any request naming an `exercise_id` — a routine item, a logged set — validates it with a `Rule::exists` scoped to "mine or unowned", never an open one.
 - Whether an admin/operator role exists: **unresolved** — open decision in PRD.md. Nothing in the code grants one.
+- Budget scoping follows the same three layers for every new entity the issue added: `BudgetCategory`, `BudgetLimit`, `BudgetGoal` and `BudgetReceipt` are reached through the owning user's relation, guarded by their policies, with any cross-record reference (`category_id`) validated with an ownership-scoped `Rule::exists`. A bound-but-foreign record aborts **404**, never 403. Receipt files are reachable only through the receipt route that authorizes the owner, and the image bytes never ride inside a JSON response.
 
 ## Queries and indexes
 - Every per-user list query filters on `user_id` and orders by recency, matched by the composite indexes listed in Schema above.
@@ -99,4 +112,4 @@ No `currency` column anywhere: ZAR is fixed app-wide. Money is stored only as in
 - Rollback/backups/restore check: **unresolved**.
 
 ## Data validation
-Built, at the request boundary (`laravel/app/Http/Requests`): required fields and length caps per module; amounts `numeric|min:0.01`; a withdrawal or transfer that exceeds the source account's derived balance is rejected with a field error; a transfer's two accounts must differ; account names unique per user. `BudgetService` independently throws `InsufficientFundsException` so the rule holds even if a caller bypasses the FormRequest. Remaining open items (clipboard retention/encryption, real history rule) are listed in PRD.md.
+Built, at the request boundary (`laravel/app/Http/Requests`): required fields and length caps per module; amounts `numeric|min:0.01`; a withdrawal or transfer that exceeds the source account's derived balance is rejected with a field error; a transfer's two accounts must differ; account names unique per user; for issue #5, a transaction's `occurred_on` is a nullable date not after today, `merchant` is nullable text up to 120, and `category_id` is a nullable UUID scoped to the caller's categories that must accept the transaction's type (an income bucket cannot hold a withdrawal). `BudgetService` independently throws `InsufficientFundsException` so the rule holds even if a caller bypasses the FormRequest. Remaining open items (clipboard retention/encryption, real history rule) are listed in PRD.md.

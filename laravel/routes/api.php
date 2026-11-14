@@ -3,6 +3,11 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BodyMetricController;
 use App\Http\Controllers\Api\V1\BudgetAccountController;
+use App\Http\Controllers\Api\V1\BudgetCategoryController;
+use App\Http\Controllers\Api\V1\BudgetGoalController;
+use App\Http\Controllers\Api\V1\BudgetLimitController;
+use App\Http\Controllers\Api\V1\BudgetReceiptController;
+use App\Http\Controllers\Api\V1\BudgetReportController;
 use App\Http\Controllers\Api\V1\BudgetTransactionController;
 use App\Http\Controllers\Api\V1\BudgetTransferController;
 use App\Http\Controllers\Api\V1\ExerciseController;
@@ -115,5 +120,24 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             ->only(['index', 'store', 'destroy']);
         Route::post('budget-transfers', [BudgetTransferController::class, 'store'])->name('budget-transfers.store');
         Route::apiResource('recurring-transactions', RecurringTransactionController::class)->parameters(['recurring-transactions' => 'recurring']);
+
+        Route::apiResource('budget-categories', BudgetCategoryController::class)
+            ->parameters(['budget-categories' => 'category']);
+        Route::apiResource('budget-limits', BudgetLimitController::class)
+            ->parameters(['budget-limits' => 'limit']);
+        Route::apiResource('budget-goals', BudgetGoalController::class)
+            ->parameters(['budget-goals' => 'goal']);
+
+        // The only route to a stored receipt, and it authorizes first.
+        Route::post('budget-transactions/{transaction}/receipt', [BudgetReceiptController::class, 'store'])
+            ->name('budget-receipts.store');
+        Route::get('budget-receipts/{receipt}/file', [BudgetReceiptController::class, 'file'])
+            ->name('budget-receipts.file');
+        Route::delete('budget-receipts/{receipt}', [BudgetReceiptController::class, 'destroy'])
+            ->name('budget-receipts.destroy');
+
+        // Reports and due-state are reads scoped through the token's user.
+        Route::get('budget-reports', [BudgetReportController::class, 'index'])->name('budget-reports.index');
+        Route::get('budget-due', [BudgetReportController::class, 'due'])->name('budget-due');
     });
 });

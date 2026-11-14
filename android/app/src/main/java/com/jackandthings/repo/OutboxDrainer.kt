@@ -3,6 +3,7 @@ package com.jackandthings.repo
 import com.jackandthings.data.local.OfflineCache
 import com.jackandthings.data.local.Outbox
 import com.jackandthings.data.local.PendingAction
+import com.jackandthings.model.BudgetTransactionDraft
 
 /** What a drain attempt did, for the banner that reports it. */
 data class DrainResult(val pushed: Int, val failed: Int, val stillPending: Int) {
@@ -138,11 +139,16 @@ class OutboxDrainer(
             budget.deleteAccount(idMap.resolve(action.subjectId))
 
         is PendingAction.PostTransaction ->
-            budget.post(
-                idMap.resolve(action.accountId),
-                action.type,
-                action.amount,
-                action.description,
+            budget.postTransaction(
+                BudgetTransactionDraft(
+                    accountId = idMap.resolve(action.accountId),
+                    type = action.type,
+                    amount = action.amount,
+                    description = action.description,
+                    occurredOn = action.occurredOn,
+                    merchant = action.merchant,
+                    categoryId = action.categoryId,
+                ),
             ).record(action.subjectId, idMap) { it.id }
 
         is PendingAction.DeleteTransaction ->

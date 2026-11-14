@@ -2,9 +2,9 @@ package com.jackandthings.repo
 
 import com.jackandthings.data.local.LocalStores
 import com.jackandthings.data.local.PendingTransfer
-import com.jackandthings.model.AccountRef
 import com.jackandthings.model.BudgetAccount
 import com.jackandthings.model.BudgetTransaction
+import com.jackandthings.model.BudgetTransactionDraft
 import com.jackandthings.model.Note
 import com.jackandthings.model.PomodoroPreset
 import com.jackandthings.model.WatchList
@@ -167,8 +167,7 @@ class SyncManager(
         }
         stores.budgetAccounts.write(remainingAccounts)
 
-        fun remap(ref: AccountRef?): AccountRef? =
-            ref?.let { r -> idMap[r.id]?.let { serverId -> r.copy(id = serverId) } ?: r }
+        fun remap(id: String?): String? = id?.let { idMap[it] ?: it }
 
         val remainingTransactions = mutableListOf<BudgetTransaction>()
         for (txn in stores.budgetTransactions.read()) {
@@ -176,17 +175,29 @@ class SyncManager(
             // transactions in their own right, so they are never pushed here.
             if (txn.type == "transfer_in" || txn.type == "transfer_out") continue
 
-            val account = remap(txn.account)
-            if (account == null) {
+            val accountId = remap(txn.accountId)
+            if (accountId == null) {
                 remainingTransactions += txn
                 errors += "A transaction's account was never synced"
                 continue
             }
 
-            remoteBudget.post(account.id, txn.type, txn.amountCents.centsToAmountString(), txn.description)
+            // The business date and merchant travel too; only the account id
+            // needed remapping, since accounts are the rows created locally.
+            remoteBudget.postTransaction(
+                BudgetTransactionDraft(
+                    accountId = accountId,
+                    type = txn.type,
+                    amount = txn.amountCents.centsToAmountString(),
+                    description = txn.description,
+                    occurredOn = txn.occurredOn,
+                    merchant = txn.merchant,
+                    categoryId = txn.categoryId,
+                ),
+            )
                 .onSuccess { pushed++ }
                 .onFailure {
-                    remainingTransactions += txn.copy(account = account)
+                    remainingTransactions += txn.copy(accountId = accountId)
                     errors += "Transaction \"${txn.description ?: txn.label}\": ${it.readableMessage()}"
                 }
         }

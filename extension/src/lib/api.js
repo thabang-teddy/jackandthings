@@ -220,7 +220,13 @@ export const api = {
     createBudgetAccount: async (name) =>
         data(await request('budget-accounts', { method: 'POST', body: { name } })),
     budgetTransactions: async () => data(await request('budget-transactions')) ?? [],
-    createTransaction: async (accountId, type, amount, description) =>
+    /**
+     * [extras] carries issue #5's three optional columns: `occurredOn`
+     * (`YYYY-MM-DD`, the business date), `merchant` and `categoryId`. They are
+     * omitted rather than sent empty, because the server treats an absent
+     * `occurred_on` as today and an absent category as uncategorised.
+     */
+    createTransaction: async (accountId, type, amount, description, extras = {}) =>
         data(
             await request('budget-transactions', {
                 method: 'POST',
@@ -229,9 +235,17 @@ export const api = {
                     type,
                     amount,
                     description: description ?? '',
+                    ...(extras.occurredOn ? { occurred_on: extras.occurredOn } : {}),
+                    ...(extras.merchant ? { merchant: extras.merchant } : {}),
+                    ...(extras.categoryId ? { category_id: extras.categoryId } : {}),
                 },
             }),
         ),
+    /** Seeded by the server on first read, so this is never empty on success. */
+    budgetCategories: async () => data(await request('budget-categories')) ?? [],
+    /** Caps for one `YYYY-MM`, with the month's spend already totalled. */
+    budgetLimits: async (period) =>
+        data(await request(`budget-limits?period=${encodeURIComponent(period)}`)) ?? [],
     transfer: (fromAccountId, toAccountId, amount, description) =>
         request('budget-transfers', {
             method: 'POST',

@@ -6,6 +6,10 @@ namespace App\Providers;
 
 use App\Models\BodyMetric;
 use App\Models\BudgetAccount;
+use App\Models\BudgetCategory;
+use App\Models\BudgetGoal;
+use App\Models\BudgetLimit;
+use App\Models\BudgetReceipt;
 use App\Models\BudgetTransaction;
 use App\Models\Exercise;
 use App\Models\HistoryEntry;
@@ -23,6 +27,10 @@ use App\Models\WorkoutSession;
 use App\Models\WorkoutSet;
 use App\Policies\BodyMetricPolicy;
 use App\Policies\BudgetAccountPolicy;
+use App\Policies\BudgetCategoryPolicy;
+use App\Policies\BudgetGoalPolicy;
+use App\Policies\BudgetLimitPolicy;
+use App\Policies\BudgetReceiptPolicy;
 use App\Policies\BudgetTransactionPolicy;
 use App\Policies\ExercisePolicy;
 use App\Policies\HistoryEntryPolicy;
@@ -55,6 +63,10 @@ class AuthServiceProvider extends ServiceProvider
         PomodoroSession::class => PomodoroSessionPolicy::class,
         Note::class => NotePolicy::class,
         BudgetAccount::class => BudgetAccountPolicy::class,
+        BudgetCategory::class => BudgetCategoryPolicy::class,
+        BudgetLimit::class => BudgetLimitPolicy::class,
+        BudgetGoal::class => BudgetGoalPolicy::class,
+        BudgetReceipt::class => BudgetReceiptPolicy::class,
         BudgetTransaction::class => BudgetTransactionPolicy::class,
         RecurringTransaction::class => RecurringTransactionPolicy::class,
         WorkoutEntry::class => WorkoutEntryPolicy::class,
