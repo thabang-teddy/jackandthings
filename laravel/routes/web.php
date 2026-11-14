@@ -3,7 +3,11 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Web\BodyMetricController;
 use App\Http\Controllers\Web\BudgetAccountController;
+use App\Http\Controllers\Web\BudgetCategoryController;
 use App\Http\Controllers\Web\BudgetController;
+use App\Http\Controllers\Web\BudgetGoalController;
+use App\Http\Controllers\Web\BudgetLimitController;
+use App\Http\Controllers\Web\BudgetReceiptController;
 use App\Http\Controllers\Web\BudgetTransactionController;
 use App\Http\Controllers\Web\BudgetTransferController;
 use App\Http\Controllers\Web\ExerciseController;
@@ -138,13 +142,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('history', [HistoryEntryController::class, 'store'])->name('history.store');
     Route::delete('history/{history}', [HistoryEntryController::class, 'destroy'])->name('history.destroy');
 
-    // Budget — Overview is the index; Cards, Transfer, Transactions and
-    // Recurring are their own pages.
+    // Budget - Overview is the index; Cards, Transfer, Transactions,
+    // Recurring, Categories, Limits, Goals and Reports are their own pages.
     Route::get('budget', [BudgetController::class, 'index'])->name('budget.index');
     Route::get('budget/cards', [BudgetController::class, 'cards'])->name('budget.cards');
     Route::get('budget/transfer', [BudgetController::class, 'transfer'])->name('budget.transfer');
     Route::get('budget/transactions', [BudgetController::class, 'transactions'])->name('budget.transactions');
     Route::get('budget/recurring', [BudgetController::class, 'recurring'])->name('budget.recurring');
+    Route::get('budget/categories', [BudgetController::class, 'categories'])->name('budget.categories');
+    Route::get('budget/limits', [BudgetController::class, 'limits'])->name('budget.limits');
+    Route::get('budget/goals', [BudgetController::class, 'goals'])->name('budget.goals');
+    Route::get('budget/reports', [BudgetController::class, 'reports'])->name('budget.reports');
+    Route::get('budget/export', [BudgetController::class, 'export'])->name('budget.export');
 
     Route::post('budget/accounts', [BudgetAccountController::class, 'store'])->name('budget.accounts.store');
     Route::put('budget/accounts/{account}', [BudgetAccountController::class, 'update'])->name('budget.accounts.update');
@@ -156,6 +165,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('budget/recurring', [RecurringTransactionController::class, 'store'])->name('budget.recurring.store');
     Route::put('budget/recurring/{recurring}', [RecurringTransactionController::class, 'update'])->name('budget.recurring.update');
     Route::delete('budget/recurring/{recurring}', [RecurringTransactionController::class, 'destroy'])->name('budget.recurring.destroy');
+
+    Route::post('budget/categories', [BudgetCategoryController::class, 'store'])->name('budget.categories.store');
+    Route::put('budget/categories/{category}', [BudgetCategoryController::class, 'update'])->name('budget.categories.update');
+    Route::delete('budget/categories/{category}', [BudgetCategoryController::class, 'destroy'])->name('budget.categories.destroy');
+
+    Route::post('budget/limits', [BudgetLimitController::class, 'store'])->name('budget.limits.store');
+    Route::put('budget/limits/{limit}', [BudgetLimitController::class, 'update'])->name('budget.limits.update');
+    Route::delete('budget/limits/{limit}', [BudgetLimitController::class, 'destroy'])->name('budget.limits.destroy');
+
+    Route::post('budget/goals', [BudgetGoalController::class, 'store'])->name('budget.goals.store');
+    Route::put('budget/goals/{goal}', [BudgetGoalController::class, 'update'])->name('budget.goals.update');
+    Route::delete('budget/goals/{goal}', [BudgetGoalController::class, 'destroy'])->name('budget.goals.destroy');
+
+    Route::post('budget/transactions/{transaction}/receipt', [BudgetReceiptController::class, 'store'])->name('budget-receipts.store');
+    Route::get('budget/receipts/{receipt}/file', [BudgetReceiptController::class, 'file'])->name('budget-receipts.file');
+    Route::delete('budget/receipts/{receipt}', [BudgetReceiptController::class, 'destroy'])->name('budget-receipts.destroy');
 });
 
 require __DIR__.'/auth.php';

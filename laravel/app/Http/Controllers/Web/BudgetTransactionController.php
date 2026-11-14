@@ -23,12 +23,20 @@ class BudgetTransactionController extends Controller
         $user = $request->user();
         $account = $request->account();
         $amountCents = $request->amountCents();
-        $description = $request->input('description');
+        $arguments = [
+            $user,
+            $account,
+            $amountCents,
+            $request->input('description'),
+            $request->occurredOn(),
+            $request->merchant(),
+            $request->categoryId(),
+        ];
 
         if ($request->string('type')->value() === BudgetTransactionType::Deposit->value) {
-            $this->budget->deposit($user, $account, $amountCents, $description);
+            $this->budget->deposit(...$arguments);
         } else {
-            $this->budget->withdraw($user, $account, $amountCents, $description);
+            $this->budget->withdraw(...$arguments);
         }
 
         return back()->with('status', 'Transaction posted.');

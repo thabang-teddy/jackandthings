@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Concerns\AuthorizesOwnership;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\BudgetAccountRequest;
+use App\Http\Resources\BudgetAccountPayload;
 use App\Models\BudgetAccount;
 use App\Services\BudgetService;
 use Illuminate\Http\JsonResponse;
@@ -24,22 +25,27 @@ class BudgetAccountController extends Controller
         $balances = $this->budget->balancesFor($user);
 
         $accounts = $user->budgetAccounts()
+            ->orderBy('archived_at')
             ->orderBy('name')
-            ->get()
-            ->map(fn (BudgetAccount $account): array => [
-                'id' => $account->id,
-                'name' => $account->name,
-                'balance_cents' => $balances[$account->id] ?? 0,
-            ]);
+            ->get();
 
-        return response()->json(['data' => $accounts, 'meta' => ['currency' => 'ZAR']]);
+        return response()->json([
+            'data' => BudgetAccountPayload::collection($accounts, $balances),
+            'meta' => ['currency' => 'ZAR'],
+        ]);
     }
 
     public function store(BudgetAccountRequest $request): JsonResponse
     {
-        $account = $request->user()->budgetAccounts()->create($request->validated());
+        $account = $request->user()->budgetAccounts()->create($request->attributesForModel());
 
-        return response()->json(['data' => $account], 201);
+        // The database supplies `kind` and `opening_balance_cents` when the
+        // caller omitted them, so re-read the row before building the payload.
+        $account->refresh();
+
+        return response()->json([
+            'data' => BudgetAccountPayload::from($account, $account->balanceCents()),
+        ], 201);
     }
 
     public function show(BudgetAccount $account): JsonResponse
@@ -47,11 +53,7 @@ class BudgetAccountController extends Controller
         $this->authorizeOwned('view', $account);
 
         return response()->json([
-            'data' => [
-                'id' => $account->id,
-                'name' => $account->name,
-                'balance_cents' => $account->balanceCents(),
-            ],
+            'data' => BudgetAccountPayload::from($account, $account->balanceCents()),
         ]);
     }
 
@@ -59,9 +61,11 @@ class BudgetAccountController extends Controller
     {
         $this->authorizeOwned('update', $account);
 
-        $account->update($request->validated());
+        $account->update($request->attributesForModel());
 
-        return response()->json(['data' => $account]);
+        return response()->json([
+            'data' => BudgetAccountPayload::from($account->refresh(), $account->balanceCents()),
+        ]);
     }
 
     public function destroy(BudgetAccount $account): JsonResponse
