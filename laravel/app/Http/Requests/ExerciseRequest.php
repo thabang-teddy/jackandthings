@@ -36,7 +36,12 @@ class ExerciseRequest extends FormRequest
             'equipment' => ['nullable', 'string', 'max:60'],
             'instructions' => ['nullable', 'string', 'max:4000'],
             'cues' => ['nullable', 'array', 'max:12'],
-            'cues.*' => ['string', 'max:160'],
+            // Nullable because Laravel's TrimStrings and
+            // ConvertEmptyStringsToNull reach the payload first: a cue the
+            // user left blank arrives here as null, not as "". Rejecting it
+            // would mean a stray empty line in a textarea fails the whole
+            // save; attributesForModel() drops it instead.
+            'cues.*' => ['nullable', 'string', 'max:160'],
         ];
     }
 

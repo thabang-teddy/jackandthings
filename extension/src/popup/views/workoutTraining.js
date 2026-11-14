@@ -48,6 +48,16 @@ export async function renderTraining(view, rerender) {
     const suggestion = routine ? nextSet(routine.items, session.sets) : null;
     const progress = routine ? routineProgress(routine.items, session.sets) : null;
 
+    // What the user did last time, for whichever exercise is about to be
+    // logged. Fetched for that one exercise rather than the whole library:
+    // this is the progressive-overload half of the issue, and the popup only
+    // ever shows one exercise's numbers at a time. A failure is silent - the
+    // history is a help, and losing it must not stop a set being logged.
+    const upNextId = suggestion?.exercise_id ?? exercises[0]?.id ?? null;
+    const history = upNextId
+        ? await api.exerciseHistory(upNextId).catch(() => null)
+        : null;
+
     view.append(renderSessionCard(view, session, suggestion, progress, rerender));
 
     const rest = settings.workoutRest;
@@ -55,7 +65,7 @@ export async function renderTraining(view, rerender) {
         view.append(renderRest(view, rest, rerender));
     }
 
-    view.append(renderSetForm(view, session, exercises, suggestion, rerender));
+    view.append(renderSetForm(view, session, exercises, suggestion, history, rerender));
 
     if (session.sets.length === 0) {
         view.append(muted('No sets logged yet.'));
@@ -191,7 +201,7 @@ function renderRest(view, rest, rerender) {
     ]);
 }
 
-function renderSetForm(view, session, exercises, suggestion, rerender) {
+function renderSetForm(view, session, exercises, suggestion, history, rerender) {
     const selectedId = suggestion?.exercise_id ?? exercises[0]?.id ?? '';
     const selected = exercises.find((item) => item.id === selectedId) ?? null;
     const fields = fieldsFor(selected?.metric);
@@ -235,6 +245,14 @@ function renderSetForm(view, session, exercises, suggestion, rerender) {
         },
         [
             h('strong', { text: 'Log a set' }),
+            // "No history yet" rather than zeroes: the two mean different
+            // things, and 0 kg would read as a terrible session.
+            history?.sessions?.[0]
+                ? muted(
+                      'Last time: ' +
+                          history.sessions[0].sets.map(describeSet).join(' · '),
+                  )
+                : muted('No history for this exercise yet.'),
             h('label', { text: 'Exercise' }, [
                 h(
                     'select',

@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -270,9 +271,37 @@ private fun SetLoggerCard(state: TrainingState, viewModel: TrainingViewModel) {
     val exercise = state.exercises.firstOrNull { it.id == exerciseId }
     val fields = WorkoutProgress.fieldsFor(exercise?.metric)
 
+    // The progressive-overload panel: what this exercise looked like last
+    // time, fetched as the picker changes rather than for the whole library.
+    LaunchedEffect(exerciseId) {
+        if (exerciseId.isNotEmpty()) viewModel.loadHistory(exerciseId)
+    }
+
     Card {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Log a set", style = MaterialTheme.typography.titleMedium)
+
+            if (state.historyFor == exerciseId && exerciseId.isNotEmpty()) {
+                val lastTime = state.history?.sessions?.firstOrNull()
+
+                Text(
+                    if (lastTime == null) {
+                        // Not "0 kg": never having done it and having done it
+                        // badly are different things to tell somebody.
+                        "No history for this exercise yet."
+                    } else {
+                        "Last time: " + lastTime.sets.joinToString(" · ") { set ->
+                            listOfNotNull(
+                                WorkoutFormat.kg(set.weightGrams),
+                                set.reps?.let { "x $it" },
+                                WorkoutFormat.distance(set.distanceMetres),
+                                WorkoutFormat.seconds(set.durationSeconds),
+                            ).joinToString(" ")
+                        }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
 
             ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
                 OutlinedTextField(

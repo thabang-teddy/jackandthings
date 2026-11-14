@@ -8,7 +8,8 @@ import {
     GlassSelect,
 } from '@/Components/Glass/GlassFormControls';
 import { useWorkoutRest } from '@/Lib/WorkoutRestContext';
-import { kgToGrams } from '@/Lib/formatWorkout';
+import { formatKg, formatSet, kgToGrams } from '@/Lib/formatWorkout';
+import { formatWhen } from '@/Lib/formatWhen';
 import { fieldsFor, restSecondsFor } from '@/Lib/workoutProgress';
 
 const BLANK = {
@@ -66,6 +67,48 @@ export default function SetLogger({ session, exercises, suggestion }) {
     );
 
     const fields = fieldsFor(exercise?.metric);
+
+    // What the user did last time, fetched as the exercise changes rather
+    // than shipped with the page: this is the progressive-overload half of
+    // the issue, and preloading a history for every exercise in the library
+    // to show one of them would be absurd. Also refetched after each save, so
+    // the panel keeps up as the workout goes on.
+    const [history, setHistory] = useState(null);
+    const [historyFor, setHistoryFor] = useState(null);
+
+    useEffect(() => {
+        if (!data.exercise_id) {
+            setHistory(null);
+            setHistoryFor(null);
+
+            return undefined;
+        }
+
+        let live = true;
+
+        fetch(route('workouts.exercises.history', data.exercise_id), {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+        })
+            .then((response) => (response.ok ? response.json() : null))
+            .then((payload) => {
+                // Guards a slow reply landing after the user has moved on to
+                // a different exercise.
+                if (!live) {
+                    return;
+                }
+
+                setHistory(payload?.data ?? null);
+                setHistoryFor(data.exercise_id);
+            })
+            // A failed lookup is silent: the history is a help, and losing it
+            // must not stop the set being logged.
+            .catch(() => {});
+
+        return () => {
+            live = false;
+        };
+    }, [data.exercise_id, session.sets.length]);
 
     const submit = (event) => {
         event.preventDefault();
@@ -147,6 +190,43 @@ export default function SetLogger({ session, exercises, suggestion }) {
                 </GlassSelect>
                 <GlassError message={errors.exercise_id} />
             </div>
+
+            {exercise && historyFor === data.exercise_id && (
+                <div
+                    className="rounded-xl border px-3 py-2"
+                    style={{
+                        borderColor: 'var(--card-border)',
+                        background: 'var(--card-bg)',
+                    }}
+                >
+                    <p className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--muted)]">
+                        Last time
+                    </p>
+                    {history ? (
+                        <>
+                            <p className="text-sm text-[var(--ink)]">
+                                {history.sessions[0]?.sets
+                                    .map((set) => formatSet(set))
+                                    .join(' · ')}
+                            </p>
+                            <p className="mt-0.5 text-xs text-[var(--muted)]">
+                                {history.sessions[0]?.performed_at
+                                    ? formatWhen(
+                                          history.sessions[0].performed_at,
+                                      )
+                                    : ''}
+                                {history.best?.best_one_rep_max_grams
+                                    ? ` · best est. 1RM ${formatKg(history.best.best_one_rep_max_grams)}`
+                                    : ''}
+                            </p>
+                        </>
+                    ) : (
+                        <p className="text-sm text-[var(--muted)]">
+                            No history yet — this one sets the mark.
+                        </p>
+                    )}
+                </div>
+            )}
 
             <div className="grid gap-3 sm:grid-cols-2">
                 {fields.weight && (

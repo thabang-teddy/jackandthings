@@ -36,6 +36,19 @@ class WorkoutSet extends Model
 {
     use HasFactory, HasUuids;
 
+    /**
+     * The column has a database default, but a model that has just been
+     * created and not reloaded does not carry it - so `$set->is_warmup` was
+     * null rather than false on exactly the instance WorkoutRecords::isRecord()
+     * is handed straight after a write. A set is not a warm-up unless it says
+     * so, in memory as well as on disk.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'is_warmup' => false,
+    ];
+
     protected function casts(): array
     {
         return [

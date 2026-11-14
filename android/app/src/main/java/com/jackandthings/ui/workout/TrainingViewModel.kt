@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.jackandthings.model.Exercise
+import com.jackandthings.model.ExerciseHistory
 import com.jackandthings.model.WorkoutRoutine
 import com.jackandthings.model.WorkoutSession
 import com.jackandthings.model.WorkoutSessionDraft
@@ -33,6 +34,14 @@ data class TrainingState(
     val error: String? = null,
     /** Set briefly after a logged set that beat a previous best. */
     val recordJustSet: Boolean = false,
+    /**
+     * What the user did the last few times they trained the exercise about to
+     * be logged, and which exercise it is for. Null history with a non-null
+     * `historyFor` means "never trained this", which the screen shows as such
+     * rather than as zeroes.
+     */
+    val history: ExerciseHistory? = null,
+    val historyFor: String? = null,
 ) {
     /** The routine the running workout came from, if any. */
     val routine: WorkoutRoutine?
@@ -136,7 +145,14 @@ class TrainingViewModel(
             training.logSet(sessionId, draft).fold(
                 onSuccess = { logged ->
                     WorkoutRestTimer.start(restSeconds, label)
-                    _state.update { it.copy(saving = false, recordJustSet = logged.isRecord) }
+                    // The history is now a set out of date for this exercise.
+                    _state.update {
+                        it.copy(
+                            saving = false,
+                            recordJustSet = logged.isRecord,
+                            historyFor = null,
+                        )
+                    }
                     reloadSession()
                 },
                 onFailure = { error ->
@@ -181,6 +197,28 @@ class TrainingViewModel(
                 onSuccess = { refresh() },
                 onFailure = { error -> _state.update { it.copy(error = error.readableMessage()) } },
             )
+        }
+    }
+
+    /**
+     * Loads what the user last did with this exercise - the
+     * progressive-overload panel above the set form.
+     *
+     * Fetched for one exercise as the picker changes rather than for the whole
+     * library up front: the screen only ever shows one exercise's numbers, and
+     * a failure here is swallowed because losing the history must not stop a
+     * set being logged.
+     */
+    fun loadHistory(exerciseId: String) {
+        if (exerciseId.isEmpty() || _state.value.historyFor == exerciseId) return
+
+        viewModelScope.launch {
+            exercises.history(exerciseId).onSuccess { history ->
+                // Guards a slow reply landing after the picker has moved on.
+                _state.update { current ->
+                    current.copy(history = history, historyFor = exerciseId)
+                }
+            }
         }
     }
 

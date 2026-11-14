@@ -21,9 +21,10 @@ class BodyMetricController extends Controller
      */
     public function store(BodyMetricRequest $request): RedirectResponse
     {
+        // whereDate, not a plain equality - see the API controller for why.
         $existing = $request->user()
             ->bodyMetrics()
-            ->where('measured_on', $request->dayKey())
+            ->whereDate('measured_on', $request->dayKey())
             ->first();
 
         if ($existing !== null) {

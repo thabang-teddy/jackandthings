@@ -4,21 +4,28 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Security;
 
+use App\Models\BodyMetric;
 use App\Models\BudgetAccount;
+use App\Models\Exercise;
 use App\Models\HistoryEntry;
 use App\Models\Note;
 use App\Models\PomodoroPreset;
 use App\Models\PomodoroSession;
+use App\Models\ProgressPhoto;
 use App\Models\RecurringTransaction;
 use App\Models\User;
 use App\Models\WatchList;
 use App\Models\WatchListItem;
 use App\Models\WorkoutEntry;
 use App\Models\WorkoutPreset;
+use App\Models\WorkoutRoutine;
+use App\Models\WorkoutSession;
 use App\Services\BudgetService;
+use App\Services\ProgressPhotoStorage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -41,6 +48,20 @@ class CrossTenantAccessTest extends TestCase
     /** Records owned by the victim, keyed by the route parameter name. */
     private array $victimRecords = [];
 
+    /**
+     * A catalog exercise, which belongs to nobody and is usable by both
+     * users.
+     *
+     * The set-logging payloads need one. Pointing them at the victim's own
+     * exercise would make the attacker's request fail the scoped
+     * `Rule::exists` and return 422 *before* the session's ownership check
+     * ever ran - so the test would pass without proving the thing it claims
+     * to prove. With a shared exercise, validation passes for both and the
+     * 404 can only come from the session check, which is the actual threat:
+     * logging a set into somebody else's workout.
+     */
+    private Exercise $sharedExercise;
+
     private User $victim;
 
     private User $attacker;
@@ -49,8 +70,14 @@ class CrossTenantAccessTest extends TestCase
     {
         parent::setUp();
 
+        // The photo fixture needs a file behind it: the download action 404s
+        // on a missing file, which would otherwise look like an ownership
+        // failure and make the sweep pass for the wrong reason.
+        Storage::fake(ProgressPhotoStorage::DISK);
+
         $this->victim = User::factory()->create();
         $this->attacker = User::factory()->create();
+        $this->sharedExercise = Exercise::factory()->catalog()->create();
         $this->buildVictimFixture();
     }
 
@@ -63,7 +90,29 @@ class CrossTenantAccessTest extends TestCase
         $budget->deposit($this->victim, $account, 50_000, 'seed');
         $transaction = $this->victim->budgetTransactions()->latest()->firstOrFail();
 
+        // Issue #4's records. `exercise` is deliberately one the victim owns,
+        // not a catalog row: a catalog exercise is readable by everybody by
+        // design, so using one here would assert the opposite of the rule.
+        $exercise = Exercise::factory()->for($this->victim)->create();
+        $routine = WorkoutRoutine::factory()->for($this->victim)->create();
+        $routine->items()->create(['exercise_id' => $exercise->getKey(), 'position' => 0]);
+        $workoutSession = WorkoutSession::factory()->for($this->victim)->open()->create();
+        $workoutSet = $this->victim->workoutSets()->create([
+            'workout_session_id' => $workoutSession->getKey(),
+            'exercise_id' => $exercise->getKey(),
+            'position' => 1,
+            'reps' => 5,
+            'weight_grams' => 60_000,
+            'completed_at' => now(),
+        ]);
+
         $this->victimRecords = [
+            'exercise' => $exercise,
+            'routine' => $routine,
+            'session' => $workoutSession,
+            'set' => $workoutSet,
+            'metric' => BodyMetric::factory()->for($this->victim)->create(),
+            'photo' => $this->photoWithAFile(),
             'note' => Note::factory()->for($this->victim)->create(),
             'preset' => $preset = PomodoroPreset::factory()->for($this->victim)->create(),
             'pomodoroSession' => PomodoroSession::factory()
@@ -129,6 +178,27 @@ class CrossTenantAccessTest extends TestCase
 
             'web workout-presets.destroy' => ['DELETE', '/workouts/presets/{workoutPreset}', []],
 
+            // Fitness tracking (issue #4). Payloads are valid enough to reach
+            // the ownership check: a write rejected by validation first would
+            // 422 rather than 404 and would prove nothing.
+            'web exercises.history' => ['GET', '/workouts/exercises/{exercise}/history', []],
+            'web exercises.update' => ['PUT', '/workouts/exercises/{exercise}', ['name' => 'x']],
+            'web exercises.destroy' => ['DELETE', '/workouts/exercises/{exercise}', []],
+            'web routines.update' => ['PUT', '/workouts/routines/{routine}', ['name' => 'x']],
+            'web routines.destroy' => ['DELETE', '/workouts/routines/{routine}', []],
+            'web workout-sessions.update' => ['PUT', '/workouts/sessions/{session}', ['notes' => 'x']],
+            'web workout-sessions.finish' => ['POST', '/workouts/sessions/{session}/finish', []],
+            'web workout-sessions.destroy' => ['DELETE', '/workouts/sessions/{session}', []],
+            'web workout-sets.store' => ['POST', '/workouts/sessions/{session}/sets', [
+                'exercise_id' => '{sharedExercise}', 'reps' => 5,
+            ]],
+            'web workout-sets.update' => ['PUT', '/workouts/sets/{set}', ['reps' => 6]],
+            'web workout-sets.destroy' => ['DELETE', '/workouts/sets/{set}', []],
+            'web body-metrics.update' => ['PUT', '/workouts/body/{metric}', ['weight_grams' => 81000]],
+            'web body-metrics.destroy' => ['DELETE', '/workouts/body/{metric}', []],
+            'web progress-photos.file' => ['GET', '/workouts/photos/{photo}/file', []],
+            'web progress-photos.destroy' => ['DELETE', '/workouts/photos/{photo}', []],
+
             'web history.destroy' => ['DELETE', '/history/{history}', []],
 
             'web budget.accounts.update' => ['PUT', '/budget/accounts/{account}', ['name' => 'renamed']],
@@ -164,6 +234,29 @@ class CrossTenantAccessTest extends TestCase
 
             'api workout-presets.destroy' => ['DELETE', '/api/v1/workout-presets/{workoutPreset}', []],
 
+            'api exercises.show' => ['GET', '/api/v1/exercises/{exercise}', []],
+            'api exercises.history' => ['GET', '/api/v1/exercises/{exercise}/history', []],
+            'api exercises.update' => ['PUT', '/api/v1/exercises/{exercise}', ['name' => 'x']],
+            'api exercises.destroy' => ['DELETE', '/api/v1/exercises/{exercise}', []],
+            'api routines.show' => ['GET', '/api/v1/workout-routines/{routine}', []],
+            'api routines.update' => ['PUT', '/api/v1/workout-routines/{routine}', ['name' => 'x']],
+            'api routines.destroy' => ['DELETE', '/api/v1/workout-routines/{routine}', []],
+            'api workout-sessions.show' => ['GET', '/api/v1/workout-sessions/{session}', []],
+            'api workout-sessions.update' => ['PUT', '/api/v1/workout-sessions/{session}', ['notes' => 'x']],
+            'api workout-sessions.finish' => ['POST', '/api/v1/workout-sessions/{session}/finish', []],
+            'api workout-sessions.destroy' => ['DELETE', '/api/v1/workout-sessions/{session}', []],
+            'api workout-sets.index' => ['GET', '/api/v1/workout-sessions/{session}/sets', []],
+            'api workout-sets.store' => ['POST', '/api/v1/workout-sessions/{session}/sets', [
+                'exercise_id' => '{sharedExercise}', 'reps' => 5,
+            ]],
+            'api workout-sets.update' => ['PUT', '/api/v1/workout-sets/{set}', ['reps' => 6]],
+            'api workout-sets.destroy' => ['DELETE', '/api/v1/workout-sets/{set}', []],
+            'api body-metrics.show' => ['GET', '/api/v1/body-metrics/{metric}', []],
+            'api body-metrics.update' => ['PUT', '/api/v1/body-metrics/{metric}', ['weight_grams' => 81000]],
+            'api body-metrics.destroy' => ['DELETE', '/api/v1/body-metrics/{metric}', []],
+            'api progress-photos.file' => ['GET', '/api/v1/progress-photos/{photo}/file', []],
+            'api progress-photos.destroy' => ['DELETE', '/api/v1/progress-photos/{photo}', []],
+
             'api history.show' => ['GET', '/api/v1/history-entries/{history}', []],
             'api history.destroy' => ['DELETE', '/api/v1/history-entries/{history}', []],
 
@@ -183,6 +276,7 @@ class CrossTenantAccessTest extends TestCase
     public function test_another_users_record_is_not_reachable(string $method, string $template, array $payload): void
     {
         $uri = $this->resolve($template);
+        $payload = $this->resolvePayload($payload);
 
         $response = str_starts_with($template, '/api/')
             ? $this->actingAsApi($this->attacker)->json($method, $uri, $payload)
@@ -200,6 +294,7 @@ class CrossTenantAccessTest extends TestCase
     public function test_the_owner_can_still_reach_their_own_record(string $method, string $template, array $payload): void
     {
         $uri = $this->resolve($template);
+        $payload = $this->resolvePayload($payload);
 
         $response = str_starts_with($template, '/api/')
             ? $this->actingAsApi($this->victim)->json($method, $uri, $payload)
@@ -233,7 +328,16 @@ class CrossTenantAccessTest extends TestCase
             '/api/v1/budget-accounts',
             '/api/v1/budget-transactions',
             '/api/v1/recurring-transactions',
+            '/api/v1/workout-routines',
+            '/api/v1/workout-sessions',
+            '/api/v1/body-metrics',
+            '/api/v1/progress-photos',
         ];
+
+        // Deliberately absent: /api/v1/exercises. It is the one list that is
+        // *supposed* to return rows the caller does not own - the seeded
+        // catalog belongs to nobody and is readable by everybody - so an
+        // empty-list assertion would be asserting a bug.
 
         foreach ($endpoints as $endpoint) {
             $response = $this->actingAsApi($this->attacker)->getJson($endpoint);
@@ -292,6 +396,40 @@ class CrossTenantAccessTest extends TestCase
         }
 
         return array_intersect($parameters, array_keys($this->victimRecords)) !== [];
+    }
+
+    /** A photo row with an actual file on the faked disk behind it. */
+    private function photoWithAFile(): ProgressPhoto
+    {
+        $photo = ProgressPhoto::factory()->for($this->victim)->create();
+
+        Storage::disk($photo->disk)->put($photo->path, 'not really a jpeg');
+
+        return $photo;
+    }
+
+    /**
+     * The same `{fixture}` substitution the URI gets, applied to a payload.
+     *
+     * A write that references another record - a set naming its exercise -
+     * would otherwise fail validation on a made-up id and 422 before the
+     * ownership check ever ran, which would make the 404 assertion
+     * meaningless.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function resolvePayload(array $payload): array
+    {
+        return array_map(function (mixed $value): mixed {
+            if ($value === '{sharedExercise}') {
+                return $this->sharedExercise->getKey();
+            }
+
+            return is_string($value) && str_starts_with($value, '{')
+                ? $this->resolve($value)
+                : $value;
+        }, $payload);
     }
 
     private function resolve(string $template): string

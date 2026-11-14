@@ -97,6 +97,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('workouts/presets/{workoutPreset}', [WorkoutPresetController::class, 'destroy'])->name('workouts.presets.destroy');
 
     // The user's own exercises. The seeded catalog is read-only to everybody.
+    // "history" is declared before the {exercise} writes for the same reason
+    // the page routes are declared before the workouts resource.
+    Route::get('workouts/exercises/{exercise}/history', [ExerciseController::class, 'history'])
+        ->name('workouts.exercises.history');
     Route::post('workouts/exercises', [ExerciseController::class, 'store'])->name('workouts.exercises.store');
     Route::put('workouts/exercises/{exercise}', [ExerciseController::class, 'update'])->name('workouts.exercises.update');
     Route::delete('workouts/exercises/{exercise}', [ExerciseController::class, 'destroy'])->name('workouts.exercises.destroy');

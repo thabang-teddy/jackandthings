@@ -5,11 +5,14 @@ A suite now exists on all three surfaces and **all of it passes**. Figures below
 
 | Surface | Framework | Tests | Command |
 | --- | --- | --- | --- |
-| Laravel | PHPUnit 12.5 | **256** (2851 assertions) | `php artisan test` |
-| Web JS | `node --test` (no dependencies) | **56** | `npm test` in `laravel/` |
-| Android | JUnit 4 + `kotlinx-coroutines-test` | **211** | `.\gradlew.bat :app:testDebugUnitTest` |
-| Add-on | `node --test` (no dependencies) | **55** | `npm test` in `extension/` |
-| | | **578 total** | |
+| Laravel | PHPUnit 12.5 | **419** (6840 assertions) | `php artisan test` |
+| Web JS | `node --test` (no dependencies) | **110** | `npm test` in `laravel/` |
+| Android | JUnit 4 + `kotlinx-coroutines-test` | **313** | `.\gradlew.bat :app:testDebugUnitTest` |
+| Add-on | `node --test` (no dependencies) | **98** | `npm test` in `extension/` |
+| | | **940 total** | |
+
+Issue #4 added 362 of those: 163 on the server, 54 in the web app's shared
+logic, 102 on Android and 43 in the add-on.
 
 The web JS runner needs no dependency: `laravel/package.json` is already
 `"type": "module"`, so Node loads the sources as they are. It reaches the
@@ -59,6 +62,31 @@ Rows below that name MySQL are historical: they were recorded when the app ran o
 
 Caveat on method: the first run of the isolation check silently passed for the wrong reason (a scripting bug meant record ids never parsed, so every request hit a nonexistent id and 404'd trivially). It was re-run with real UUIDs and an abort-guard before being believed. A written suite should encode that guard.
 
+### Web, issue #4, driven in a real browser
+
+A throwaway local account against `php artisan serve`, clicking rather than
+posting, so these exercise the React as well as the server.
+
+| Area | Method | Result |
+| --- | --- | --- |
+| The six pages | Clicked through Today, Library, Routines, Sessions, Body, Stats | All render; the submenu links resolve; no console errors |
+| Exercise catalog | Library page on a fresh seed | 43 catalog exercises listed, filterable by category |
+| Custom exercise | Added "Trap bar deadlift" through the form | Saved and listed; library count 43 → 44 |
+| Metric-driven inputs | Picked Bench press in the routine builder and the set logger | Sets/Reps/kg/Rest offered, Metres and Seconds correctly absent |
+| Routine builder | Built "Push day" — Bench press, 3 × 5 at 60 kg, 20 s rest | Saved and listed as "Bench press — 3 × 5" |
+| Live workout | Started it from the routine, logged 60 kg × 5 | "Set logged - new personal record"; sets 1, volume 300 kg, routine 1 of 3, next set 2 of 3 |
+| Rest timer | Watched it after logging | Started automatically at the routine's own 20 s, counting down, with +30s and Skip |
+| **Rest across navigation** | Logged a second set, then walked to the Sessions page mid-rest | The floating pill still showed 00:17 and kept counting — the timer survives an Inertia navigation |
+| Records | Stats page after 60 kg × 5 and 62.5 kg × 5 | Est. 1RM 72.92 kg, heaviest 62.5 kg, most reps 5 — matches Epley |
+| Analytics timezone | Stats page on load | Re-asked the server as `?tz=Africa/Johannesburg` and reported bucketing in that zone |
+| Body metrics round trip | Saved 82.4 kg, 17.5%, waist 86.5 cm | Read back exactly — the grams/permille/millimetre conversions lose nothing |
+| One reading a day | Saved again for the same date | "Updated that day's figures", readings still 1 — the upsert, not a duplicate |
+
+**Not done this way:** the progress-photo upload. The browser pane has no file
+picker, so the upload path was proven server-side instead - see
+`ProgressPhotoTest` under "What the suite actually pins", which covers more of
+it than a click would have.
+
 ### Android, on an API 30 emulator against the running server
 | Area | Method | Result |
 | --- | --- | --- |
@@ -105,26 +133,40 @@ Scope it to the six modules (PRD.md F-01…F-06) plus the SECURITY.md requiremen
 
 ## Verified commands
 All run successfully:
-- Server: `php artisan test` (from `laravel/`) — 189 passed. Also `--testsuite=Unit` / `--testsuite=Feature`. Note the batch wrapper eats `|`, so `--filter="A|B"` fails; filter one class at a time or run a suite. No `npm run build` is needed first: `tests/TestCase.php` swaps in an empty Vite handler, so page-rendering tests pass on a fresh clone with no `public/build`. The bundle itself is still proven by `npm run build` (the `js` CI job).
-- Android: `.\gradlew.bat :app:testDebugUnitTest` (from `android/`, `JAVA_HOME` set to Android Studio's JBR) — 183 passed.
-- Web JS: `npm test` (from `laravel/`) — 24 passed. Node's built-in runner over `resources/js/**/*.test.js`; no extra dependency.
-- Add-on: `npm test` (from `extension/`) — 33 passed. No install step; it uses Node's built-in runner.
+- Server: `php artisan test` (from `laravel/`) — 419 passed. Also `--testsuite=Unit` / `--testsuite=Feature`. Note the batch wrapper eats `|`, so `--filter="A|B"` fails; filter one class at a time or run a suite. No `npm run build` is needed first: `tests/TestCase.php` swaps in an empty Vite handler, so page-rendering tests pass on a fresh clone with no `public/build`. The bundle itself is still proven by `npm run build` (the `js` CI job).
+- Android: `.\gradlew.bat :app:testDebugUnitTest` (from `android/`, `JAVA_HOME` set to Android Studio's JBR) — 313 passed, in about 20 seconds.
+
+  **If that run ever takes minutes instead, suspect a timer left running.** Both `PomodoroTimerEngine` and `WorkoutRestTimer` are process-wide singletons whose ticker reschedules itself every second; `runTest` drains the scheduler before it returns, so a test that leaves one running waits out the whole dispatch timeout instead of finishing. `@After`'s `resetForTesting()` comes too late to prevent it. Every test that starts a timer and does not let it finish ends with an explicit `stop()`, and a new one must too. This cost fifteen minutes a run before it was fixed.
+- Web JS: `npm test` (from `laravel/`) — 110 passed. Node's built-in runner over `resources/js/**/*.test.js`; no extra dependency.
+- Add-on: `npm test` (from `extension/`) — 98 passed. No install step; it uses Node's built-in runner.
 - Coverage: **Not available** — no Xdebug or pcov.
 - End-to-end: **Not configured** — Playwright not installed.
 - Build/lint/format: see CODE_STYLE.md "Verified commands".
 
 ## What the suite actually pins
 
-**Tenant isolation** (`tests/Feature/Security/CrossTenantAccessTest.php`) — the highest-value file. All 33 model-bound web and API routes are swept: a non-owner must get 404, never 403. Three guards stop it passing for the wrong reason, which the earlier manual check did once when no record id parsed and every request 404'd trivially:
+**Tenant isolation** (`tests/Feature/Security/CrossTenantAccessTest.php`) — the highest-value file. All 68 model-bound web and API routes are swept (33 before issue #4, 35 added by it): a non-owner must get 404, never 403. Three guards stop it passing for the wrong reason, which the earlier manual check did once when no record id parsed and every request 404'd trivially:
 1. the fixture asserts each record exists and belongs to the victim before any request;
 2. a paired test asserts the **owner** does *not* get 404 on the same route, so a broken route or failing validation cannot masquerade as isolation;
 3. write payloads are valid, because a 422 would be returned before the ownership check runs.
 
 A route-table audit fails the build when a model-bound route is added without a case, so the sweep cannot fall behind the router.
 
+**One caveat on that audit, found while adding issue #4's routes.** It only sees route parameters it already has a fixture for, because `isTenantOwnedRoute()` matches against the fixture keys. Thirty-five new bound routes were therefore invisible to it until the fixtures were added — the build stayed green while nothing checked them. Adding the fixture is what switches the check on, so that is the step to remember, not the endpoint list. CODE_STYLE.md's review checklist now says so.
+
+Two further things issue #4 forced on that file. `exercise` is a user-owned exercise rather than a catalog one, because a catalog exercise is readable by everybody by design and using one would have asserted the opposite of the rule. And the set-logging payloads name a *shared* catalog exercise: pointing them at the victim's own would have made the attacker's request fail validation with a 422 before the session's ownership check ever ran, so the test would have passed without proving anything.
+
 **Money** (`tests/Unit/BudgetServiceTest.php`) — deposits, withdrawals, the exact-balance edge, refused overdrafts leaving the ledger untouched, transfers writing both legs under one group or neither, deleting one leg removing its counterpart. It also asserts `balancesFor()` issues **exactly one query**, so the no-N+1 claim is verified rather than asserted.
 
-**Reminder boundary** (`tests/Unit/WorkoutReminderStatusTest.php`) — "due" means nothing logged since the top of the hour; 10:59 does not count for an 11:30 now, 11:00 does.
+**Reminder boundary** (`tests/Unit/WorkoutReminderStatusTest.php`) — "due" means nothing logged since the top of the hour; 10:59 does not count for an 11:30 now, 11:00 does. Since issue #4 a logged set or a finished session counts too, which `WorkoutPagesTest` pins: nudging somebody who has just finished a tracked workout would be the app asserting something the user knows to be false.
+
+**Personal records and the shared rules** — the arithmetic behind a personal best exists in four places, so it is asserted in four places against *the same vectors*: `tests/Feature/Services/WorkoutRecordsTest.php`, `laravel/resources/js/Lib/workoutProgress.test.js`, `extension/tests/workoutProgress.test.js` and `android/.../workout/WorkoutProgressTest.kt`. Change one copy of the rules alone and three test files fail, rather than the surfaces quietly telling the user different things on different devices. The vectors worth knowing: a single rep is its own one-rep max (Epley would inflate it), 62.5 kg × 5 estimates 72 917 g, a warm-up is never a record, and a measure the set does not carry is ignored rather than counted as a loss — so a rep PR at a lighter load still counts.
+
+**Training volume and streaks** (`tests/Feature/Services/WorkoutAnalyticsTest.php`) — bucketing in the caller's timezone (an evening set in Johannesburg belongs to that day, not the previous UTC one), an untrained *today* leaving yesterday's streak standing because the day is not over, a gap ending it, the longest streak surviving the current one breaking, and the calendar keeping its empty days because the gaps are the point of a consistency view.
+
+**The upload** (`tests/Feature/Api/ProgressPhotoTest.php`) — written against the ways a progress photo could leak rather than the happy path alone: the file lands on the private disk, the stored name is random with the extension taken from the *validated* mime type (so `selfie.php.jpg` cannot become a `.php` path), a PHP file renamed `.jpg` is refused by content sniffing, a non-owner gets 404, a signed-out visitor gets 401, the response carries `nosniff` and `Cache-Control: private`, and deleting the row deletes the file. The sniffing test deliberately uses a real temp file rather than `UploadedFile::fake()`, which reports its mime type from the filename and would have proved nothing.
+
+**Three bugs these tests found**, all of which would have shipped: a freshly created `WorkoutSet` had no `is_warmup` attribute in memory, so the record check crashed on the one instance it is handed straight after a write; a `date` cast serialises as a full datetime, so the body-metric "one reading a day" lookup never matched and the upsert hit the unique index instead of updating; and a cue the user left blank arrives as null through `ConvertEmptyStringsToNull`, which the validation rejected rather than dropping.
 
 **Prune** (`tests/Feature/Console/PruneHistoryEntriesTest.php`) — the cut-off is respected either side of the window, `--days` overrides it, a window below one day is refused rather than deleting everything, the job is system-wide, and it is still registered on the daily schedule.
 
@@ -165,7 +207,10 @@ Fakes are hand-written (`app/src/test/.../testing/Fakes.kt`), not generated: the
 - **The Pomodoro's generated audio is untested and unheard.** `ToneSynth`/`PomodoroSounds` on Android and `Lib/audio/` on the web synthesise every alarm, tick and ambience bed; none of it has been played on a real device or in a browser, and nothing asserts what comes out. Unit tests would only prove the graph was built, which is not the question — the question is whether a chime sounds like a chime. This needs listening to, by hand, on each surface.
 - **Strict mode's privileged halves are unexercised.** Android's `FocusGuard` needs `ACCESS_NOTIFICATION_POLICY` granted in Settings and a real `NotificationManager`, so neither the silencing nor the restore-the-previous-filter path has run. The add-on's `declarativeNetRequest` blocking has never run either — it inherits the existing gap that the extension has never been loaded as a real extension. Both are written to degrade to "asked for but not allowed" and say so in the UI, which is itself untested.
 - **Session logging is unit-tested everywhere but has only been run end to end on the web**, where a real start-then-skip in a browser produced `POST /pomodoro/sessions → 204` followed by the partial analytics reload. `PomodoroSessionRecorderTest` covers the Android recorder's own decisions against a fake repository, but no interval has been logged from an actual device, and the add-on's background logging — which happens inside the service worker — is still unreached for the same reason the rest of that host is.
-- Android **Compose UI** is untested — the ViewModels are covered, but nothing asserts a screen renders their state. That needs instrumented or Robolectric tests.
+- Android **Compose UI** is untested — the ViewModels are covered, but nothing asserts a screen renders their state. That needs instrumented or Robolectric tests. Issue #4 added five more screens under this gap, including the one that picks a progress photo: `PickVisualMedia`, the content-resolver read and the mime check in front of it have never run.
+- **Tracked workouts do not work offline on Android**, and that is a deliberate limit rather than an untested one. `ExerciseRepository`, `TrainingRepository` and `BodyRepository` have no local, signed-out half and no outbox: the exercise catalog is server-seeded reference data, and a set queued offline belongs to a session that may not exist on the server yet, so `OutboxDrainer` would need session-id remapping before any of it could replay. A photo upload is not queued either — queueing one would mean copying the image into the app's own storage, leaving a copy of somebody's body photo on the device. The one-line entry log keeps its offline queue and its tests. PRD.md carries the open decision.
+- **The rest timer's platform half is unexercised.** `WorkoutRestTimer` itself is covered under a controlled clock, but `WorkoutRestService` — the foreground notification, its two actions, and the `specialUse` service type — has never run, like `PomodoroTimerService` before it. The add-on's rest alarm is in the same position for the same reason as everything else in that host.
+- **Nothing on Android has run on a device or an emulator since issue #4.** `assembleDebug` is clean and the unit tests pass; the five new screens have not been looked at.
 - **`extension/src/lib/dom.js` is untested** — every function touches `document`, so it needs jsdom or a browser runner.
 - **The extension host is still unexercised**: service worker, `chrome.alarms`, notifications, permission prompts, `history.onVisited` and the auto-delete path. No unit test reaches these; they need Playwright against a loaded unpacked extension, or a manual checklist.
 - **No E2E anywhere.** The web app has never been clicked through in a browser; Android was exercised by hand on an emulator but has no instrumented tests; the add-on's popup was driven only through an API-stubbing harness.

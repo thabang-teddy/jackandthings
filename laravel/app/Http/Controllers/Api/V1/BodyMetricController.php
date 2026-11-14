@@ -52,9 +52,13 @@ class BodyMetricController extends Controller
     {
         $attributes = $request->attributesForModel();
 
+        // whereDate, not a plain equality: the `date` cast serialises with the
+        // model's full datetime format, so the column holds "2026-11-14
+        // 00:00:00" and comparing it to "2026-11-14" never matches - which
+        // turned the upsert below into a unique-index violation.
         $existing = $request->user()
             ->bodyMetrics()
-            ->where('measured_on', $request->dayKey())
+            ->whereDate('measured_on', $request->dayKey())
             ->first();
 
         if ($existing !== null) {
