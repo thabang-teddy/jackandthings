@@ -1,9 +1,11 @@
 package com.jackandthings.ui.pomodoro
 
 import com.jackandthings.model.PomodoroPreset
+import com.jackandthings.model.PomodoroPresetDraft
 import com.jackandthings.pomodoro.PomodoroTimerEngine
 import com.jackandthings.pomodoro.TimerPhase
 import com.jackandthings.testing.FakePomodoroRepository
+import com.jackandthings.testing.FakePomodoroSessionRepository
 import com.jackandthings.testing.MainDispatcherRule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
@@ -38,7 +40,10 @@ class PomodoroViewModelTest {
 
     private val oneMinute = PomodoroPreset("p1", "Short", focusMinutes = 1, breakMinutes = 1)
 
-    private fun viewModel(repo: FakePomodoroRepository) = PomodoroViewModel(repo)
+    private fun viewModel(
+        repo: FakePomodoroRepository,
+        sessions: FakePomodoroSessionRepository = FakePomodoroSessionRepository(),
+    ) = PomodoroViewModel(repo, sessions)
 
     @After
     fun tearDown() {
@@ -74,7 +79,9 @@ class PomodoroViewModelTest {
         val model = viewModel(repo)
         advanceUntilIdle()
 
-        model.addPreset("Deep work", 50, 10)
+        model.addPreset(
+            PomodoroPresetDraft(name = "Deep work", focusMinutes = 50, breakMinutes = 10),
+        )
         advanceUntilIdle()
 
         assertEquals(1, model.state.value.presets.size)
@@ -116,7 +123,7 @@ class PomodoroViewModelTest {
 
             model.skip()
             runCurrent()
-            assertEquals(TimerPhase.Break, model.state.value.phase)
+            assertEquals(TimerPhase.ShortBreak, model.state.value.phase)
 
             model.restart()
             runCurrent()

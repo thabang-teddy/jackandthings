@@ -1,17 +1,27 @@
 import { ext, readSettings, writeSettings, hasPermission } from '../lib/ext.js';
 import { api } from '../lib/api.js';
+import { startBlocking, stopBlocking } from '../lib/blocking.js';
+import { PHASE_FOCUS, minutesFor, nextPhase } from '../lib/pomodoroCycle.js';
+import { logSession, rolloverMessage } from '../lib/pomodoroSession.js';
 
 /**
  * Background work for the extension.
  *
- * Three jobs, all alarm-driven so they survive the popup being closed and the
+ * Four jobs, all alarm-driven so they survive the popup being closed and the
  * service worker being torn down: the hourly workout nudge, the browsing-
- * history clean-up, and the end of a Pomodoro phase.
+ * history clean-up, the end of a Pomodoro phase, and the end of a rest
+ * between sets.
+ *
+ * The rest timer in particular has to live here rather than in the popup. A
+ * popup is closed for almost all of a rest - that is what resting is - and a
+ * countdown that only runs while its window is open would never once reach
+ * zero in normal use.
  */
 
 const ALARM_WORKOUT = 'workout-reminder';
 const ALARM_HISTORY = 'history-prune';
 const ALARM_POMODORO = 'pomodoro-phase-end';
+const ALARM_REST = 'workout-rest-end';
 
 const HOUR_IN_MINUTES = 60;
 const DAY_IN_MINUTES = 60 * 24;
@@ -141,21 +151,70 @@ if (ext.history?.onVisited) {
 /**
  * The timer is a stored end-time rather than a running interval, so closing
  * the popup does not stop it and the service worker can sleep in between.
+ *
+ * Since issue #3 this also carries the cycle: which break is due, whether the
+ * next phase starts on its own, logging the interval that just ended, and
+ * lifting the strict-mode blocklist when focus is over. The rules themselves
+ * live in lib/pomodoroCycle.js, shared with the popup and mirrored on the
+ * other two surfaces.
  */
 async function runPomodoroPhaseEnd() {
     const { pomodoro } = await readSettings();
     if (!pomodoro) return;
 
-    if (pomodoro.phase === 'focus' && pomodoro.breakMinutes > 0) {
-        const endsAt = Date.now() + pomodoro.breakMinutes * 60_000;
-        await writeSettings({ pomodoro: { ...pomodoro, phase: 'break', endsAt } });
-        await ext.alarms.create(ALARM_POMODORO, { when: endsAt });
-        await notify('pomodoro', 'Focus done', `Break for ${pomodoro.breakMinutes} minutes.`);
+    const endedAt = Date.now();
+    await logSession(pomodoro, { completed: true, endedAt });
+
+    const next = nextPhase(pomodoro);
+
+    // No break of either length configured: the session ends after focus.
+    if (next === null) {
+        await stopBlocking();
+        await writeSettings({ pomodoro: null });
+        await notify('pomodoro', 'Session complete', `${pomodoro.name} has finished.`);
         return;
     }
 
-    await writeSettings({ pomodoro: null });
-    await notify('pomodoro', 'Session complete', `${pomodoro.name} has finished.`);
+    const minutes = minutesFor(pomodoro, next.phase);
+    const updated = {
+        ...pomodoro,
+        phase: next.phase,
+        completedFocusCycles: next.completedFocusCycles,
+        startedAt: next.autoStart ? endedAt : null,
+        endsAt: next.autoStart ? endedAt + minutes * 60_000 : null,
+        pausedRemaining: next.autoStart ? null : minutes * 60,
+    };
+
+    await writeSettings({ pomodoro: updated });
+    await applyBlocking(updated);
+
+    if (next.autoStart) {
+        await ext.alarms.create(ALARM_POMODORO, { when: updated.endsAt });
+    } else {
+        await ext.alarms.clear(ALARM_POMODORO);
+    }
+
+    const { title, message } = rolloverMessage(pomodoro.phase, next.phase, next.autoStart);
+    await notify('pomodoro', title, message);
+}
+
+/**
+ * Strict mode's blocklist follows the focus phase, and only it - blocking
+ * your browsing through a break is the opposite of resting. Driven from here
+ * rather than the popup because the popup is shut for most of a session.
+ */
+async function applyBlocking(session) {
+    const blocking =
+        session?.strictMode &&
+        session.phase === PHASE_FOCUS &&
+        session.pausedRemaining == null;
+
+    if (blocking) {
+        await startBlocking(session.blockedSites ?? []);
+        return;
+    }
+
+    await stopBlocking();
 }
 
 ext.alarms.onAlarm.addListener((alarm) => {
@@ -169,10 +228,30 @@ ext.alarms.onAlarm.addListener((alarm) => {
         case ALARM_POMODORO:
             runPomodoroPhaseEnd();
             break;
+        case ALARM_REST:
+            runRestEnd();
+            break;
         default:
             break;
     }
 });
+
+/**
+ * A rest ran out. Nothing is written anywhere - a rest is not a record of
+ * anything - so this only notifies and clears the stored deadline the popup
+ * reads to draw its clock.
+ */
+async function runRestEnd() {
+    const { workoutRest } = await readSettings();
+
+    await writeSettings({ workoutRest: null });
+
+    await notify(
+        'workout-rest',
+        'Rest over',
+        workoutRest?.label ? `Next: ${workoutRest.label}` : 'Back to it.',
+    );
+}
 
 /** The popup asks for these so it does not have to duplicate the logic. */
 ext.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -182,12 +261,50 @@ ext.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
     if (message?.type === 'schedule-pomodoro') {
         ext.alarms.create(ALARM_POMODORO, { when: message.endsAt });
-        sendResponse({ ok: true });
+        // The popup changed the session, so the blocklist may need to change
+        // with it - starting a strict preset, or pausing one mid-focus.
+        readSettings()
+            .then(({ pomodoro }) => applyBlocking(pomodoro))
+            .then(() => sendResponse({ ok: true }));
         return true;
     }
     if (message?.type === 'cancel-pomodoro') {
-        ext.alarms.clear(ALARM_POMODORO).then(() => sendResponse({ ok: true }));
+        Promise.all([ext.alarms.clear(ALARM_POMODORO), stopBlocking()]).then(() =>
+            sendResponse({ ok: true }),
+        );
+        return true;
+    }
+    if (message?.type === 'start-rest') {
+        // The deadline is stored as well as scheduled: the alarm fires the
+        // notification, and the stored value is what lets the popup draw a
+        // live clock when it is reopened mid-rest.
+        const endsAt = Date.now() + message.seconds * 1000;
+
+        Promise.all([
+            ext.alarms.create(ALARM_REST, { when: endsAt }),
+            writeSettings({ workoutRest: { endsAt, label: message.label ?? null } }),
+        ]).then(() => sendResponse({ ok: true, endsAt }));
+        return true;
+    }
+    if (message?.type === 'cancel-rest') {
+        Promise.all([
+            ext.alarms.clear(ALARM_REST),
+            writeSettings({ workoutRest: null }),
+        ]).then(() => sendResponse({ ok: true }));
         return true;
     }
     return false;
 });
+
+/**
+ * A service worker that was torn down mid-session wakes with no memory of the
+ * rules it installed. Reconciling on startup means a browser restart cannot
+ * leave someone's browsing blocked by a timer that is no longer running.
+ */
+async function reconcilePomodoro() {
+    const { pomodoro } = await readSettings();
+    await applyBlocking(pomodoro);
+}
+
+ext.runtime.onStartup.addListener(reconcilePomodoro);
+ext.runtime.onInstalled.addListener(reconcilePomodoro);

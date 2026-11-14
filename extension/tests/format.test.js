@@ -46,10 +46,13 @@ describe('formatClock', () => {
 });
 
 describe('transferFlow', () => {
+    // The wire shape since issue #5: names as strings, ids beside them.
     const leg = (type, own, other) => ({
         type,
-        account: own ? { id: 'a', name: own } : null,
-        related_account: other ? { id: 'b', name: other } : null,
+        account_id: own ? 'a' : null,
+        account: own ?? null,
+        related_account_id: other ? 'b' : null,
+        related_account: other ?? null,
     });
 
     test('an outgoing leg reads source to destination', () => {

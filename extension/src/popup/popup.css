@@ -276,3 +276,118 @@ button {
 .split > * {
     flex: 1;
 }
+
+/* ── Pomodoro: cycle, analytics and the preset editor ───────────────────── */
+
+/* "3 of 4" as dots, so the long break is never a surprise. */
+.cycle {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.cycle-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--border);
+    transition: width 0.2s ease;
+}
+
+.cycle-dot.done {
+    background: color-mix(in srgb, var(--primary) 60%, transparent);
+}
+
+.cycle-dot.current {
+    width: 18px;
+    background: var(--primary);
+}
+
+.chip {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--muted);
+}
+
+.small {
+    font-size: 11px;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* Columns rather than a line: a day with nothing on it has to read as an
+   empty column, not as a line dipping through it. */
+.bar-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 5px;
+    height: 72px;
+    margin-top: 10px;
+}
+
+.bar-col {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+}
+
+.bar {
+    width: 100%;
+    border-radius: 3px 3px 0 0;
+    background: var(--primary);
+}
+
+.bar.empty {
+    background: var(--border);
+}
+
+.bar-label {
+    margin-top: 3px;
+    font-size: 9px;
+    color: var(--muted);
+}
+
+/* A cap's spend as a bar: the tone follows the shared limit rule, so an
+   add-on flag cannot disagree with the web app about what "near" means. */
+.meter {
+    height: 6px;
+    margin-top: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--border);
+}
+
+.meter-fill {
+    height: 100%;
+    border-radius: 999px;
+}
+
+/* A checkbox reads as a row, not as a stacked label with a box under it. */
+label.check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+label.check input {
+    width: auto;
+    margin: 0;
+}

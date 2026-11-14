@@ -41,6 +41,11 @@ class User extends Authenticatable
         return $this->hasMany(PomodoroPreset::class);
     }
 
+    public function pomodoroSessions(): HasMany
+    {
+        return $this->hasMany(PomodoroSession::class);
+    }
+
     public function notes(): HasMany
     {
         return $this->hasMany(Note::class);
@@ -54,6 +59,26 @@ class User extends Authenticatable
     public function budgetTransactions(): HasMany
     {
         return $this->hasMany(BudgetTransaction::class);
+    }
+
+    public function budgetCategories(): HasMany
+    {
+        return $this->hasMany(BudgetCategory::class);
+    }
+
+    public function budgetLimits(): HasMany
+    {
+        return $this->hasMany(BudgetLimit::class);
+    }
+
+    public function budgetGoals(): HasMany
+    {
+        return $this->hasMany(BudgetGoal::class);
+    }
+
+    public function budgetReceipts(): HasMany
+    {
+        return $this->hasMany(BudgetReceipt::class);
     }
 
     public function recurringTransactions(): HasMany
@@ -84,5 +109,40 @@ class User extends Authenticatable
     public function historyEntries(): HasMany
     {
         return $this->hasMany(HistoryEntry::class);
+    }
+
+    /**
+     * The user's own exercises only. The seeded catalog has no owner, so a
+     * library listing goes through Exercise::visibleTo($user) rather than this
+     * relation - see Exercise::scopeVisibleTo().
+     */
+    public function exercises(): HasMany
+    {
+        return $this->hasMany(Exercise::class);
+    }
+
+    public function workoutRoutines(): HasMany
+    {
+        return $this->hasMany(WorkoutRoutine::class);
+    }
+
+    public function workoutSessions(): HasMany
+    {
+        return $this->hasMany(WorkoutSession::class);
+    }
+
+    public function workoutSets(): HasMany
+    {
+        return $this->hasMany(WorkoutSet::class);
+    }
+
+    public function bodyMetrics(): HasMany
+    {
+        return $this->hasMany(BodyMetric::class);
+    }
+
+    public function progressPhotos(): HasMany
+    {
+        return $this->hasMany(ProgressPhoto::class);
     }
 }

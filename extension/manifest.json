@@ -34,7 +34,14 @@
 
   "permissions": ["storage", "alarms", "notifications"],
 
-  "optional_permissions": ["history", "clipboardRead"],
+  "optional_permissions": ["history", "clipboardRead", "declarativeNetRequest"],
+
+  "web_accessible_resources": [
+    {
+      "resources": ["src/popup/blocked.html"],
+      "matches": ["<all_urls>"]
+    }
+  ],
 
   "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
 

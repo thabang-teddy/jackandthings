@@ -1,6 +1,8 @@
 package com.jackandthings.data.local
 
 import com.jackandthings.model.BudgetAccount
+import com.jackandthings.model.BudgetCategory
+import com.jackandthings.model.BudgetGoal
 import com.jackandthings.model.BudgetTransaction
 import com.jackandthings.model.Note
 import com.jackandthings.model.PomodoroPreset
@@ -33,6 +35,10 @@ class OfflineCache(dir: File) {
         JsonFileStore(File(cacheDir, "budget_accounts.json"), BudgetAccount.serializer())
     val budgetTransactions =
         JsonFileStore(File(cacheDir, "budget_transactions.json"), BudgetTransaction.serializer())
+    val budgetCategories =
+        JsonFileStore(File(cacheDir, "budget_categories.json"), BudgetCategory.serializer())
+    val budgetGoals =
+        JsonFileStore(File(cacheDir, "budget_goals.json"), BudgetGoal.serializer())
 
     /** Signing out must not leave the next account reading these rows. */
     suspend fun clear() {
@@ -43,5 +49,7 @@ class OfflineCache(dir: File) {
         watchLists.write(emptyList())
         budgetAccounts.write(emptyList())
         budgetTransactions.write(emptyList())
+        budgetCategories.write(emptyList())
+        budgetGoals.write(emptyList())
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\BudgetAccountKind;
 use App\Models\BudgetAccount;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -19,6 +20,14 @@ class BudgetAccountFactory extends Factory
     {
         return [
             'name' => fake()->unique()->randomElement(['Cash', 'Cheque', 'Savings', 'Wallet']),
+            'kind' => fake()->randomElement(BudgetAccountKind::values()),
+            'opening_balance_cents' => 0,
+            'archived_at' => null,
         ];
+    }
+
+    public function archived(): static
+    {
+        return $this->state(fn (): array => ['archived_at' => now()]);
     }
 }

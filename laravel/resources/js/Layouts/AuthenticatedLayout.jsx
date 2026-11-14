@@ -1,5 +1,6 @@
 import GlassShell from '@/Components/Glass/GlassShell';
 import { PomodoroTimerProvider } from '@/Lib/PomodoroTimerContext';
+import { WorkoutRestProvider } from '@/Lib/WorkoutRestContext';
 import { useWorkoutNudge } from '@/Lib/useWorkoutNudge';
 
 /**
@@ -10,10 +11,10 @@ import { useWorkoutNudge } from '@/Lib/useWorkoutNudge';
  * div to pick up the CSS custom properties that div sets.
  *
  * Every page assigns this same component via `Page.layout`, which is what
- * makes Inertia treat it as a persistent layout: React keeps it (and the
- * PomodoroTimerProvider inside it) mounted across page navigations instead of
- * tearing it down and rebuilding it, so a running Pomodoro timer survives the
- * trip from one page to another.
+ * makes Inertia treat it as a persistent layout: React keeps it (and the two
+ * timer providers inside it) mounted across page navigations instead of
+ * tearing it down and rebuilding it, so a running Pomodoro timer - or a
+ * rest countdown between sets - survives the trip from one page to another.
  */
 export default function AuthenticatedLayout({
     header,
@@ -30,15 +31,17 @@ export default function AuthenticatedLayout({
 
     return (
         <PomodoroTimerProvider>
-            <GlassShell
-                module={module}
-                title={title}
-                header={header}
-                submenu={submenu}
-                activeAnchor={activeAnchor}
-            >
-                {children}
-            </GlassShell>
+            <WorkoutRestProvider>
+                <GlassShell
+                    module={module}
+                    title={title}
+                    header={header}
+                    submenu={submenu}
+                    activeAnchor={activeAnchor}
+                >
+                    {children}
+                </GlassShell>
+            </WorkoutRestProvider>
         </PomodoroTimerProvider>
     );
 }

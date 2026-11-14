@@ -16,7 +16,7 @@ class BudgetAccountController extends Controller
 
     public function store(BudgetAccountRequest $request): RedirectResponse
     {
-        $request->user()->budgetAccounts()->create($request->validated());
+        $request->user()->budgetAccounts()->create($request->attributesForModel());
 
         return back()->with('status', 'Account added.');
     }
@@ -25,7 +25,7 @@ class BudgetAccountController extends Controller
     {
         $this->authorizeOwned('update', $account);
 
-        $account->update($request->validated());
+        $account->update($request->attributesForModel());
 
         return back()->with('status', 'Account renamed.');
     }

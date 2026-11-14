@@ -13,14 +13,6 @@ import { usePomodoroTimer } from '@/Lib/PomodoroTimerContext';
 const RADIUS = 26;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-function totalSecondsFor(timer) {
-    const minutes =
-        timer.phase === 'focus'
-            ? timer.preset.focus_minutes
-            : timer.preset.break_minutes;
-    return Math.max(minutes * 60, 1);
-}
-
 function RingButton({ onClick, label, children }) {
     return (
         <button
@@ -51,7 +43,9 @@ export default function PomodoroFloatingRing() {
         return null;
     }
 
-    const total = totalSecondsFor(timer);
+    // The timer knows how long its own phase is - including which of the two
+    // break lengths is on the clock - so the ring no longer has to guess.
+    const total = Math.max(timer.totalSeconds, 1);
     const remaining = Math.min(Math.max(timer.secondsLeft, 0), total);
     const offset = CIRCUMFERENCE * (1 - remaining / total);
 
@@ -64,7 +58,7 @@ export default function PomodoroFloatingRing() {
             >
                 <Link
                     href={route('pomodoro.index')}
-                    title="Open Pomodoro"
+                    title={`${timer.phaseLabel} · ${timer.preset.name} — open Pomodoro`}
                     className="relative flex h-14 w-14 shrink-0 items-center justify-center"
                 >
                     <svg viewBox="0 0 60 60" className="h-14 w-14 -rotate-90">

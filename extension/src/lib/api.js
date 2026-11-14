@@ -102,19 +102,27 @@ export const api = {
 
     // Pomodoro
     presets: async () => data(await request('pomodoro-presets')) ?? [],
-    createPreset: async (name, focusMinutes, breakMinutes, isDefault = false) =>
-        data(
-            await request('pomodoro-presets', {
-                method: 'POST',
-                body: {
-                    name,
-                    focus_minutes: focusMinutes,
-                    break_minutes: breakMinutes,
-                    is_default: isDefault,
-                },
-            }),
-        ),
+    /**
+     * `body` is the preset payload in wire spelling, built by the caller.
+     * Fourteen named arguments would be worse than one object, and the server
+     * defaults everything but `name` and `focus_minutes`, so a partial body
+     * is valid - see PomodoroPresetRequest.
+     */
+    createPreset: async (body) =>
+        data(await request('pomodoro-presets', { method: 'POST', body })),
+    updatePreset: async (id, body) =>
+        data(await request(`pomodoro-presets/${id}`, { method: 'PUT', body })),
     deletePreset: (id) => request(`pomodoro-presets/${id}`, { method: 'DELETE' }),
+
+    // Pomodoro sessions — finished intervals, and the analytics read off them.
+    pomodoroSessions: async (limit = 30) =>
+        data(await request(`pomodoro-sessions?limit=${limit}`)) ?? [],
+    createPomodoroSession: async (body) =>
+        data(await request('pomodoro-sessions', { method: 'POST', body })),
+    deletePomodoroSession: (id) => request(`pomodoro-sessions/${id}`, { method: 'DELETE' }),
+    /** `tz` is an IANA zone; the server buckets in it rather than UTC. */
+    pomodoroStats: async (tz) =>
+        data(await request(`pomodoro-sessions/stats?tz=${encodeURIComponent(tz)}`)),
 
     // Watch list — named lists, each holding items.
     watchLists: async () => data(await request('watch-lists')) ?? [],
@@ -167,12 +175,58 @@ export const api = {
         ),
     deleteWorkoutPreset: (id) => request(`workout-presets/${id}`, { method: 'DELETE' }),
 
+    // Fitness tracking (issue #4)
+    //
+    // The library is the server's seeded catalog plus the user's own, in one
+    // list. The add-on reads it and logs against it; building routines and
+    // keeping body metrics stay on the web app and the phone, where there is
+    // room for them - a popup is not where you plan a training block.
+    exercises: async () => data(await request('exercises')) ?? [],
+
+    /** Null when the exercise has never been trained, not an empty history. */
+    exerciseHistory: async (id) => data(await request(`exercises/${id}/history`)) ?? null,
+
+    workoutRoutines: async () => data(await request('workout-routines')) ?? [],
+
+    /** Null when nothing is running, which is the normal case. */
+    currentWorkoutSession: async () => data(await request('workout-sessions/current')) ?? null,
+
+    startWorkoutSession: async (routineId) =>
+        data(
+            await request('workout-sessions', {
+                method: 'POST',
+                body: routineId ? { workout_routine_id: routineId } : {},
+            }),
+        ),
+
+    finishWorkoutSession: async (id) =>
+        data(await request(`workout-sessions/${id}/finish`, { method: 'POST' })),
+
+    /**
+     * Seven named arguments would be worse than one object, so the set rides
+     * in whole - the same call createWorkoutPreset's neighbours make.
+     *
+     * The whole reply is returned rather than its `data`, because `is_record`
+     * sits beside the row and is the point of logging a set: the popup
+     * celebrates a personal best without a second request.
+     */
+    logWorkoutSet: async (sessionId, set) =>
+        request(`workout-sessions/${sessionId}/sets`, { method: 'POST', body: set }),
+
+    deleteWorkoutSet: (id) => request(`workout-sets/${id}`, { method: 'DELETE' }),
+
     // Budget
     budgetAccounts: async () => data(await request('budget-accounts')) ?? [],
     createBudgetAccount: async (name) =>
         data(await request('budget-accounts', { method: 'POST', body: { name } })),
     budgetTransactions: async () => data(await request('budget-transactions')) ?? [],
-    createTransaction: async (accountId, type, amount, description) =>
+    /**
+     * [extras] carries issue #5's three optional columns: `occurredOn`
+     * (`YYYY-MM-DD`, the business date), `merchant` and `categoryId`. They are
+     * omitted rather than sent empty, because the server treats an absent
+     * `occurred_on` as today and an absent category as uncategorised.
+     */
+    createTransaction: async (accountId, type, amount, description, extras = {}) =>
         data(
             await request('budget-transactions', {
                 method: 'POST',
@@ -181,9 +235,17 @@ export const api = {
                     type,
                     amount,
                     description: description ?? '',
+                    ...(extras.occurredOn ? { occurred_on: extras.occurredOn } : {}),
+                    ...(extras.merchant ? { merchant: extras.merchant } : {}),
+                    ...(extras.categoryId ? { category_id: extras.categoryId } : {}),
                 },
             }),
         ),
+    /** Seeded by the server on first read, so this is never empty on success. */
+    budgetCategories: async () => data(await request('budget-categories')) ?? [],
+    /** Caps for one `YYYY-MM`, with the month's spend already totalled. */
+    budgetLimits: async (period) =>
+        data(await request(`budget-limits?period=${encodeURIComponent(period)}`)) ?? [],
     transfer: (fromAccountId, toAccountId, amount, description) =>
         request('budget-transfers', {
             method: 'POST',

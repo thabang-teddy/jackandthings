@@ -56,7 +56,17 @@ import com.jackandthings.ui.watchlist.WatchListViewModel
 import com.jackandthings.ui.welcome.DashboardView
 import com.jackandthings.ui.welcome.DashboardViewModel
 import com.jackandthings.ui.welcome.WelcomeScreen
+import com.jackandthings.ui.workout.BodyScreen
+import com.jackandthings.ui.workout.BodyViewModel
+import com.jackandthings.ui.workout.ExerciseLibraryScreen
+import com.jackandthings.ui.workout.ExerciseLibraryViewModel
+import com.jackandthings.ui.workout.RoutineBuilderScreen
+import com.jackandthings.ui.workout.RoutineBuilderViewModel
+import com.jackandthings.ui.workout.TrainingScreen
+import com.jackandthings.ui.workout.TrainingViewModel
 import com.jackandthings.ui.workout.WorkoutScreen
+import com.jackandthings.ui.workout.WorkoutStatsScreen
+import com.jackandthings.ui.workout.WorkoutStatsViewModel
 import com.jackandthings.ui.workout.WorkoutViewModel
 import com.jackandthings.work.WorkoutReminders
 import kotlinx.coroutines.launch
@@ -165,7 +175,11 @@ private fun MainApp(container: AppContainer, sharedText: String?, signedIn: Bool
         composable("pomodoro") {
             PomodoroScreen(
                 viewModel = viewModel(
-                    factory = PomodoroViewModel.factory(container.pomodoro),
+                    factory = PomodoroViewModel.factory(
+                        repo = container.pomodoro,
+                        sessions = container.pomodoroSessions,
+                        strictModeAvailable = container.focusGuard::canSilence,
+                    ),
                 ),
                 onBack = navController::popBackStack,
             )
@@ -188,6 +202,59 @@ private fun MainApp(container: AppContainer, sharedText: String?, signedIn: Bool
         composable("workout") {
             WorkoutScreen(
                 viewModel = viewModel(factory = WorkoutViewModel.factory(container.workout)),
+                onBack = navController::popBackStack,
+                onOpenTraining = { navController.navigate("workout/training") },
+            )
+        }
+
+        /*
+         * Workout is the first module here with more than one destination.
+         * Issue #4 turned it into an exercise library, a routine builder, a
+         * live workout and a stats view, and an app bar with four dialogs
+         * behind it is not those things. The routes are flat strings like
+         * every other one in this graph; nothing nested was needed.
+         */
+        composable("workout/training") {
+            TrainingScreen(
+                viewModel = viewModel(
+                    factory = TrainingViewModel.factory(container.training, container.exercises),
+                ),
+                onBack = navController::popBackStack,
+                onOpenLibrary = { navController.navigate("workout/library") },
+                onOpenRoutines = { navController.navigate("workout/routines") },
+                onOpenBody = { navController.navigate("workout/body") },
+                onOpenStats = { navController.navigate("workout/stats") },
+            )
+        }
+
+        composable("workout/library") {
+            ExerciseLibraryScreen(
+                viewModel = viewModel(
+                    factory = ExerciseLibraryViewModel.factory(container.exercises),
+                ),
+                onBack = navController::popBackStack,
+            )
+        }
+
+        composable("workout/routines") {
+            RoutineBuilderScreen(
+                viewModel = viewModel(
+                    factory = RoutineBuilderViewModel.factory(container.training, container.exercises),
+                ),
+                onBack = navController::popBackStack,
+            )
+        }
+
+        composable("workout/body") {
+            BodyScreen(
+                viewModel = viewModel(factory = BodyViewModel.factory(container.body)),
+                onBack = navController::popBackStack,
+            )
+        }
+
+        composable("workout/stats") {
+            WorkoutStatsScreen(
+                viewModel = viewModel(factory = WorkoutStatsViewModel.factory(container.training)),
                 onBack = navController::popBackStack,
             )
         }

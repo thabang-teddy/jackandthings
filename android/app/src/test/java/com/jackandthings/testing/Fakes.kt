@@ -2,9 +2,21 @@ package com.jackandthings.testing
 
 import com.jackandthings.model.AuthUser
 import com.jackandthings.model.BudgetAccount
+import com.jackandthings.model.BudgetCategory
+import com.jackandthings.model.BudgetDue
+import com.jackandthings.model.BudgetGoal
+import com.jackandthings.model.BudgetGoalDraft
+import com.jackandthings.model.BudgetLimitState
+import com.jackandthings.model.BudgetReceipt
+import com.jackandthings.model.BudgetReport
 import com.jackandthings.model.BudgetTransaction
+import com.jackandthings.model.BudgetTransactionDraft
 import com.jackandthings.model.Note
 import com.jackandthings.model.PomodoroPreset
+import com.jackandthings.model.PomodoroPresetDraft
+import com.jackandthings.model.PomodoroSession
+import com.jackandthings.model.PomodoroSessionDraft
+import com.jackandthings.model.PomodoroStats
 import com.jackandthings.model.ReminderState
 import com.jackandthings.model.WatchList
 import com.jackandthings.model.WatchListItem
@@ -14,6 +26,7 @@ import com.jackandthings.repo.AuthStore
 import com.jackandthings.repo.BudgetRepository
 import com.jackandthings.repo.NotesRepository
 import com.jackandthings.repo.PomodoroRepository
+import com.jackandthings.repo.PomodoroSessionRepository
 import com.jackandthings.repo.WatchListRepository
 import com.jackandthings.repo.WorkoutRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -235,15 +248,19 @@ class FakePomodoroRepository(
     override suspend fun list(): Result<List<PomodoroPreset>> =
         failure?.let { Result.failure(it) } ?: Result.success(presets.toList())
 
-    override suspend fun create(
-        name: String,
-        focusMinutes: Int,
-        breakMinutes: Int,
-    ): Result<PomodoroPreset> {
+    override suspend fun create(draft: PomodoroPresetDraft): Result<PomodoroPreset> {
         failure?.let { return Result.failure(it) }
 
-        val preset = PomodoroPreset("id-${presets.size + 1}", name, focusMinutes, breakMinutes)
+        val preset = draft.toPreset("id-${presets.size + 1}")
         presets.add(preset)
+        return Result.success(preset)
+    }
+
+    override suspend fun update(id: String, draft: PomodoroPresetDraft): Result<PomodoroPreset> {
+        failure?.let { return Result.failure(it) }
+
+        val preset = draft.toPreset(id)
+        presets.replaceAll { if (it.id == id) preset else it }
         return Result.success(preset)
     }
 
@@ -256,13 +273,70 @@ class FakePomodoroRepository(
     }
 }
 
+/**
+ * Records what was asked of it and hands back a session with an id, so a test
+ * can assert what the recorder posted without a server.
+ */
+class FakePomodoroSessionRepository(
+    var sessions: MutableList<PomodoroSession> = mutableListOf(),
+) : PomodoroSessionRepository {
+
+    var failure: Throwable? = null
+
+    var stats: PomodoroStats = PomodoroStats()
+
+    var created: MutableList<PomodoroSessionDraft> = mutableListOf()
+
+    var deletedIds: MutableList<String> = mutableListOf()
+
+    override suspend fun list(limit: Int): Result<List<PomodoroSession>> =
+        failure?.let { Result.failure(it) } ?: Result.success(sessions.toList())
+
+    override suspend fun create(draft: PomodoroSessionDraft): Result<PomodoroSession> {
+        failure?.let { return Result.failure(it) }
+
+        created.add(draft)
+        val session = PomodoroSession(
+            id = "session-${sessions.size + 1}",
+            presetId = draft.presetId,
+            presetName = draft.presetName,
+            tag = draft.tag,
+            phase = draft.phase,
+            startedAt = draft.startedAt,
+            endedAt = draft.endedAt,
+            durationSeconds = draft.durationSeconds,
+            completed = draft.completed,
+            source = draft.source,
+        )
+        sessions.add(session)
+        return Result.success(session)
+    }
+
+    override suspend fun delete(id: String): Result<Unit> {
+        failure?.let { return Result.failure(it) }
+
+        deletedIds.add(id)
+        sessions.removeAll { it.id == id }
+        return Result.success(Unit)
+    }
+
+    override suspend fun stats(timezone: String): Result<PomodoroStats> =
+        failure?.let { Result.failure(it) } ?: Result.success(stats.copy(timezone = timezone))
+}
+
 class FakeBudgetRepository(
     var accounts: MutableList<BudgetAccount> = mutableListOf(),
     var transactions: MutableList<BudgetTransaction> = mutableListOf(),
+    var categories: MutableList<BudgetCategory> = mutableListOf(),
+    var limits: MutableList<BudgetLimitState> = mutableListOf(),
+    var goals: MutableList<BudgetGoal> = mutableListOf(),
+    var report: BudgetReport = BudgetReport(period = "2026-01"),
+    var due: BudgetDue = BudgetDue(today = "2026-01-01"),
 ) : BudgetRepository {
 
     var accountsFailure: Throwable? = null
     var transactionsFailure: Throwable? = null
+    var planningFailure: Throwable? = null
     var writeFailure: Throwable? = null
 
     /**
@@ -275,7 +349,15 @@ class FakeBudgetRepository(
 
     /** Which account each post landed on, for checking id remapping. */
     var postedAccountIds: MutableList<String> = mutableListOf()
+
+    /** The category and date each post carried, for the issue #5 columns. */
+    var postedCategories: MutableList<String?> = mutableListOf()
+    var postedDates: MutableList<String?> = mutableListOf()
+
     var transfers: MutableList<Triple<String, String, String>> = mutableListOf()
+
+    var uploadedReceipts: MutableList<String> = mutableListOf()
+    var deletedReceiptIds: MutableList<String> = mutableListOf()
 
     override suspend fun accounts(): Result<List<BudgetAccount>> =
         accountsFailure?.let { Result.failure(it) } ?: Result.success(accounts.toList())
@@ -298,19 +380,26 @@ class FakeBudgetRepository(
     override suspend fun transactions(): Result<List<BudgetTransaction>> =
         transactionsFailure?.let { Result.failure(it) } ?: Result.success(transactions.toList())
 
-    override suspend fun post(
-        accountId: String,
-        type: String,
-        amount: String,
-        description: String?,
+    override suspend fun postTransaction(
+        draft: BudgetTransactionDraft,
     ): Result<BudgetTransaction> {
         writeFailure?.let { return Result.failure(it) }
         if (failAfterAccounts) return Result.failure(RuntimeException("posting failed"))
 
-        postedAmounts.add(amount)
-        postedAccountIds.add(accountId)
+        postedAmounts.add(draft.amount)
+        postedAccountIds.add(draft.accountId)
+        postedCategories.add(draft.categoryId)
+        postedDates.add(draft.occurredOn)
         return Result.success(
-            BudgetTransaction("tx-${postedAmounts.size}", type, 0, description),
+            BudgetTransaction(
+                "tx-${postedAmounts.size}",
+                draft.type,
+                0,
+                draft.description,
+                accountId = draft.accountId,
+                occurredOn = draft.occurredOn,
+                merchant = draft.merchant,
+            ),
         )
     }
 
@@ -331,6 +420,119 @@ class FakeBudgetRepository(
         if (failAfterAccounts) return Result.failure(RuntimeException("transfer failed"))
 
         transfers.add(Triple(fromAccountId, toAccountId, amount))
+        return Result.success(Unit)
+    }
+
+    override suspend fun categories(): Result<List<BudgetCategory>> =
+        planningFailure?.let { Result.failure(it) } ?: Result.success(categories.toList())
+
+    override suspend fun createCategory(name: String, kind: String): Result<BudgetCategory> {
+        writeFailure?.let { return Result.failure(it) }
+
+        val category = BudgetCategory("cat-${categories.size + 1}", name, kind)
+        categories.add(category)
+        return Result.success(category)
+    }
+
+    override suspend fun updateCategory(
+        id: String,
+        name: String,
+        kind: String,
+    ): Result<BudgetCategory> {
+        writeFailure?.let { return Result.failure(it) }
+
+        val updated = BudgetCategory(id, name, kind)
+        categories.replaceAll { if (it.id == id) updated else it }
+        return Result.success(updated)
+    }
+
+    override suspend fun deleteCategory(id: String): Result<Unit> {
+        writeFailure?.let { return Result.failure(it) }
+
+        categories.removeAll { it.id == id }
+        return Result.success(Unit)
+    }
+
+    override suspend fun limits(period: String): Result<List<BudgetLimitState>> =
+        planningFailure?.let { Result.failure(it) } ?: Result.success(limits.toList())
+
+    override suspend fun saveLimit(
+        categoryId: String,
+        period: String,
+        limit: String,
+    ): Result<BudgetLimitState> {
+        writeFailure?.let { return Result.failure(it) }
+
+        val state = BudgetLimitState(
+            id = limits.firstOrNull { it.categoryId == categoryId }?.id ?: "limit-${limits.size + 1}",
+            categoryId = categoryId,
+            category = categories.firstOrNull { it.id == categoryId }?.name ?: "Category",
+            period = period,
+            limitCents = 0,
+        )
+        limits.add(state)
+        return Result.success(state)
+    }
+
+    override suspend fun deleteLimit(id: String): Result<Unit> {
+        writeFailure?.let { return Result.failure(it) }
+
+        limits.removeAll { it.id == id }
+        return Result.success(Unit)
+    }
+
+    override suspend fun goals(): Result<List<BudgetGoal>> =
+        planningFailure?.let { Result.failure(it) } ?: Result.success(goals.toList())
+
+    override suspend fun createGoal(draft: BudgetGoalDraft): Result<BudgetGoal> {
+        writeFailure?.let { return Result.failure(it) }
+
+        val goal = BudgetGoal(
+            id = "goal-${goals.size + 1}",
+            name = draft.name,
+            targetCents = 0,
+        )
+        goals.add(goal)
+        return Result.success(goal)
+    }
+
+    override suspend fun updateGoal(id: String, draft: BudgetGoalDraft): Result<BudgetGoal> {
+        writeFailure?.let { return Result.failure(it) }
+
+        val goal = goals.first { it.id == id }.copy(name = draft.name)
+        goals.replaceAll { if (it.id == id) goal else it }
+        return Result.success(goal)
+    }
+
+    override suspend fun deleteGoal(id: String): Result<Unit> {
+        writeFailure?.let { return Result.failure(it) }
+
+        goals.removeAll { it.id == id }
+        return Result.success(Unit)
+    }
+
+    override suspend fun report(period: String, months: Int): Result<BudgetReport> =
+        planningFailure?.let { Result.failure(it) } ?: Result.success(report.copy(period = period))
+
+    override suspend fun due(period: String): Result<BudgetDue> =
+        planningFailure?.let { Result.failure(it) } ?: Result.success(due)
+
+    override suspend fun uploadReceipt(
+        transactionId: String,
+        bytes: ByteArray,
+        fileName: String,
+        mimeType: String,
+    ): Result<BudgetReceipt> {
+        writeFailure?.let { return Result.failure(it) }
+
+        uploadedReceipts.add(transactionId)
+        return Result.success(BudgetReceipt("receipt-1", transactionId, mimeType, bytes.size.toLong()))
+    }
+
+    override suspend fun deleteReceipt(id: String): Result<Unit> {
+        writeFailure?.let { return Result.failure(it) }
+
+        deletedReceiptIds.add(id)
         return Result.success(Unit)
     }
 }

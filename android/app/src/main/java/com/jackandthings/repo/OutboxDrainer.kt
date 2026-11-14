@@ -3,6 +3,7 @@ package com.jackandthings.repo
 import com.jackandthings.data.local.OfflineCache
 import com.jackandthings.data.local.Outbox
 import com.jackandthings.data.local.PendingAction
+import com.jackandthings.model.BudgetTransactionDraft
 
 /** What a drain attempt did, for the banner that reports it. */
 data class DrainResult(val pushed: Int, val failed: Int, val stillPending: Int) {
@@ -97,8 +98,10 @@ class OutboxDrainer(
             notes.delete(idMap.resolve(action.subjectId))
 
         is PendingAction.CreatePreset ->
-            pomodoro.create(action.name, action.focusMinutes, action.breakMinutes)
-                .record(action.subjectId, idMap) { it.id }
+            pomodoro.create(action.draft).record(action.subjectId, idMap) { it.id }
+
+        is PendingAction.UpdatePreset ->
+            pomodoro.update(idMap.resolve(action.subjectId), action.draft).unit()
 
         is PendingAction.DeletePreset ->
             pomodoro.delete(idMap.resolve(action.subjectId))
@@ -136,11 +139,16 @@ class OutboxDrainer(
             budget.deleteAccount(idMap.resolve(action.subjectId))
 
         is PendingAction.PostTransaction ->
-            budget.post(
-                idMap.resolve(action.accountId),
-                action.type,
-                action.amount,
-                action.description,
+            budget.postTransaction(
+                BudgetTransactionDraft(
+                    accountId = idMap.resolve(action.accountId),
+                    type = action.type,
+                    amount = action.amount,
+                    description = action.description,
+                    occurredOn = action.occurredOn,
+                    merchant = action.merchant,
+                    categoryId = action.categoryId,
+                ),
             ).record(action.subjectId, idMap) { it.id }
 
         is PendingAction.DeleteTransaction ->

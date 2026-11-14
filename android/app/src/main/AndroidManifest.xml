@@ -9,6 +9,12 @@
          controls survive the app being backgrounded. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Strict mode (issue #3): silences notifications for the length of a
+         focus run and restores the user's own filter afterwards. Not a runtime
+         permission - it is granted in a Settings screen, which FocusGuard
+         links to - so the feature degrades to "asked for but not allowed"
+         rather than failing, and the Pomodoro screen says which it is. -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
     <application
         android:name=".JackApplication"
@@ -49,6 +55,19 @@
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="pomodoro-timer" />
+        </service>
+
+        <!-- Same reasoning as the Pomodoro timer above: a rest countdown
+             between sets fits no existing foregroundServiceType category, and
+             a rest timer that stops when you put the phone down is not a rest
+             timer. Not exported: only this app starts it. -->
+        <service
+            android:name=".workout.WorkoutRestService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="workout-rest-timer" />
         </service>
     </application>
 

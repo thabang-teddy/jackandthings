@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>Blocked while focusing — Jack &amp; Things</title>
+        <link rel="stylesheet" href="popup.css" />
+        <style>
+            /*
+              This page is a full tab, not the 360px popup, so it opts out of
+              the popup's width and centres itself instead.
+            */
+            body {
+                width: auto;
+                min-height: 100vh;
+                display: grid;
+                place-items: center;
+                padding: 24px;
+            }
+
+            .blocked {
+                max-width: 32rem;
+                text-align: center;
+            }
+
+            .blocked h1 {
+                margin: 0 0 12px;
+                font-size: 22px;
+            }
+
+            .blocked p {
+                margin: 0 0 10px;
+                color: var(--muted);
+                line-height: 1.5;
+            }
+        </style>
+    </head>
+    <body>
+        <main class="blocked">
+            <h1>Blocked while you focus</h1>
+            <p>
+                This site is on the blocklist of the Pomodoro preset you are
+                running in strict mode.
+            </p>
+            <p>
+                It unblocks on its own when the focus run ends, or as soon as
+                you pause or stop the timer from the Jack &amp; Things popup.
+            </p>
+        </main>
+    </body>
+</html>

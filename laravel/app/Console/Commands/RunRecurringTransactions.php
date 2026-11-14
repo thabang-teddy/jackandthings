@@ -68,14 +68,34 @@ class RunRecurringTransactions extends Command
             return false;
         }
 
+        // The occurrence date, not "now": a month the command missed should
+        // land in the month it belonged to, so reports and limits stay honest.
+        $occurredOn = $recurring->next_run_at?->toDateString();
+
         if ($recurring->type === BudgetTransactionType::Deposit) {
-            $budget->deposit($recurring->user, $recurring->account, $recurring->amount_cents, $recurring->description);
+            $budget->deposit(
+                $recurring->user,
+                $recurring->account,
+                $recurring->amount_cents,
+                $recurring->description,
+                $occurredOn,
+                null,
+                $recurring->category_id,
+            );
 
             return true;
         }
 
         try {
-            $budget->withdraw($recurring->user, $recurring->account, $recurring->amount_cents, $recurring->description);
+            $budget->withdraw(
+                $recurring->user,
+                $recurring->account,
+                $recurring->amount_cents,
+                $recurring->description,
+                $occurredOn,
+                null,
+                $recurring->category_id,
+            );
         } catch (InsufficientFundsException) {
             // Skip this occurrence rather than overdraw the account.
             return false;

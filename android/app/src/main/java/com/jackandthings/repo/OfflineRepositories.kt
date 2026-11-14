@@ -3,17 +3,26 @@ package com.jackandthings.repo
 import com.jackandthings.data.local.OfflineCache
 import com.jackandthings.data.local.Outbox
 import com.jackandthings.data.local.PendingAction
-import com.jackandthings.model.AccountRef
 import com.jackandthings.model.BudgetAccount
+import com.jackandthings.model.BudgetCategory
+import com.jackandthings.model.BudgetDue
+import com.jackandthings.model.BudgetGoal
+import com.jackandthings.model.BudgetGoalDraft
+import com.jackandthings.model.BudgetLimitState
+import com.jackandthings.model.BudgetReceipt
+import com.jackandthings.model.BudgetReport
 import com.jackandthings.model.BudgetTransaction
+import com.jackandthings.model.BudgetTransactionDraft
 import com.jackandthings.model.Note
 import com.jackandthings.model.PomodoroPreset
+import com.jackandthings.model.PomodoroPresetDraft
 import com.jackandthings.model.ReminderState
 import com.jackandthings.model.WatchList
 import com.jackandthings.model.WatchListItem
 import com.jackandthings.model.WorkoutEntry
 import com.jackandthings.model.WorkoutPreset
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneOffset
 
 /**
@@ -89,27 +98,19 @@ class OfflinePomodoroRepository(
     override suspend fun list(): Result<List<PomodoroPreset>> =
         readThroughCache(cache.presets) { remote.list() }
 
-    override suspend fun create(
-        name: String,
-        focusMinutes: Int,
-        breakMinutes: Int,
-    ): Result<PomodoroPreset> =
-        orWhenOffline(remote.create(name, focusMinutes, breakMinutes)) {
-            val preset = PomodoroPreset(
-                id = PendingAction.newId(),
-                name = name,
-                focusMinutes = focusMinutes,
-                breakMinutes = breakMinutes,
-            )
-            outbox.add(
-                PendingAction.CreatePreset(
-                    subjectId = preset.id,
-                    name = name,
-                    focusMinutes = focusMinutes,
-                    breakMinutes = breakMinutes,
-                ),
-            )
+    override suspend fun create(draft: PomodoroPresetDraft): Result<PomodoroPreset> =
+        orWhenOffline(remote.create(draft)) {
+            val preset = draft.toPreset(PendingAction.newId())
+            outbox.add(PendingAction.CreatePreset(subjectId = preset.id, draft = draft))
             cache.presets.write(cache.presets.read() + preset)
+            Result.success(preset)
+        }
+
+    override suspend fun update(id: String, draft: PomodoroPresetDraft): Result<PomodoroPreset> =
+        orWhenOffline(remote.update(id, draft)) {
+            val preset = draft.toPreset(id)
+            outbox.add(PendingAction.UpdatePreset(subjectId = id, draft = draft))
+            cache.presets.write(cache.presets.read().map { if (it.id == id) preset else it })
             Result.success(preset)
         }
 
@@ -302,37 +303,45 @@ class OfflineBudgetRepository(
             Result.success(Unit)
         }
 
-    override suspend fun post(
-        accountId: String,
-        type: String,
-        amount: String,
-        description: String?,
+    override suspend fun postTransaction(
+        draft: BudgetTransactionDraft,
     ): Result<BudgetTransaction> =
-        orWhenOffline(remote.post(accountId, type, amount, description)) {
-            val cents = amount.amountStringToCentsOrNull()
+        orWhenOffline(remote.postTransaction(draft)) {
+            val cents = draft.amount.amountStringToCentsOrNull()
                 ?: return@orWhenOffline Result.failure(
-                    IllegalArgumentException("That is not a valid amount: $amount"),
+                    IllegalArgumentException("That is not a valid amount: ${draft.amount}"),
                 )
 
+            val category = draft.categoryId?.let { id ->
+                cache.budgetCategories.read().firstOrNull { it.id == id }
+            }
             val transaction = BudgetTransaction(
                 id = PendingAction.newId(),
-                type = type,
+                type = draft.type,
                 amountCents = cents,
-                description = description,
-                account = accountRef(accountId),
+                description = draft.description,
+                accountId = draft.accountId,
+                account = accountName(draft.accountId),
+                categoryId = draft.categoryId,
+                category = category?.name,
+                occurredOn = draft.occurredOn ?: LocalDate.now().toString(),
+                merchant = draft.merchant,
                 createdAt = Instant.now().toString(),
             )
             outbox.add(
                 PendingAction.PostTransaction(
                     subjectId = transaction.id,
-                    accountId = accountId,
-                    type = type,
-                    amount = amount,
-                    description = description,
+                    accountId = draft.accountId,
+                    type = draft.type,
+                    amount = draft.amount,
+                    description = draft.description,
+                    occurredOn = draft.occurredOn,
+                    merchant = draft.merchant,
+                    categoryId = draft.categoryId,
                 ),
             )
             cache.budgetTransactions.write(listOf(transaction) + cache.budgetTransactions.read())
-            adjustBalance(accountId, if (transaction.isCredit) cents else -cents)
+            adjustBalance(draft.accountId, if (transaction.isCredit) cents else -cents)
             Result.success(transaction)
         }
 
@@ -370,20 +379,26 @@ class OfflineBudgetRepository(
             )
 
             val now = Instant.now().toString()
+            val today = LocalDate.now().toString()
             val out = BudgetTransaction(
                 id = PendingAction.newId(),
                 type = "transfer_out",
                 amountCents = cents,
                 description = description,
-                account = accountRef(fromAccountId),
-                relatedAccount = accountRef(toAccountId),
+                accountId = fromAccountId,
+                account = accountName(fromAccountId),
+                relatedAccountId = toAccountId,
+                relatedAccount = accountName(toAccountId),
+                occurredOn = today,
                 createdAt = now,
             )
             val into = out.copy(
                 id = PendingAction.newId(),
                 type = "transfer_in",
-                account = accountRef(toAccountId),
-                relatedAccount = accountRef(fromAccountId),
+                accountId = toAccountId,
+                account = accountName(toAccountId),
+                relatedAccountId = fromAccountId,
+                relatedAccount = accountName(fromAccountId),
             )
 
             cache.budgetTransactions.write(listOf(into, out) + cache.budgetTransactions.read())
@@ -392,10 +407,99 @@ class OfflineBudgetRepository(
             Result.success(Unit)
         }
 
-    private suspend fun accountRef(id: String): AccountRef? =
-        cache.budgetAccounts.read()
-            .firstOrNull { it.id == id }
-            ?.let { AccountRef(it.id, it.name) }
+    /*
+     * Categories and goals are read through the cache because they are
+     * slow-moving lists a signed-in screen re-reads on every visit; limits,
+     * reports and due state are period-specific and are fetched fresh so a
+     * stale month is never shown as if it were the current one. Receipt
+     * uploads are multipart and are never queued offline.
+     */
+
+    override suspend fun categories(): Result<List<BudgetCategory>> =
+        readThroughCache(cache.budgetCategories) { remote.categories() }
+
+    override suspend fun createCategory(name: String, kind: String): Result<BudgetCategory> =
+        remote.createCategory(name, kind).also { result ->
+            result.getOrNull()?.let { created ->
+                cache.budgetCategories.write(cache.budgetCategories.read() + created)
+            }
+        }
+
+    override suspend fun updateCategory(
+        id: String,
+        name: String,
+        kind: String,
+    ): Result<BudgetCategory> = remote.updateCategory(id, name, kind).also { result ->
+        result.getOrNull()?.let { updated ->
+            cache.budgetCategories.write(
+                cache.budgetCategories.read().map { if (it.id == id) updated else it },
+            )
+        }
+    }
+
+    override suspend fun deleteCategory(id: String): Result<Unit> =
+        remote.deleteCategory(id).also { result ->
+            if (result.isSuccess) {
+                cache.budgetCategories.write(
+                    cache.budgetCategories.read().filterNot { it.id == id },
+                )
+            }
+        }
+
+    override suspend fun limits(period: String): Result<List<BudgetLimitState>> =
+        remote.limits(period)
+
+    override suspend fun saveLimit(
+        categoryId: String,
+        period: String,
+        limit: String,
+    ): Result<BudgetLimitState> = remote.saveLimit(categoryId, period, limit)
+
+    override suspend fun deleteLimit(id: String): Result<Unit> = remote.deleteLimit(id)
+
+    override suspend fun goals(): Result<List<BudgetGoal>> =
+        readThroughCache(cache.budgetGoals) { remote.goals() }
+
+    override suspend fun createGoal(draft: BudgetGoalDraft): Result<BudgetGoal> =
+        remote.createGoal(draft).also { result ->
+            result.getOrNull()?.let { created ->
+                cache.budgetGoals.write(cache.budgetGoals.read() + created)
+            }
+        }
+
+    override suspend fun updateGoal(id: String, draft: BudgetGoalDraft): Result<BudgetGoal> =
+        remote.updateGoal(id, draft).also { result ->
+            result.getOrNull()?.let { updated ->
+                cache.budgetGoals.write(
+                    cache.budgetGoals.read().map { if (it.id == id) updated else it },
+                )
+            }
+        }
+
+    override suspend fun deleteGoal(id: String): Result<Unit> =
+        remote.deleteGoal(id).also { result ->
+            if (result.isSuccess) {
+                cache.budgetGoals.write(cache.budgetGoals.read().filterNot { it.id == id })
+            }
+        }
+
+    override suspend fun report(period: String, months: Int): Result<BudgetReport> =
+        remote.report(period, months)
+
+    override suspend fun due(period: String): Result<BudgetDue> = remote.due(period)
+
+    override suspend fun uploadReceipt(
+        transactionId: String,
+        bytes: ByteArray,
+        fileName: String,
+        mimeType: String,
+    ): Result<BudgetReceipt> =
+        remote.uploadReceipt(transactionId, bytes, fileName, mimeType)
+
+    override suspend fun deleteReceipt(id: String): Result<Unit> = remote.deleteReceipt(id)
+
+    private suspend fun accountName(id: String): String? =
+        cache.budgetAccounts.read().firstOrNull { it.id == id }?.name
 
     private suspend fun adjustBalance(accountId: String, delta: Long) =
         cache.budgetAccounts.write(

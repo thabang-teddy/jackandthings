@@ -1,55 +1,49 @@
+import { useEffect, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import PomodoroGlassView from './GlassView';
+import TimerCard from './TimerCard';
 import { usePomodoroTimer } from '@/Lib/PomodoroTimerContext';
-import { router, useForm } from '@inertiajs/react';
+import {
+    setSoundsEnabled,
+    soundsEnabled,
+    soundsSupported,
+} from '@/Lib/pomodoroSounds';
+import { useAnalyticsTimezone } from './useAnalyticsTimezone';
 
-export default function Index({ presets }) {
+/**
+ * The Timer page — the Pomodoro module's landing page.
+ *
+ * Deliberately only the clock. Presets, the session log and the analytics are
+ * their own pages now: the timer is what you open this module for, and having
+ * to scroll past a chart and a history list to reach a countdown was the
+ * reason for the split.
+ *
+ * The countdown is not owned here. It lives in PomodoroTimerProvider above
+ * every authenticated page, so moving between these four pages — or away to
+ * Notes and back — never disturbs a running session.
+ */
+export default function Index({ presets, today, timezone }) {
     const timer = usePomodoroTimer();
+    const [soundOn, setSoundOn] = useState(false);
 
-    const { data, setData, post, processing, errors, reset } = useForm({
-        name: '',
-        focus_minutes: 25,
-        break_minutes: 5,
-    });
+    // Read after mount: the answer depends on `window`, which is not there
+    // during the first render of the server-rendered shell.
+    useEffect(() => setSoundOn(soundsEnabled()), []);
 
-    const submit = (event) => {
-        event.preventDefault();
-        post(route('pomodoro.presets.store'), {
-            preserveScroll: true,
-            onSuccess: () => reset(),
-        });
-    };
-
-    const destroy = (preset) => {
-        if (window.confirm(`Delete preset "${preset.name}"?`)) {
-            router.delete(route('pomodoro.presets.destroy', preset.id), {
-                preserveScroll: true,
-            });
-        }
-    };
-
-    const setDefault = (preset) => {
-        router.put(
-            route('pomodoro.presets.update', preset.id),
-            {
-                name: preset.name,
-                focus_minutes: preset.focus_minutes,
-                break_minutes: preset.break_minutes,
-                is_default: !preset.is_default,
-            },
-            { preserveScroll: true },
-        );
-    };
+    useAnalyticsTimezone(timezone, ['today', 'timezone']);
 
     return (
-        <PomodoroGlassView
-            presets={presets}
-            timer={timer}
-            presetForm={{ data, setData, errors, processing }}
-            onSubmitPreset={submit}
-            onDestroyPreset={destroy}
-            onSetDefault={setDefault}
-        />
+        <div className="flex h-full min-h-0 flex-col">
+            <TimerCard
+                presets={presets}
+                timer={timer}
+                todaySeconds={today.focus_seconds}
+                soundControl={{
+                    supported: soundsSupported(),
+                    enabled: soundOn,
+                    toggle: () => setSoundOn(setSoundsEnabled(!soundOn)),
+                }}
+            />
+        </div>
     );
 }
 

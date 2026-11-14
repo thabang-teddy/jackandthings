@@ -14,6 +14,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -76,9 +78,16 @@ class ApiClient(
         this.token = token
     }
 
-    suspend fun get(path: String): JsonElement = withContext(io) {
-        client.newCall(request(path).build()).execute().use { it.parseBody() }
-    }
+    /**
+     * [query] goes through HttpUrl's own builder rather than being appended
+     * to [path]: resolve() percent-encodes whatever it is handed as path
+     * segments, so a "?tz=Africa/Johannesburg" written into the path would
+     * arrive as part of the path, not as a parameter.
+     */
+    suspend fun get(path: String, query: Map<String, String> = emptyMap()): JsonElement =
+        withContext(io) {
+            client.newCall(request(path, query).build()).execute().use { it.parseBody() }
+        }
 
     suspend fun post(path: String, body: JsonObject? = null): JsonElement = withContext(io) {
         client.newCall(request(path).post(body.toJsonBody()).build()).execute().use { it.parseBody() }
@@ -94,23 +103,58 @@ class ApiClient(
         }
     }
 
+    /**
+     * The one multipart path, used only for a progress photo.
+     *
+     * [bytes] is the image already read into memory. That is acceptable here
+     * and nowhere else: the server caps an upload at 8 MB, and streaming
+     * straight from a content URI would mean holding the picker's stream open
+     * across a retry. [fileName] and [mimeType] are both decided by the
+     * caller from the picker's own metadata, never from user text.
+     */
+    suspend fun postMultipart(
+        path: String,
+        fileField: String,
+        fileName: String,
+        mimeType: String,
+        bytes: ByteArray,
+        fields: Map<String, String> = emptyMap(),
+    ): JsonElement = withContext(io) {
+        val body = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .apply {
+                fields.forEach { (name, value) -> addFormDataPart(name, value) }
+                addFormDataPart(
+                    fileField,
+                    fileName,
+                    bytes.toRequestBody(mimeType.toMediaTypeOrNull()),
+                )
+            }
+            .build()
+
+        client.newCall(request(path).post(body).build()).execute().use { it.parseBody() }
+    }
+
     // ── Plumbing ───────────────────────────────────────────────────────────
 
     private fun JsonObject?.toJsonBody() =
         (this?.toString() ?: "{}").toRequestBody(JSON_MEDIA_TYPE)
 
-    private fun request(path: String): Request.Builder {
+    private fun request(path: String, query: Map<String, String> = emptyMap()): Request.Builder {
         val builder = Request.Builder()
-            .url(resolve(path))
+            .url(resolve(path, query))
             .header("Accept", "application/json")
         token?.let { builder.header("Authorization", "Bearer $it") }
         return builder
     }
 
-    private fun resolve(path: String): HttpUrl {
+    private fun resolve(path: String, query: Map<String, String> = emptyMap()): HttpUrl {
         val base = baseUrl.toHttpUrlOrNull()
             ?: throw ApiException(0, "Server address is not valid: $baseUrl")
-        return base.newBuilder().addPathSegments(path.trimStart('/')).build()
+        val builder = base.newBuilder().addPathSegments(path.trimStart('/'))
+        query.forEach { (name, value) -> builder.addQueryParameter(name, value) }
+
+        return builder.build()
     }
 
     /**

@@ -10,8 +10,9 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['account_id', 'type', 'amount_cents', 'related_account_id', 'transfer_group_id', 'description'])]
+#[Fillable(['account_id', 'type', 'amount_cents', 'related_account_id', 'transfer_group_id', 'description', 'occurred_on', 'merchant', 'category_id'])]
 class BudgetTransaction extends Model
 {
     use HasFactory, HasUuids;
@@ -21,6 +22,7 @@ class BudgetTransaction extends Model
         return [
             'type' => BudgetTransactionType::class,
             'amount_cents' => 'integer',
+            'occurred_on' => 'date',
         ];
     }
 
@@ -37,5 +39,15 @@ class BudgetTransaction extends Model
     public function relatedAccount(): BelongsTo
     {
         return $this->belongsTo(BudgetAccount::class, 'related_account_id');
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(BudgetCategory::class, 'category_id');
+    }
+
+    public function receipt(): HasOne
+    {
+        return $this->hasOne(BudgetReceipt::class, 'transaction_id');
     }
 }

@@ -72,10 +72,10 @@ export const MODULES = [
 
 export const SUBMENUS = {
     pomodoro: [
-        { label: 'Timer', type: 'anchor', target: 'timer' },
-        { label: 'Presets', type: 'anchor', target: 'presets' },
-        { label: 'Sessions', type: 'disabled' },
-        { label: 'Stats', type: 'disabled' },
+        { label: 'Timer', type: 'link', target: 'pomodoro.index' },
+        { label: 'Presets', type: 'link', target: 'pomodoro.presets' },
+        { label: 'Sessions', type: 'link', target: 'pomodoro.sessions' },
+        { label: 'Stats', type: 'link', target: 'pomodoro.stats' },
     ],
     budget: [
         { label: 'Overview', type: 'link', target: 'budget.index' },
@@ -83,13 +83,26 @@ export const SUBMENUS = {
         { label: 'Transfer', type: 'link', target: 'budget.transfer' },
         { label: 'Recurring', type: 'link', target: 'budget.recurring' },
         { label: 'Transactions', type: 'link', target: 'budget.transactions' },
+        // Issue #5 added four pages rather than stretching one: categories,
+        // caps, goals and the report each answer a different question, and the
+        // report is the only one that draws a chart.
+        { label: 'Categories', type: 'link', target: 'budget.categories' },
+        { label: 'Limits', type: 'link', target: 'budget.limits' },
+        { label: 'Goals', type: 'link', target: 'budget.goals' },
+        { label: 'Reports', type: 'link', target: 'budget.reports' },
     ],
     notes: [],
+    // Six pages since issue #4, the same move Pomodoro made with issue #3:
+    // an exercise library, a routine builder and a 90-day calendar do not fit
+    // under one scroll bar, and scrolling past them to log a set is not a
+    // workout tracker.
     workout: [
-        { label: 'Overview', type: 'anchor', target: 'overview' },
-        { label: 'Log entry', type: 'link', target: 'workouts.create' },
-        { label: 'Presets', type: 'anchor', target: 'presets' },
-        { label: 'Reminders', type: 'anchor', target: 'reminders' },
+        { label: 'Today', type: 'link', target: 'workouts.index' },
+        { label: 'Library', type: 'link', target: 'workouts.library' },
+        { label: 'Routines', type: 'link', target: 'workouts.routines' },
+        { label: 'Sessions', type: 'link', target: 'workouts.sessions' },
+        { label: 'Body', type: 'link', target: 'workouts.body' },
+        { label: 'Stats', type: 'link', target: 'workouts.stats' },
     ],
     watchlist: [
         { label: 'Lists', type: 'anchor', target: 'lists' },
