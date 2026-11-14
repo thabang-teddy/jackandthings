@@ -38,7 +38,7 @@ return new class extends Migration
 
         DB::table('budget_transactions')
             ->whereNull('occurred_on')
-            ->update(['occurred_on' => DB::raw("date(created_at)")]);
+            ->update(['occurred_on' => DB::raw('date(created_at)')]);
     }
 
     public function down(): void
