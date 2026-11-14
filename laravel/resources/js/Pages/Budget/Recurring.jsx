@@ -19,7 +19,15 @@ function today() {
     return new Date().toISOString().slice(0, 10);
 }
 
-export default function Recurring({ accounts, recurring }) {
+const REMINDER_LABELS = {
+    '': 'No reminder',
+    0: 'On the day',
+    1: '1 day before',
+    3: '3 days before',
+    7: '7 days before',
+};
+
+export default function Recurring({ accounts, categories, recurring }) {
     const [editingId, setEditingId] = useState(null);
     const { data, setData, post, put, processing, errors, reset, clearErrors } =
         useForm({
@@ -27,8 +35,10 @@ export default function Recurring({ accounts, recurring }) {
             type: 'deposit',
             amount: '',
             description: '',
+            category_id: '',
             cadence: 'monthly',
             next_run_at: today(),
+            remind_days_before: '',
         });
 
     const startNew = () => {
@@ -46,8 +56,14 @@ export default function Recurring({ accounts, recurring }) {
             type: item.type,
             amount: (item.amount_cents / 100).toString(),
             description: item.description ?? '',
+            category_id: item.category_id ?? '',
             cadence: item.cadence,
             next_run_at: item.next_run_at,
+            remind_days_before:
+                item.remind_days_before === null ||
+                item.remind_days_before === undefined
+                    ? ''
+                    : String(item.remind_days_before),
         });
     };
 
@@ -67,6 +83,9 @@ export default function Recurring({ accounts, recurring }) {
             });
         }
     };
+
+    const kind = data.type === 'deposit' ? 'income' : 'expense';
+    const matching = categories.filter((category) => category.kind === kind);
 
     const toggleActive = (item) => {
         router.put(
@@ -119,7 +138,7 @@ export default function Recurring({ accounts, recurring }) {
                                 icon={icon}
                                 iconColor={color}
                                 title={`${TYPE_LABELS[item.type] ?? item.type} · ${CADENCE_LABELS[item.cadence]}`}
-                                subtitle={`${item.account} · next ${item.next_run_at}${item.active ? '' : ' · paused'}`}
+                                subtitle={`${item.account}${item.category ? ` · ${item.category}` : ''} · next ${item.next_run_at}${item.remind_days_before === null || item.remind_days_before === undefined ? '' : ` · remind ${item.remind_days_before}d before`}${item.active ? '' : ' · paused'}`}
                                 trailing={formatZar(item.amount_cents)}
                                 trailingTone={
                                     INCOME_TYPES.has(item.type) ? 'pos' : 'neg'
@@ -192,9 +211,10 @@ export default function Recurring({ accounts, recurring }) {
                             <GlassSelect
                                 id="rec_type"
                                 value={data.type}
-                                onChange={(e) =>
-                                    setData('type', e.target.value)
-                                }
+                                onChange={(e) => {
+                                    setData('type', e.target.value);
+                                    setData('category_id', '');
+                                }}
                             >
                                 <option value="deposit">Deposit</option>
                                 <option value="withdrawal">Withdrawal</option>
@@ -217,6 +237,56 @@ export default function Recurring({ accounts, recurring }) {
                                 required
                             />
                             <GlassError message={errors.amount} />
+                        </div>
+                        <div>
+                            <GlassLabel htmlFor="rec_category">
+                                Category (optional)
+                            </GlassLabel>
+                            <GlassSelect
+                                id="rec_category"
+                                value={data.category_id}
+                                onChange={(e) =>
+                                    setData('category_id', e.target.value)
+                                }
+                            >
+                                <option value="">Uncategorized</option>
+                                {matching.map((category) => (
+                                    <option
+                                        key={category.id}
+                                        value={category.id}
+                                    >
+                                        {category.name}
+                                    </option>
+                                ))}
+                            </GlassSelect>
+                            <GlassError message={errors.category_id} />
+                        </div>
+                        <div>
+                            <GlassLabel htmlFor="rec_reminder">
+                                Reminder
+                            </GlassLabel>
+                            <GlassSelect
+                                id="rec_reminder"
+                                value={data.remind_days_before}
+                                onChange={(e) =>
+                                    setData(
+                                        'remind_days_before',
+                                        e.target.value,
+                                    )
+                                }
+                            >
+                                {Object.entries(REMINDER_LABELS).map(
+                                    ([value, label]) => (
+                                        <option
+                                            key={value || 'none'}
+                                            value={value}
+                                        >
+                                            {label}
+                                        </option>
+                                    ),
+                                )}
+                            </GlassSelect>
+                            <GlassError message={errors.remind_days_before} />
                         </div>
                         <div>
                             <GlassLabel htmlFor="rec_cadence">

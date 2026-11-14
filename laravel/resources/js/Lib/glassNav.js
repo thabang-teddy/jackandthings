@@ -83,6 +83,13 @@ export const SUBMENUS = {
         { label: 'Transfer', type: 'link', target: 'budget.transfer' },
         { label: 'Recurring', type: 'link', target: 'budget.recurring' },
         { label: 'Transactions', type: 'link', target: 'budget.transactions' },
+        // Issue #5 added four pages rather than stretching one: categories,
+        // caps, goals and the report each answer a different question, and the
+        // report is the only one that draws a chart.
+        { label: 'Categories', type: 'link', target: 'budget.categories' },
+        { label: 'Limits', type: 'link', target: 'budget.limits' },
+        { label: 'Goals', type: 'link', target: 'budget.goals' },
+        { label: 'Reports', type: 'link', target: 'budget.reports' },
     ],
     notes: [],
     // Six pages since issue #4, the same move Pomodoro made with issue #3:

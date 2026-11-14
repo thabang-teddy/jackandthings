@@ -52,7 +52,10 @@ export function goalPercent(savedCents, targetCents) {
         return 0;
     }
 
-    return Math.min(100, Math.trunc((Math.max(0, savedCents) * 100) / targetCents));
+    return Math.min(
+        100,
+        Math.trunc((Math.max(0, savedCents) * 100) / targetCents),
+    );
 }
 
 export function goalComplete(savedCents, targetCents) {
