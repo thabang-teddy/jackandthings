@@ -5,14 +5,15 @@ A suite now exists on all three surfaces and **all of it passes**. Figures below
 
 | Surface | Framework | Tests | Command |
 | --- | --- | --- | --- |
-| Laravel | PHPUnit 12.5 | **419** (6840 assertions) | `php artisan test` |
+| Laravel | PHPUnit 12.5 | **461** (10009 assertions) | `php artisan test` |
 | Web JS | `node --test` (no dependencies) | **110** | `npm test` in `laravel/` |
 | Android | JUnit 4 + `kotlinx-coroutines-test` | **313** | `.\gradlew.bat :app:testDebugUnitTest` |
 | Add-on | `node --test` (no dependencies) | **98** | `npm test` in `extension/` |
-| | | **940 total** | |
+| | | **982 total** | |
 
-Issue #4 added 362 of those: 163 on the server, 54 in the web app's shared
-logic, 102 on Android and 43 in the add-on.
+Issue #4 added 362 of those: 163 on the server, 54 in the web app's shared logic, 102 on Android and 43 in the add-on.
+
+Issue #5 added the personal-finance work: the budget service, rules and reports unit tests plus the new cross-tenant cases on the server, the mirrored budget logic in the web client and the Android budget repository/outbox changes, and the add-on's quick-expense surface. The extension's suite went from 55 to 98 across the branch — the quick-expense and limit-meter code runs on the shared pure modules the existing tests already cover, and the budget wire shape fix in `transferFlow` landed in the format tests.
 
 The web JS runner needs no dependency: `laravel/package.json` is already
 `"type": "module"`, so Node loads the sources as they are. It reaches the
@@ -208,6 +209,7 @@ Fakes are hand-written (`app/src/test/.../testing/Fakes.kt`), not generated: the
 - **Strict mode's privileged halves are unexercised.** Android's `FocusGuard` needs `ACCESS_NOTIFICATION_POLICY` granted in Settings and a real `NotificationManager`, so neither the silencing nor the restore-the-previous-filter path has run. The add-on's `declarativeNetRequest` blocking has never run either — it inherits the existing gap that the extension has never been loaded as a real extension. Both are written to degrade to "asked for but not allowed" and say so in the UI, which is itself untested.
 - **Session logging is unit-tested everywhere but has only been run end to end on the web**, where a real start-then-skip in a browser produced `POST /pomodoro/sessions → 204` followed by the partial analytics reload. `PomodoroSessionRecorderTest` covers the Android recorder's own decisions against a fake repository, but no interval has been logged from an actual device, and the add-on's background logging — which happens inside the service worker — is still unreached for the same reason the rest of that host is.
 - Android **Compose UI** is untested — the ViewModels are covered, but nothing asserts a screen renders their state. That needs instrumented or Robolectric tests. Issue #4 added five more screens under this gap, including the one that picks a progress photo: `PickVisualMedia`, the content-resolver read and the mime check in front of it have never run.
+- **Issue #5's Android planning surface is online-only by design** - categories, limits, goals, reports, due state and receipts are fetched through the API and never served from a local cache, so there is nothing offline to test beyond the ledger queue, which keeps its tests.
 - **Tracked workouts do not work offline on Android**, and that is a deliberate limit rather than an untested one. `ExerciseRepository`, `TrainingRepository` and `BodyRepository` have no local, signed-out half and no outbox: the exercise catalog is server-seeded reference data, and a set queued offline belongs to a session that may not exist on the server yet, so `OutboxDrainer` would need session-id remapping before any of it could replay. A photo upload is not queued either — queueing one would mean copying the image into the app's own storage, leaving a copy of somebody's body photo on the device. The one-line entry log keeps its offline queue and its tests. PRD.md carries the open decision.
 - **The rest timer's platform half is unexercised.** `WorkoutRestTimer` itself is covered under a controlled clock, but `WorkoutRestService` — the foreground notification, its two actions, and the `specialUse` service type — has never run, like `PomodoroTimerService` before it. The add-on's rest alarm is in the same position for the same reason as everything else in that host.
 - **Nothing on Android has run on a device or an emulator since issue #4.** `assembleDebug` is clean and the unit tests pass; the five new screens have not been looked at.

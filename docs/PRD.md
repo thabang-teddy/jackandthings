@@ -41,7 +41,7 @@ All three surfaces now exist: the Laravel server (web UI + `api/v1`), the Kotlin
 | --- | --- | --- | --- | --- |
 | F-01 | As a user, I need to run a Pomodoro timer | Save presets (durations including a long break on a configurable cycle, auto-start choices, a category tag, alarm/ticking/background sound, strict mode); start one; the timer runs the cycle, and each finished interval feeds daily and weekly analytics | **Built on all three surfaces** (issue #3). Android gives it the full-screen countdown `init.txt` asked for. A *running* timer is still not persisted anywhere; a *finished* interval is. Three caveats are stated rather than papered over: the generated audio has never been listened to, strict mode's privileged halves (Android Do Not Disturb, add-on site blocking) have never run, and web strict mode cannot block notifications or lock a screen — it keeps the screen awake and warns before you leave, and says so | Must |
 | F-02 | As a user, I need to manage notes | Create, read, update, delete notes (title, body) | **Built (web + API + Android)** | Must |
-| F-03 | As a user, I need to track a budget | Multiple accounts; deposit/withdraw; transfer between own accounts; dashboard with per-account and total balances | **Built (web + API + Android).** Fixed ZAR, integer cents, derived balances, atomic two-leg transfers, overdrafts rejected. No categories | Must |
+| F-03 | As a user, I need to track a budget | Multiple accounts/wallets; deposit/withdraw against them; transfer between own accounts; dashboard with per-account and total balances; per-user spending categories, monthly caps and savings goals; spending reports and due-state alerts; receipts attached to a transaction | **Built on all three surfaces (issue #5).** Fixed ZAR, integer cents, derived balances, atomic two-leg transfers, overdrafts rejected; transactions carry `occurred_on`/`merchant`/`category_id`, reports and caps group by the business date; custom categories are per user and seeded on first use; caps are per category per month; goals are virtual jars; receipts follow the progress-photo storage rules. Export is streamed CSV only. | Must |
 | F-04 | As a user, I need to track workouts and my fitness | The one-line log (activity, when, notes) and the hourly nudge, plus — since issue #4 — an exercise library, saved routines, set/rep/weight logging against a live workout, a rest timer, previous numbers shown while training, body metrics with private progress photos, and personal records with a consistency calendar | **Built (web + API + Android + add-on).** The server reports reminder due-state only and sends nothing; each client polls it and raises its own local notification. Issue #4's scope limits are deliberate and recorded below: no wearable sync, exercise instructions are text rather than media, and the add-on carries the live-logging half only | Must |
 | F-05 | As a user, I need to share clipboard content across apps | Save snippets; copy them back | **Built on all three.** Android reads/writes the system clipboard and accepts share-sheet text; the add-on can paste from and copy to the clipboard. Both stamp `source_device`, so a snippet saved on the phone is one click away in the browser — the cross-device sync `init.txt` asked for | Must |
 | F-06 | As a user, I need to manage browsing history | View history list; auto-delete old URLs | **Built (server + add-on).** The add-on records visits to the server and clears browser history past the retention window, both opt-in behind an optional permission; the server keeps the records and runs `history:prune`. Deliberately absent from Android. The retention rule itself is still a placeholder | Must |
@@ -84,6 +84,50 @@ than for convenience:
   where anyone plans a training block or types seven tape measurements, so the
   routine builder and body metrics stay on the web app and the phone, and
   progress photos are absent from the add-on entirely.
+- **The add-on carries the quick-expense half only for Budget.** The popup
+  logs a spend against an account, a category and a business date and shows the
+  month's cap meters. Reports, goals and receipts stay on the web app and the
+  phone; limits are display-only in the popup.
+
+**Settled by issue #5:** the Budget module's shape, across the web, the API,
+the Android app and the add-on. The issue's wording ("personal finance") reached
+further than its title, and each pull was settled against the owner's sense of
+what a small personal app can honestly ship:
+
+- **Money stays integer cents, fixed ZAR.** Reports group spending by a
+  transaction's `occurred_on` (the business date, defaulting to today) and not by
+  the write time; `created_at` remains the immutable audit stamp. All three
+  clients run the same integer-only rule copies; the server stays the authority.
+- **Transactions gained `occurred_on`, `merchant` and `category_id`.** Reports,
+  caps and the transaction list read the category and merchant off the row.
+  Existing rows are backfilled from the day they were written, which is the only
+  date the ledger had before.
+- **Categories are per user**, seeded with five examples on first use, renameable
+  and extendable, with `(user_id, name)` unique.
+- **Caps are per category per month** (`YYYY-MM`), one cap per category per
+  month, raised by editing the row; near/over/under come from the shared integer
+  rule (near at 80%).
+- **Goals are virtual jars**, not bank accounts; saving into one does not move
+  money between accounts.
+- **Reports** aggregate a month plus trailing months for net worth; the server
+  also answers due-state (bills inside the reminder window, caps near or over).
+- **Export is a streamed CSV** (the UI labels it Excel-compatible). The `.xlsx`
+  route with PhpSpreadsheet was **dropped**: no new dependency and the real
+  requirement was "the user can open the file".
+- **Receipts** follow the progress-photo rules: private disk, `mimetypes`
+  allow-list, server-sniffed file, random stored name, storage fields outside
+  `#[Fillable]`, authorized per-read route, file deleted with the row.
+
+Scope decisions, each for a stated reason:
+
+- **The lock feature is dropped**, by decision. Nothing about budgeting becomes
+  a task; the module keeps ledger, categories, caps, goals, reports and receipts.
+- **Android planning writes and reads are online-only** (categories, limits,
+  goals, reports, due, receipts). The ledger itself keeps its local signed-out
+  copy and offline queue; limits, reports and due state are not cached, so a
+  signed-out month would be fiction.
+- **The add-on cannot upload or attach receipts**, and never plans: quick expense
+  logging plus month limit state only.
 
 **Settled by issue #3:** whether Pomodoro session history is stored. It is, and
 that reverses what ARCHITECTURE.md and DATABASE.md said. Only half the earlier
