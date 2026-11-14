@@ -3,6 +3,13 @@ package com.jackandthings.data.remote
 import com.jackandthings.model.BodyMetric
 import com.jackandthings.model.BodyMetricDraft
 import com.jackandthings.model.BudgetAccount
+import com.jackandthings.model.BudgetCategory
+import com.jackandthings.model.BudgetDue
+import com.jackandthings.model.BudgetGoal
+import com.jackandthings.model.BudgetGoalDraft
+import com.jackandthings.model.BudgetLimitState
+import com.jackandthings.model.BudgetReceipt
+import com.jackandthings.model.BudgetReport
 import com.jackandthings.model.BudgetTransaction
 import com.jackandthings.model.Exercise
 import com.jackandthings.model.ExerciseDraft
@@ -356,12 +363,18 @@ class JackApi(private val client: ApiClient) {
     /**
      * [amount] is the major-unit string the user typed ("125.50"); the server
      * converts to cents. Sending the text avoids a float ever touching money.
+     *
+     * [occurredOn] is the business date, not the write time; [merchant] and
+     * [categoryId] are the two optional columns added with issue #5.
      */
     suspend fun createTransaction(
         accountId: String,
         type: String,
         amount: String,
         description: String?,
+        occurredOn: String? = null,
+        merchant: String? = null,
+        categoryId: String? = null,
     ): BudgetTransaction = client.post(
         "budget-transactions",
         buildJsonObject {
@@ -369,6 +382,9 @@ class JackApi(private val client: ApiClient) {
             put("type", type)
             put("amount", amount)
             put("description", description ?: "")
+            occurredOn?.let { put("occurred_on", it) }
+            merchant?.let { put("merchant", it) }
+            categoryId?.let { put("category_id", it) }
         },
     ).decode()
 
@@ -391,6 +407,97 @@ class JackApi(private val client: ApiClient) {
             },
         )
     }
+
+    // ── Budget categories, limits and goals ────────────────────────────────
+
+    suspend fun budgetCategories(): List<BudgetCategory> =
+        client.get("budget-categories").decodeList()
+
+    suspend fun createBudgetCategory(name: String, kind: String): BudgetCategory =
+        client.post(
+            "budget-categories",
+            buildJsonObject {
+                put("name", name)
+                put("kind", kind)
+            },
+        ).decode()
+
+    suspend fun updateBudgetCategory(id: String, name: String, kind: String): BudgetCategory =
+        client.put(
+            "budget-categories/$id",
+            buildJsonObject {
+                put("name", name)
+                put("kind", kind)
+            },
+        ).decode()
+
+    suspend fun deleteBudgetCategory(id: String) = client.delete("budget-categories/$id")
+
+    /**
+     * The caps set for one `YYYY-MM` month. [period] is a query parameter so
+     * the caller controls which month is shown rather than the server's clock.
+     */
+    suspend fun budgetLimits(period: String): List<BudgetLimitState> =
+        client.get("budget-limits", mapOf("period" to period)).decodeList()
+
+    /** [limit] is major-unit text; setting the same category and month edits it. */
+    suspend fun saveBudgetLimit(
+        categoryId: String,
+        period: String,
+        limit: String,
+    ): BudgetLimitState =
+        client.post(
+            "budget-limits",
+            buildJsonObject {
+                put("category_id", categoryId)
+                put("period", period)
+                put("limit", limit)
+            },
+        ).decode()
+
+    suspend fun deleteBudgetLimit(id: String) = client.delete("budget-limits/$id")
+
+    suspend fun budgetGoals(): List<BudgetGoal> = client.get("budget-goals").decodeList()
+
+    suspend fun createBudgetGoal(draft: BudgetGoalDraft): BudgetGoal =
+        client.post("budget-goals", draft.asJsonObject()).decode()
+
+    suspend fun updateBudgetGoal(id: String, draft: BudgetGoalDraft): BudgetGoal =
+        client.put("budget-goals/$id", draft.asJsonObject()).decode()
+
+    suspend fun deleteBudgetGoal(id: String) = client.delete("budget-goals/$id")
+
+    /** Aggregates for one month plus the last [months] of in/out and net worth. */
+    suspend fun budgetReport(period: String, months: Int = 6): BudgetReport =
+        client.get("budget-reports", mapOf("period" to period, "months" to months.toString()))
+            .decode()
+
+    /** Bills inside their reminder window and caps near or over. */
+    suspend fun budgetDue(period: String): BudgetDue =
+        client.get("budget-due", mapOf("period" to period)).decode()
+
+    // ── Budget receipts ────────────────────────────────────────────────────
+
+    /**
+     * Uploads one receipt for a transaction, replacing any earlier image.
+     * [bytes] and [mimeType] come from the picker; the server sniffs the file
+     * again against its own allow-list.
+     */
+    suspend fun uploadBudgetReceipt(
+        transactionId: String,
+        bytes: ByteArray,
+        fileName: String,
+        mimeType: String,
+    ): BudgetReceipt =
+        client.postMultipart(
+            path = "budget-transactions/$transactionId/receipt",
+            fileField = "receipt",
+            fileName = fileName,
+            mimeType = mimeType,
+            bytes = bytes,
+        ).decode()
+
+    suspend fun deleteBudgetReceipt(id: String) = client.delete("budget-receipts/$id")
 
     // ── Recurring ──────────────────────────────────────────────────────────
 

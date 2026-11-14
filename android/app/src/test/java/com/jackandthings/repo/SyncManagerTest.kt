@@ -2,7 +2,6 @@ package com.jackandthings.repo
 
 import com.jackandthings.data.local.LocalStores
 import com.jackandthings.data.local.PendingTransfer
-import com.jackandthings.model.AccountRef
 import com.jackandthings.model.BudgetAccount
 import com.jackandthings.model.BudgetTransaction
 import com.jackandthings.model.Note
@@ -137,7 +136,8 @@ class SyncManagerTest {
                     type = "deposit",
                     amountCents = 12550,
                     description = "Pay",
-                    account = AccountRef("local-acc", "Everyday"),
+                    accountId = "local-acc",
+                    account = "Everyday",
                 ),
             ),
         )
@@ -165,11 +165,17 @@ class SyncManagerTest {
             listOf(
                 BudgetTransaction(
                     "local-out", "transfer_out", 4000, null,
-                    AccountRef("local-from", "Everyday"), AccountRef("local-to", "Savings"),
+                    accountId = "local-from",
+                    account = "Everyday",
+                    relatedAccountId = "local-to",
+                    relatedAccount = "Savings",
                 ),
                 BudgetTransaction(
                     "local-in", "transfer_in", 4000, null,
-                    AccountRef("local-to", "Savings"), AccountRef("local-from", "Everyday"),
+                    accountId = "local-to",
+                    account = "Savings",
+                    relatedAccountId = "local-from",
+                    relatedAccount = "Everyday",
                 ),
             ),
         )
@@ -202,7 +208,8 @@ class SyncManagerTest {
                     type = "deposit",
                     amountCents = 1000,
                     description = "Pay",
-                    account = AccountRef("local-acc", "Everyday"),
+                    accountId = "local-acc",
+                    account = "Everyday",
                 ),
             ),
         )
@@ -216,6 +223,6 @@ class SyncManagerTest {
         assertTrue(stores.budgetAccounts.read().isEmpty())
         // And the stranded transaction now points at the real account, so a
         // later attempt still resolves without the local row to map from.
-        assertEquals("acc-1", stores.budgetTransactions.read().single().account?.id)
+        assertEquals("acc-1", stores.budgetTransactions.read().single().accountId)
     }
 }
