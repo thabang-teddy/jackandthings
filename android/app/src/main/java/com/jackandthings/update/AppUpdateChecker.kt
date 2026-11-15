@@ -13,6 +13,13 @@ import okhttp3.Request
 
 data class AppVersion(val versionName: String, val downloadUrl: String)
 
+/** What one check found, so a manual check can say more than "no banner". */
+sealed interface UpdateCheck {
+    data class Available(val version: AppVersion) : UpdateCheck
+    data object UpToDate : UpdateCheck
+    data object Unreachable : UpdateCheck
+}
+
 /**
  * Parses a GitHub "get the latest release" response body down to the two
  * fields this app cares about. Null for anything that isn't shaped the way
@@ -47,11 +54,28 @@ private fun versionParts(version: String) =
     version.trim().removePrefix("v").split(".").map { it.toIntOrNull() ?: 0 }
 
 /**
- * Checks GitHub's public releases API once per app open for a newer build
- * than the one running, and surfaces it as a dismissible [available] a
- * screen can show a banner for. The APK itself is published there by the
- * `apk` CI job (see build.gradle.kts), so that is also the one place to ask
- * whether a newer one exists - no server-side endpoint needed.
+ * The decision half of a check, kept apart from the request so all three
+ * outcomes can be asserted without a network.
+ *
+ * A missing response is [UpdateCheck.Unreachable], never "up to date":
+ * claiming somebody's build is current because their phone was offline is a
+ * claim the check cannot support.
+ */
+internal fun classifyUpdate(latest: AppVersion?, currentVersionName: String): UpdateCheck = when {
+    latest == null -> UpdateCheck.Unreachable
+    isNewer(latest.versionName, currentVersionName) -> UpdateCheck.Available(latest)
+    else -> UpdateCheck.UpToDate
+}
+
+/**
+ * Checks GitHub's public releases API for a newer build than the one running.
+ *
+ * [check] runs once per app open and surfaces a newer build as the dismissible
+ * [available] banner; [checkNow] is the same request asked for from Settings,
+ * where the result is said in place rather than left to a banner. The APK is
+ * published there by the `apk` CI job (see build.gradle.kts), so that is also
+ * the one place to ask whether a newer one exists - no server-side endpoint
+ * needed.
  */
 object AppUpdateChecker {
 
@@ -64,22 +88,31 @@ object AppUpdateChecker {
     private val client = OkHttpClient()
 
     suspend fun check(currentVersionName: String) {
-        val latest = withContext(Dispatchers.IO) {
-            runCatching {
-                val request = Request.Builder().url(LATEST_RELEASE_URL).build()
-                client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) null else response.body?.string()?.let(::parseLatestRelease)
-                }
-            }.getOrNull()
-        }
+        checkNow(currentVersionName)
+    }
 
-        if (latest != null && isNewer(latest.versionName, currentVersionName)) {
-            _available.value = latest
-        }
+    /**
+     * Runs the check and reports what it found. A newer release still arms
+     * [available], so the banner reaches the rest of the app rather than
+     * living only on the screen that asked.
+     */
+    suspend fun checkNow(currentVersionName: String): UpdateCheck {
+        val outcome = classifyUpdate(fetchLatest(), currentVersionName)
+        if (outcome is UpdateCheck.Available) _available.value = outcome.version
+        return outcome
     }
 
     fun dismiss() {
         _available.value = null
+    }
+
+    private suspend fun fetchLatest(): AppVersion? = withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder().url(LATEST_RELEASE_URL).build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) null else response.body?.string()?.let(::parseLatestRelease)
+            }
+        }.getOrNull()
     }
 
     internal fun resetForTesting() {

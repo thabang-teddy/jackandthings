@@ -63,4 +63,25 @@ class AppUpdateCheckerTest {
         assertNull(parseLatestRelease("not json"))
         assertNull(parseLatestRelease(""))
     }
+
+    @Test
+    fun `a newer release is reported with the page to open`() {
+        val latest = AppVersion("0.1.48", "https://github.com/x/y/releases/tag/0.1.48")
+
+        assertEquals(UpdateCheck.Available(latest), classifyUpdate(latest, "0.1.47"))
+    }
+
+    @Test
+    fun `the running version is reported as current`() {
+        val latest = AppVersion("0.1.47", "https://github.com/x/y/releases/tag/0.1.47")
+
+        assertEquals(UpdateCheck.UpToDate, classifyUpdate(latest, "0.1.47"))
+    }
+
+    @Test
+    fun `no response is unreachable rather than up to date`() {
+        // Telling somebody their build is current because the phone was
+        // offline is a claim the check cannot support.
+        assertEquals(UpdateCheck.Unreachable, classifyUpdate(null, "0.1.47"))
+    }
 }

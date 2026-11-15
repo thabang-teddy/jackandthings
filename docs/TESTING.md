@@ -7,13 +7,15 @@ A suite now exists on all three surfaces and **all of it passes**. Figures below
 | --- | --- | --- | --- |
 | Laravel | PHPUnit 12.5 | **461** (10009 assertions) | `php artisan test` |
 | Web JS | `node --test` (no dependencies) | **110** | `npm test` in `laravel/` |
-| Android | JUnit 4 + `kotlinx-coroutines-test` | **313** | `.\gradlew.bat :app:testDebugUnitTest` |
+| Android | JUnit 4 + `kotlinx-coroutines-test` | **320** | `.\gradlew.bat :app:testDebugUnitTest` |
 | Add-on | `node --test` (no dependencies) | **102** | `npm test` in `extension/` |
-| | | **986 total** | |
+| | | **993 total** | |
 
 Issue #4 added 362 of those: 163 on the server, 54 in the web app's shared logic, 102 on Android and 43 in the add-on.
 
 Issue #5 added the personal-finance work: the budget service, rules and reports unit tests plus the new cross-tenant cases on the server, the mirrored budget logic in the web client and the Android budget repository/outbox changes, and the add-on's quick-expense surface. The extension's suite went from 55 to 102 across the branch - the quick-expense and limit-meter code runs on the shared pure modules the existing tests already cover, the budget wire shape fix in `transferFlow` landed in the format tests, and this session added the four budget API tests for the new endpoints and the optional transaction columns.
+
+The Android appearance setting and the manual update check added 7: `ThemeModeTest` pins that a saved choice comes back unchanged and that anything unrecognised falls back to following the phone, and `AppUpdateCheckerTest` gained the three outcomes of a check. Neither UI itself is covered - Compose screens still have no tests, so the Settings chips and the button are only as good as the state they feed.
 
 The web JS runner needs no dependency: `laravel/package.json` is already
 `"type": "module"`, so Node loads the sources as they are. It reaches the
@@ -135,7 +137,7 @@ Scope it to the six modules (PRD.md F-01…F-06) plus the SECURITY.md requiremen
 ## Verified commands
 All run successfully:
 - Server: `php artisan test` (from `laravel/`) — 419 passed. Also `--testsuite=Unit` / `--testsuite=Feature`. Note the batch wrapper eats `|`, so `--filter="A|B"` fails; filter one class at a time or run a suite. No `npm run build` is needed first: `tests/TestCase.php` swaps in an empty Vite handler, so page-rendering tests pass on a fresh clone with no `public/build`. The bundle itself is still proven by `npm run build` (the `js` CI job).
-- Android: `.\gradlew.bat :app:testDebugUnitTest` (from `android/`, `JAVA_HOME` set to Android Studio's JBR) — 313 passed, in about 20 seconds.
+- Android: `.\gradlew.bat :app:testDebugUnitTest` (from `android/`, `JAVA_HOME` set to Android Studio's JBR) — 320 passed, in about 20 seconds.
 
   **If that run ever takes minutes instead, suspect a timer left running.** Both `PomodoroTimerEngine` and `WorkoutRestTimer` are process-wide singletons whose ticker reschedules itself every second; `runTest` drains the scheduler before it returns, so a test that leaves one running waits out the whole dispatch timeout instead of finishing. `@After`'s `resetForTesting()` comes too late to prevent it. Every test that starts a timer and does not let it finish ends with an explicit `stop()`, and a new one must too. This cost fifteen minutes a run before it was fixed.
 - Web JS: `npm test` (from `laravel/`) — 110 passed. Node's built-in runner over `resources/js/**/*.test.js`; no extra dependency.

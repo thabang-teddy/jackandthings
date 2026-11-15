@@ -58,5 +58,5 @@ private val LightGlass = GlassTokens(
 
 @Composable
 @ReadOnlyComposable
-fun glassTokens(darkTheme: Boolean = isSystemInDarkTheme()): GlassTokens =
-    if (darkTheme) DarkGlass else LightGlass
+fun glassTokens(darkTheme: Boolean? = LocalJackDarkTheme.current): GlassTokens =
+    if (darkTheme ?: isSystemInDarkTheme()) DarkGlass else LightGlass
