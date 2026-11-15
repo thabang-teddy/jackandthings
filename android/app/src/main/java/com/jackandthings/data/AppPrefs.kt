@@ -9,8 +9,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Settings that are not secret: which server to talk to, and whether the
- * hourly workout reminder is wanted.
+ * Settings that are not secret: which server to talk to, whether the hourly
+ * workout reminder is wanted, and which appearance the app draws in.
  *
  * The server address is editable because the useful value differs per setup -
  * 10.0.2.2 from an emulator, a LAN address from a real handset, a domain once
@@ -28,6 +28,13 @@ class AppPrefs private constructor(private val prefs: SharedPreferences) {
     )
     val remindersEnabled: StateFlow<Boolean> = _remindersEnabled.asStateFlow()
 
+    // Read once at construction, which is what makes the choice survive an
+    // app restart without the theme having to ask the file system per frame.
+    private val _themeMode = MutableStateFlow(
+        ThemeMode.fromStorage(prefs.getString(KEY_THEME_MODE, null)),
+    )
+    val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
+
     fun setBaseUrl(url: String) {
         val cleaned = url.trim()
         if (cleaned.isEmpty()) return
@@ -40,10 +47,16 @@ class AppPrefs private constructor(private val prefs: SharedPreferences) {
         _remindersEnabled.value = enabled
     }
 
+    fun setThemeMode(mode: ThemeMode) {
+        prefs.edit { putString(KEY_THEME_MODE, mode.storageValue) }
+        _themeMode.value = mode
+    }
+
     companion object {
         private const val FILE = "jack_prefs"
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_REMINDERS = "reminders_enabled"
+        private const val KEY_THEME_MODE = "theme_mode"
 
         fun create(context: Context): AppPrefs = AppPrefs(
             context.applicationContext.getSharedPreferences(FILE, Context.MODE_PRIVATE),
