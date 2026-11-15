@@ -1,12 +1,17 @@
 package com.jackandthings.ui.settings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -22,10 +27,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jackandthings.AppContainer
+import com.jackandthings.BuildConfig
+import com.jackandthings.data.ThemeMode
 import com.jackandthings.ui.common.ModuleScaffold
+import com.jackandthings.update.AppUpdateChecker
+import com.jackandthings.update.UpdateCheck
 import kotlinx.coroutines.launch
 
 @Composable
@@ -38,6 +48,7 @@ fun SettingsScreen(
 ) {
     val storedUrl by container.prefs.baseUrl.collectAsStateWithLifecycle()
     val remindersEnabled by container.prefs.remindersEnabled.collectAsStateWithLifecycle()
+    val themeMode by container.prefs.themeMode.collectAsStateWithLifecycle()
     val user by container.auth.user.collectAsStateWithLifecycle()
     val signedIn by container.auth.signedIn.collectAsStateWithLifecycle()
 
@@ -45,7 +56,15 @@ fun SettingsScreen(
 
     ModuleScaffold(title = "Settings", onBack = onBack) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+            // Scrollable because the sections below no longer fit on a short
+            // handset once Appearance and Updates are counted; without this
+            // the sign-out button (and the update check) could sit off-screen
+            // with no way to reach them.
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             if (signedIn) {
@@ -59,6 +78,10 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+
+            HorizontalDivider()
+
+            Appearance(themeMode = themeMode, onSelect = container.prefs::setThemeMode)
 
             HorizontalDivider()
 
@@ -102,6 +125,10 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
+            Updates()
+
+            HorizontalDivider()
+
             if (signedIn) {
                 Button(onClick = onSignOut, modifier = Modifier.fillMaxWidth()) {
                     Text("Sign out")
@@ -112,6 +139,111 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * System follows the phone; Light and Dark override it. The choice reaches
+ * every surface because [com.jackandthings.ui.theme.JackTheme] resolves it
+ * once, including the glass palette and the system bars - see
+ * [com.jackandthings.ui.theme.MatchSystemBars].
+ */
+@Composable
+private fun Appearance(themeMode: ThemeMode, onSelect: (ThemeMode) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Appearance", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "System follows your phone's light or dark setting.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ThemeMode.entries.forEach { mode ->
+                FilterChip(
+                    selected = themeMode == mode,
+                    onClick = { onSelect(mode) },
+                    label = { Text(mode.label()) },
+                )
+            }
+        }
+    }
+}
+
+private fun ThemeMode.label(): String = when (this) {
+    ThemeMode.SYSTEM -> "System"
+    ThemeMode.LIGHT -> "Light"
+    ThemeMode.DARK -> "Dark"
+}
+
+/**
+ * The build being run, and a way to ask GitHub whether it is still the newest
+ * one. The launch check only ever produces a banner for a newer build, which
+ * leaves "I am current" and "the check never reached GitHub" looking the same
+ * - so this says which it is instead of staying silent.
+ */
+@Composable
+private fun Updates() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var checking by remember { mutableStateOf(false) }
+    var outcome by remember { mutableStateOf<UpdateCheck?>(null) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Updates", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "Version ${BuildConfig.VERSION_NAME}. Checks GitHub for a newer release.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        when (val result = outcome) {
+            null -> Unit
+            is UpdateCheck.Available -> {
+                Text(
+                    "Version ${result.version.versionName} is available.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedButton(
+                    onClick = {
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse(result.version.downloadUrl)),
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Open the release page") }
+            }
+
+            UpdateCheck.UpToDate -> Text(
+                "You are on the latest version.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            UpdateCheck.Unreachable -> Text(
+                // Offline and rate-limited look the same from here, so the
+                // wording must not insist on either one.
+                "Could not check for updates right now. Try again later.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        OutlinedButton(
+            enabled = !checking,
+            onClick = {
+                checking = true
+                outcome = null
+                scope.launch {
+                    outcome = AppUpdateChecker.checkNow(BuildConfig.VERSION_NAME)
+                    checking = false
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text(if (checking) "Checking…" else "Check for updates") }
     }
 }
 

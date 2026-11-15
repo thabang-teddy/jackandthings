@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="brand_surface">#FFF8FAFC</color>
+    <!-- The glass canvas, used for the window before Compose draws the first
+         frame in dark mode. Keep in step with GlassTokens' DarkGlass bg. -->
+    <color name="brand_surface_dark">#FF0A0F1E</color>
     <!-- The brand accent, matching the web shell's accent theme token.
          The launcher icon draws its own gradient in ic_launcher_background. -->
     <color name="brand_primary">#FF2B6CFF</color>
