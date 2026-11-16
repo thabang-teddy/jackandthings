@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\V1\WatchListController;
 use App\Http\Controllers\Api\V1\WatchListItemController;
 use App\Http\Controllers\Api\V1\WorkoutEntryController;
 use App\Http\Controllers\Api\V1\WorkoutPresetController;
+use App\Http\Controllers\Api\V1\WorkoutReminderSettingController;
 use App\Http\Controllers\Api\V1\WorkoutRoutineController;
 use App\Http\Controllers\Api\V1\WorkoutSessionController;
 use App\Http\Controllers\Api\V1\WorkoutSetController;
@@ -73,6 +74,15 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         // Reminder state a client polls; the server sends no notifications.
         Route::get('workout-entries/due', [WorkoutEntryController::class, 'due'])->name('workout-entries.due');
+
+        // The workout reminder target: how many of an activity to hit, at
+        // selected times inside a daily window. One row per user.
+        Route::get('workout-reminder-setting', [WorkoutReminderSettingController::class, 'show'])
+            ->name('workout-reminder-setting.show');
+        Route::post('workout-reminder-setting', [WorkoutReminderSettingController::class, 'store'])
+            ->name('workout-reminder-setting.store');
+        Route::delete('workout-reminder-setting', [WorkoutReminderSettingController::class, 'destroy'])
+            ->name('workout-reminder-setting.destroy');
         Route::apiResource('workout-entries', WorkoutEntryController::class)->parameters(['workout-entries' => 'workout']);
         Route::apiResource('workout-presets', WorkoutPresetController::class)
             ->parameters(['workout-presets' => 'workoutPreset'])

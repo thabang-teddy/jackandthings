@@ -143,6 +143,12 @@ class User extends Authenticatable
         return $this->hasMany(WorkoutSet::class);
     }
 
+    /** The user's workout reminder target, or null when none is set. */
+    public function workoutReminderSetting(): HasOne
+    {
+        return $this->hasOne(WorkoutReminderSetting::class);
+    }
+
     public function bodyMetrics(): HasMany
     {
         return $this->hasMany(BodyMetric::class);
