@@ -70,7 +70,7 @@ function PomodoroDisplay({ timer, defaultPreset }) {
     if (!defaultPreset) {
         return (
             <div className="flex flex-col items-center gap-3">
-                <p className="font-mono text-6xl font-bold tabular-nums sm:text-7xl lg:text-8xl">
+                <p className="break-words font-mono text-6xl font-bold tabular-nums sm:text-[8rem] lg:text-[10rem]">
                     --:--
                 </p>
                 <Link
@@ -93,7 +93,7 @@ function PomodoroDisplay({ timer, defaultPreset }) {
                     ? defaultPreset.name
                     : `${timer.phaseLabel} · ${timer.preset.name}`}
             </p>
-            <p className="font-mono text-6xl font-bold tabular-nums sm:text-7xl lg:text-8xl">
+            <p className="break-words font-mono text-6xl font-bold tabular-nums sm:text-[8rem] lg:text-[10rem]">
                 {formatClock(seconds)}
             </p>
             {!idle && timer.cycle.length > 1 && (

@@ -20,7 +20,7 @@ export default function GuestView({ canLogin }) {
                     Jack &amp; Things
                 </p>
                 <div className="w-full text-center">
-                    <LiveClock className="text-7xl sm:text-8xl lg:text-9xl" />
+                    <LiveClock className="break-words text-7xl sm:text-[8rem] lg:text-[10rem]" />
                 </div>
             </div>
         </div>
