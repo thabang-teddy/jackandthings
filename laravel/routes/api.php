@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\BudgetTransferController;
 use App\Http\Controllers\Api\V1\ExerciseController;
 use App\Http\Controllers\Api\V1\HistoryEntryController;
 use App\Http\Controllers\Api\V1\NoteController;
+use App\Http\Controllers\Api\V1\PomodoroLiveLinkController;
 use App\Http\Controllers\Api\V1\PomodoroPresetController;
 use App\Http\Controllers\Api\V1\PomodoroSessionController;
 use App\Http\Controllers\Api\V1\ProgressPhotoController;
@@ -53,6 +54,17 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             ->name('pomodoro-sessions.stats');
         Route::apiResource('pomodoro-sessions', PomodoroSessionController::class)
             ->except(['update']);
+
+        // The live link: the Pomodoro state that is running right now, synced
+        // between the website and the phone. One row per user, no route binding
+        // - the row is always the caller's own, reached through the user
+        // relation.
+        Route::get('pomodoro-live-link', [PomodoroLiveLinkController::class, 'show'])
+            ->name('pomodoro-live-link.show');
+        Route::post('pomodoro-live-link', [PomodoroLiveLinkController::class, 'store'])
+            ->name('pomodoro-live-link.store');
+        Route::delete('pomodoro-live-link', [PomodoroLiveLinkController::class, 'destroy'])
+            ->name('pomodoro-live-link.destroy');
 
         Route::apiResource('watch-lists', WatchListController::class)->parameters(['watch-lists' => 'watchList']);
         Route::apiResource('watch-list-items', WatchListItemController::class)
