@@ -292,7 +292,7 @@ export default function AuthenticatedView({
                 </p>
                 <div className="w-full text-center">
                     {mode === 'clock' ? (
-                        <LiveClock className="text-6xl sm:text-7xl lg:text-8xl" />
+                        <LiveClock className="break-words text-6xl sm:text-[8rem] lg:text-[10rem]" />
                     ) : (
                         <PomodoroDisplay
                             timer={timer}
