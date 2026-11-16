@@ -27,6 +27,40 @@ const HOUR_IN_MINUTES = 60;
 const DAY_IN_MINUTES = 60 * 24;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+/** The extension's stored pomodoro shape converted to the server's live-link shape. */
+function toLiveLinkState(pomodoro) {
+    if (!pomodoro) return null;
+
+    const running = pomodoro.pausedRemaining == null;
+    const secondsLeft = running
+        ? Math.max(0, Math.round((pomodoro.endsAt - Date.now()) / 1000))
+        : pomodoro.pausedRemaining;
+
+    return {
+        activePreset: {
+            id: pomodoro.presetId,
+            name: pomodoro.name,
+            focus_minutes: pomodoro.focusMinutes,
+            break_minutes: pomodoro.breakMinutes,
+            long_break_minutes: pomodoro.longBreakMinutes,
+            cycles_before_long_break: pomodoro.cyclesBeforeLongBreak,
+            auto_start_breaks: pomodoro.autoStartBreaks,
+            auto_start_focus: pomodoro.autoStartFocus,
+            tag: pomodoro.tag,
+            alarm_sound: pomodoro.alarmSound,
+            ticking_sound: pomodoro.tickingSound,
+            ambience: pomodoro.ambience,
+            strict_mode: pomodoro.strictMode,
+            blocked_sites: pomodoro.blockedSites,
+            is_default: false,
+        },
+        phase: pomodoro.phase,
+        seconds_left: secondsLeft,
+        running,
+        completed_focus_cycles: pomodoro.completedFocusCycles,
+    };
+}
+
 function iconUrl() {
     return ext.runtime.getURL('icons/icon-128.png');
 }
@@ -171,6 +205,7 @@ async function runPomodoroPhaseEnd() {
     if (next === null) {
         await stopBlocking();
         await writeSettings({ pomodoro: null });
+        await api.deleteLiveLink().catch(() => {});
         await notify('pomodoro', 'Session complete', `${pomodoro.name} has finished.`);
         return;
     }
@@ -187,6 +222,7 @@ async function runPomodoroPhaseEnd() {
 
     await writeSettings({ pomodoro: updated });
     await applyBlocking(updated);
+    await api.updateLiveLink(toLiveLinkState(updated)).catch(() => {});
 
     if (next.autoStart) {
         await ext.alarms.create(ALARM_POMODORO, { when: updated.endsAt });

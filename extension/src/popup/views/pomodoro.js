@@ -41,11 +41,60 @@ function remainingSeconds(pomodoro) {
     return Math.max(0, Math.round((pomodoro.endsAt - Date.now()) / 1000));
 }
 
+/**
+ * The extension's stored pomodoro shape, flattened for the alarm handler,
+ * converted to the server's live-link shape: preset, phase, seconds left,
+ * running flag and completed focus cycles. Seconds left is computed from the
+ * stored end time while running, or read from pausedRemaining while paused.
+ */
+function toLiveLinkState(pomodoro) {
+    if (!pomodoro) return null;
+
+    const running = pomodoro.pausedRemaining == null;
+    const secondsLeft = running
+        ? Math.max(0, Math.round((pomodoro.endsAt - Date.now()) / 1000))
+        : pomodoro.pausedRemaining;
+
+    return {
+        activePreset: {
+            id: pomodoro.presetId,
+            name: pomodoro.name,
+            focus_minutes: pomodoro.focusMinutes,
+            break_minutes: pomodoro.breakMinutes,
+            long_break_minutes: pomodoro.longBreakMinutes,
+            cycles_before_long_break: pomodoro.cyclesBeforeLongBreak,
+            auto_start_breaks: pomodoro.autoStartBreaks,
+            auto_start_focus: pomodoro.autoStartFocus,
+            tag: pomodoro.tag,
+            alarm_sound: pomodoro.alarmSound,
+            ticking_sound: pomodoro.tickingSound,
+            ambience: pomodoro.ambience,
+            strict_mode: pomodoro.strictMode,
+            blocked_sites: pomodoro.blockedSites,
+            is_default: false,
+        },
+        phase: pomodoro.phase,
+        seconds_left: secondsLeft,
+        running,
+        completed_focus_cycles: pomodoro.completedFocusCycles,
+    };
+}
+
+/** Posts the current timer state to the live link, silently if the server is unreachable. */
+async function syncLiveLink(pomodoro) {
+    try {
+        await api.updateLiveLink(toLiveLinkState(pomodoro));
+    } catch {
+        // The timer keeps working whatever the server does.
+    }
+}
+
 async function startPreset(preset) {
     const session = sessionFromPreset(preset);
 
     await writeSettings({ pomodoro: session });
     await ext.runtime.sendMessage({ type: 'schedule-pomodoro', endsAt: session.endsAt });
+    await syncLiveLink(session);
 }
 
 async function pause(pomodoro) {
@@ -57,6 +106,7 @@ async function pause(pomodoro) {
         pomodoro: { ...pomodoro, pausedRemaining: remainingSeconds(pomodoro), startedAt: null },
     });
     await ext.runtime.sendMessage({ type: 'cancel-pomodoro' });
+    await syncLiveLink({ ...pomodoro, pausedRemaining: remainingSeconds(pomodoro), startedAt: null });
 }
 
 async function resume(pomodoro) {
@@ -67,6 +117,7 @@ async function resume(pomodoro) {
         pomodoro: { ...pomodoro, endsAt, startedAt: now, pausedRemaining: null },
     });
     await ext.runtime.sendMessage({ type: 'schedule-pomodoro', endsAt });
+    await syncLiveLink({ ...pomodoro, endsAt, startedAt: now, pausedRemaining: null });
 }
 
 async function stop(pomodoro) {
@@ -74,6 +125,7 @@ async function stop(pomodoro) {
 
     await writeSettings({ pomodoro: null });
     await ext.runtime.sendMessage({ type: 'cancel-pomodoro' });
+    await api.deleteLiveLink().catch(() => {});
     stopAmbience();
 }
 
@@ -133,6 +185,7 @@ async function restart(pomodoro) {
     await logSession(pomodoro, { completed: false });
     await writeSettings({ pomodoro: restartPatch(pomodoro) });
     await ext.runtime.sendMessage({ type: 'cancel-pomodoro' });
+    await syncLiveLink(restartPatch(pomodoro));
 }
 
 async function skip(pomodoro) {
@@ -153,6 +206,8 @@ async function skip(pomodoro) {
     } else {
         await ext.runtime.sendMessage({ type: 'cancel-pomodoro' });
     }
+
+    await syncLiveLink(patch);
 }
 
 /** "3 of 4" as dots, so the long break is never a surprise. */
