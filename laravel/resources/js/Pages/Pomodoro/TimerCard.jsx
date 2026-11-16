@@ -169,8 +169,10 @@ export default function TimerCard({
 
                 <p
                     className={
-                        'font-mono font-bold tabular-nums ' +
-                        (isFullscreen ? 'text-8xl' : 'text-7xl')
+                        'break-words font-mono font-bold tabular-nums ' +
+                        (isFullscreen
+                            ? 'text-8xl sm:text-[15rem] lg:text-[20rem]'
+                            : 'text-7xl sm:text-[15rem] lg:text-[20rem]')
                     }
                     // The countdown changes every second, so it is announced
                     // politely rather than assertively; a screen reader

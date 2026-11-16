@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -44,6 +45,12 @@ class User extends Authenticatable
     public function pomodoroSessions(): HasMany
     {
         return $this->hasMany(PomodoroSession::class);
+    }
+
+    /** The one live link row this user has, or null when no timer is running. */
+    public function pomodoroLiveLink(): HasOne
+    {
+        return $this->hasOne(PomodoroLiveLink::class);
     }
 
     public function notes(): HasMany
@@ -134,6 +141,12 @@ class User extends Authenticatable
     public function workoutSets(): HasMany
     {
         return $this->hasMany(WorkoutSet::class);
+    }
+
+    /** The user's workout reminder target, or null when none is set. */
+    public function workoutReminderSetting(): HasOne
+    {
+        return $this->hasOne(WorkoutReminderSetting::class);
     }
 
     public function bodyMetrics(): HasMany

@@ -248,6 +248,19 @@ data class ReminderState(
     @SerialName("last_logged_at") val lastLoggedAt: String? = null,
 )
 
+/**
+ * The Pomodoro state that is running right now, stored on the server as the
+ * live link so the website and the phone can see each other's timer.
+ */
+@Serializable
+data class PomodoroLiveLinkState(
+    @SerialName("active_preset") val activePreset: PomodoroPreset?,
+    @SerialName("phase") val phase: String,
+    @SerialName("seconds_left") val secondsLeft: Int,
+    @SerialName("running") val running: Boolean,
+    @SerialName("completed_focus_cycles") val completedFocusCycles: Int,
+)
+
 @Serializable
 data class BudgetAccount(
     val id: String,

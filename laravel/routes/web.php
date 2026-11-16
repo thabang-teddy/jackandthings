@@ -15,6 +15,7 @@ use App\Http\Controllers\Web\HistoryEntryController;
 use App\Http\Controllers\Web\HomeController;
 use App\Http\Controllers\Web\NoteController;
 use App\Http\Controllers\Web\PomodoroController;
+use App\Http\Controllers\Web\PomodoroLiveLinkController;
 use App\Http\Controllers\Web\PomodoroPresetController;
 use App\Http\Controllers\Web\PomodoroSessionController;
 use App\Http\Controllers\Web\ProgressPhotoController;
@@ -72,6 +73,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('pomodoro/sessions', [PomodoroSessionController::class, 'store'])->name('pomodoro.sessions.store');
     Route::delete('pomodoro/sessions/{pomodoroSession}', [PomodoroSessionController::class, 'destroy'])
         ->name('pomodoro.sessions.destroy');
+
+    // The live link: the Pomodoro state that is running right now, synced
+    // between the website and the phone. One row per user.
+    Route::get('pomodoro/live-link', [PomodoroLiveLinkController::class, 'show'])->name('pomodoro-live-link.show');
+    Route::post('pomodoro/live-link', [PomodoroLiveLinkController::class, 'store'])->name('pomodoro-live-link.store');
+    Route::delete('pomodoro/live-link', [PomodoroLiveLinkController::class, 'destroy'])->name('pomodoro-live-link.destroy');
 
     // Watch list — a group of named lists, each holding items.
     Route::get('watchlist', [WatchListController::class, 'index'])->name('watchlist.index');

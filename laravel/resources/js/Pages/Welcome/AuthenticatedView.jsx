@@ -70,7 +70,7 @@ function PomodoroDisplay({ timer, defaultPreset }) {
     if (!defaultPreset) {
         return (
             <div className="flex flex-col items-center gap-3">
-                <p className="font-mono text-6xl font-bold tabular-nums sm:text-7xl lg:text-8xl">
+                <p className="break-words font-mono text-6xl font-bold tabular-nums sm:text-[8rem] lg:text-[10rem]">
                     --:--
                 </p>
                 <Link
@@ -93,7 +93,7 @@ function PomodoroDisplay({ timer, defaultPreset }) {
                     ? defaultPreset.name
                     : `${timer.phaseLabel} · ${timer.preset.name}`}
             </p>
-            <p className="font-mono text-6xl font-bold tabular-nums sm:text-7xl lg:text-8xl">
+            <p className="break-words font-mono text-6xl font-bold tabular-nums sm:text-[8rem] lg:text-[10rem]">
                 {formatClock(seconds)}
             </p>
             {!idle && timer.cycle.length > 1 && (
@@ -286,18 +286,20 @@ export default function AuthenticatedView({
                 </Link>
             </GlassCard>
 
-            <div className="flex flex-1 flex-col items-center gap-4 text-center">
-                <p className="text-xs font-bold uppercase tracking-[0.3em] text-[var(--muted)]">
+            <div className="flex flex-1 flex-col gap-4">
+                <p className="text-center text-xs font-bold uppercase tracking-[0.3em] text-[var(--muted)]">
                     Jack &amp; Things
                 </p>
-                {mode === 'clock' ? (
-                    <LiveClock className="text-6xl sm:text-7xl lg:text-8xl" />
-                ) : (
-                    <PomodoroDisplay
-                        timer={timer}
-                        defaultPreset={defaultPreset}
-                    />
-                )}
+                <div className="w-full text-center">
+                    {mode === 'clock' ? (
+                        <LiveClock className="break-words text-6xl sm:text-[8rem] lg:text-[10rem]" />
+                    ) : (
+                        <PomodoroDisplay
+                            timer={timer}
+                            defaultPreset={defaultPreset}
+                        />
+                    )}
+                </div>
                 <div className="flex flex-wrap items-center justify-center gap-3 rounded-full border border-[var(--card-border)] bg-[var(--card-bg)] px-5 py-2.5 text-sm">
                     <span className="text-[var(--muted)]">
                         {dueForReminder

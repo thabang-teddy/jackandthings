@@ -29,6 +29,10 @@ class WorkoutEntryController extends Controller
      * Reminder state for a client to poll. This endpoint sends nothing: the
      * client decides whether to raise its own notification. Delivery from the
      * server is deliberately not built yet (see docs/PRD.md open decisions).
+     *
+     * The reply now carries the target-based progress: target count, count so
+     * far, activity, window and check times. A client with no reminder target
+     * set gets `active: false` and a `due` of false.
      */
     public function due(Request $request): JsonResponse
     {
@@ -38,6 +42,7 @@ class WorkoutEntryController extends Controller
             'data' => [
                 'due' => $this->reminderStatus->isDue($user),
                 'last_logged_at' => $this->reminderStatus->lastLoggedAt($user)?->toIso8601String(),
+                'progress' => $this->reminderStatus->progress($user),
             ],
         ]);
     }
