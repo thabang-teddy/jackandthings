@@ -1,12 +1,14 @@
 package com.jackandthings
 
 import android.app.Application
+import com.jackandthings.model.PomodoroLiveLinkState
 import com.jackandthings.pomodoro.PomodoroEvent
 import com.jackandthings.pomodoro.PomodoroSounds
 import com.jackandthings.pomodoro.PomodoroTimerEngine
 import com.jackandthings.pomodoro.PomodoroTimerService
 import com.jackandthings.update.AppUpdateChecker
 import com.jackandthings.work.OutboxSync
+import com.jackandthings.work.PomodoroLiveLinkPoller
 import com.jackandthings.work.WorkoutReminders
 import com.jackandthings.workout.RestTimerEvent
 import com.jackandthings.workout.WorkoutRestService
@@ -37,6 +39,13 @@ class JackApplication : Application() {
         // install upgrade. KEEP means an already-queued run is left alone.
         if (container.prefs.remindersEnabled.value && container.auth.signedIn.value) {
             WorkoutReminders.schedule(this)
+        }
+
+        // Check for a live link started on another device every five minutes,
+        // until one exists - then the live link keeps things in sync and the
+        // poller stops itself.
+        if (container.auth.signedIn.value) {
+            PomodoroLiveLinkPoller.schedule(this)
         }
 
         // Writes made while the server was unreachable go up as soon as
@@ -80,6 +89,37 @@ class JackApplication : Application() {
             .distinctUntilChanged()
             .onEach { engaged ->
                 if (engaged) container.focusGuard.engage() else container.focusGuard.release()
+            }
+            .launchIn(scope)
+
+        // The live link: every time the timer's preset, phase or running flag
+        // changes, post the state to the server so the website can pick it up.
+        // Second-by-second ticks do not post - only user actions and phase
+        // roll-overs change the key. When nothing is running, the link is
+        // deleted so no other device keeps showing a dead clock.
+        PomodoroTimerEngine.state
+            .map { timer -> Triple(timer.activePreset, timer.phase, timer.running) }
+            .distinctUntilChanged()
+            .onEach { (preset, phase, running) ->
+                if (!container.auth.signedIn.value) return@onEach
+                scope.launch {
+                    val current = PomodoroTimerEngine.state.value
+                    if (running) {
+                        container.pomodoroLiveLink.update(
+                            PomodoroLiveLinkState(
+                                activePreset = current.activePreset,
+                                phase = current.phase.wireValue,
+                                secondsLeft = current.secondsLeft,
+                                running = current.running,
+                                completedFocusCycles = current.completedFocusCycles,
+                            ),
+                        )
+                    } else if (preset == null) {
+                        // Only delete when we went fully idle; a pause keeps
+                        // the link so the phone can resume where it left off.
+                        container.pomodoroLiveLink.delete()
+                    }
+                }
             }
             .launchIn(scope)
 
