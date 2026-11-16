@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Web;
 
 use App\Models\User;
-use App\Models\WorkoutReminderSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;

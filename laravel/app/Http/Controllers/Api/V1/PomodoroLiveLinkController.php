@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PomodoroLiveLinkPayload;
-use App\Models\PomodoroLiveLink;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 

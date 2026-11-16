@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\User;
+use App\Models\WorkoutReminderSetting;
 use Illuminate\Support\Carbon;
 
 /**
@@ -108,7 +109,7 @@ class WorkoutReminderStatus
      * Count matching entries, sets and finished sessions logged since the
      * window opened today, up to $now.
      */
-    private function countProgress(User $user, \App\Models\WorkoutReminderSetting $setting, \DateTimeInterface $now): int
+    private function countProgress(User $user, WorkoutReminderSetting $setting, \DateTimeInterface $now): int
     {
         [$startHour, $startMinute] = array_map('intval', explode(':', $setting->start_time));
         $today = Carbon::parse($now)->startOfDay();

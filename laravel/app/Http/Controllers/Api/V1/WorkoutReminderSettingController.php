@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\WorkoutReminderSettingRequest;
-use App\Models\WorkoutReminderSetting;
 use App\Services\WorkoutReminderStatus;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
