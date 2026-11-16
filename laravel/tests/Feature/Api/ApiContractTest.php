@@ -7,6 +7,7 @@ namespace Tests\Feature\Api;
 use App\Models\BudgetAccount;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -244,17 +245,41 @@ class ApiContractTest extends TestCase
 
     public function test_the_due_endpoint_reports_state_and_sends_nothing(): void
     {
+        $this->travelTo(Carbon::parse('2026-11-12 11:30:00'));
+
+        // With no target set there is no reminder.
+        $this->signedIn()->getJson('/api/v1/workout-entries/due')
+            ->assertOk()
+            ->assertJsonPath('data.due', false)
+            ->assertJsonPath('data.last_logged_at', null)
+            ->assertJsonPath('data.progress.active', false);
+
+        // Set a target: 40 push-ups, checked hourly from 5am to 12pm.
+        $this->user->workoutReminderSetting()->create([
+            'target_count' => 40,
+            'activity' => 'Push-ups',
+            'start_time' => '05:00',
+            'end_time' => '12:00',
+            'check_times' => [5, 6, 7, 8, 9, 10, 11, 12],
+            'active' => true,
+        ]);
+
+        // Refresh so Sanctum authenticates a user instance that has the relation loaded.
+        $this->user = $this->user->fresh();
+
         $this->signedIn()->getJson('/api/v1/workout-entries/due')
             ->assertOk()
             ->assertJsonPath('data.due', true)
-            ->assertJsonPath('data.last_logged_at', null);
+            ->assertJsonPath('data.progress.count', 0)
+            ->assertJsonPath('data.progress.due', true);
 
-        $this->signedIn()->postJson('/api/v1/workout-entries', ['activity' => 'Run'])
+        $this->signedIn()->postJson('/api/v1/workout-entries', ['activity' => 'Push-ups'])
             ->assertCreated();
 
         $this->signedIn()->getJson('/api/v1/workout-entries/due')
             ->assertOk()
-            ->assertJsonPath('data.due', false);
+            ->assertJsonPath('data.progress.count', 1)
+            ->assertJsonPath('data.progress.due', true);
     }
 
     public function test_the_due_route_is_not_shadowed_by_the_show_route(): void

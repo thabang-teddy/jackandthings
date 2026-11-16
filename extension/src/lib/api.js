@@ -120,6 +120,19 @@ export const api = {
     createPomodoroSession: async (body) =>
         data(await request('pomodoro-sessions', { method: 'POST', body })),
     deletePomodoroSession: (id) => request(`pomodoro-sessions/${id}`, { method: 'DELETE' }),
+
+    // Pomodoro live link — the running timer synced between the website and
+    // the phone. One row per user, replaced on every timer change, deleted
+    // when the timer stops.
+    liveLink: async () => data(await request('pomodoro-live-link')),
+    updateLiveLink: async (state) =>
+        data(
+            await request('pomodoro-live-link', {
+                method: 'POST',
+                body: { state },
+            }),
+        ),
+    deleteLiveLink: () => request('pomodoro-live-link', { method: 'DELETE' }),
     /** `tz` is an IANA zone; the server buckets in it rather than UTC. */
     pomodoroStats: async (tz) =>
         data(await request(`pomodoro-sessions/stats?tz=${encodeURIComponent(tz)}`)),

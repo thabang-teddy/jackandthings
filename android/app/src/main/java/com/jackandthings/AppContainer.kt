@@ -13,6 +13,7 @@ import com.jackandthings.repo.ApiBudgetRepository
 import com.jackandthings.repo.ApiNotesRepository
 import com.jackandthings.pomodoro.FocusGuard
 import com.jackandthings.pomodoro.PomodoroSessionRecorder
+import com.jackandthings.repo.ApiPomodoroLiveLinkRepository
 import com.jackandthings.repo.ApiPomodoroRepository
 import com.jackandthings.repo.ApiPomodoroSessionRepository
 import com.jackandthings.repo.ApiWatchListRepository
@@ -38,6 +39,7 @@ import com.jackandthings.repo.OfflinePomodoroRepository
 import com.jackandthings.repo.OfflineWatchListRepository
 import com.jackandthings.repo.OfflineWorkoutRepository
 import com.jackandthings.repo.OutboxDrainer
+import com.jackandthings.repo.PomodoroLiveLinkRepository
 import com.jackandthings.repo.PomodoroRepository
 import com.jackandthings.repo.PomodoroSessionRepository
 import com.jackandthings.repo.SwitchingBudgetRepository
@@ -93,6 +95,7 @@ class AppContainer(context: Context) {
 
     private val apiNotes = ApiNotesRepository(api)
     private val apiPomodoro = ApiPomodoroRepository(api)
+    private val apiPomodoroLiveLink = ApiPomodoroLiveLinkRepository(api)
     private val apiPomodoroSessions = ApiPomodoroSessionRepository(api)
     private val apiWatchList = ApiWatchListRepository(api)
     private val apiWorkout = ApiWorkoutRepository(api)
@@ -116,6 +119,12 @@ class AppContainer(context: Context) {
 
     val notes: NotesRepository = SwitchingNotesRepository(auth, localNotes, remoteNotes)
     val pomodoro: PomodoroRepository = SwitchingPomodoroRepository(auth, localPomodoro, remotePomodoro)
+
+    /**
+     * The live link: the Pomodoro state that is running right now. API-only,
+     * since a live link is meaningful only while signed in and connected.
+     */
+    val pomodoroLiveLink: PomodoroLiveLinkRepository = apiPomodoroLiveLink
 
     /**
      * No local half, unlike every other module: without an account there is

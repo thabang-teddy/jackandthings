@@ -36,6 +36,7 @@ class WorkoutEntryController extends Controller
         return response()->json([
             'due' => $this->reminderStatus->isDue($user),
             'last_logged_at' => $this->reminderStatus->lastLoggedAt($user)?->toIso8601String(),
+            'progress' => $this->reminderStatus->progress($user),
         ]);
     }
 

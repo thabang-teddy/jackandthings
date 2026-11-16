@@ -124,6 +124,8 @@ fun DashboardView(
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     softWrap = false,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
                 )
             }
 

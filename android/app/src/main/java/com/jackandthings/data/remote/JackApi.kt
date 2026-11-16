@@ -15,6 +15,7 @@ import com.jackandthings.model.Exercise
 import com.jackandthings.model.ExerciseDraft
 import com.jackandthings.model.ExerciseHistory
 import com.jackandthings.model.Note
+import com.jackandthings.model.PomodoroLiveLinkState
 import com.jackandthings.model.PomodoroPreset
 import com.jackandthings.model.PomodoroPresetDraft
 import com.jackandthings.model.PomodoroSession
@@ -128,6 +129,19 @@ class JackApi(private val client: ApiClient) {
     /** [timezone] is an IANA zone; the server buckets in it rather than UTC. */
     suspend fun pomodoroStats(timezone: String): PomodoroStats =
         client.get("pomodoro-sessions/stats", mapOf("tz" to timezone)).decode()
+
+    /** The live link: the Pomodoro state that is running right now, or null. */
+    suspend fun pomodoroLiveLink(): PomodoroLiveLinkState? =
+        client.get("pomodoro-live-link").optionalPayload()?.let {
+            client.json.decodeFromJsonElement(it)
+        }
+
+    /** Create or replace the live link with the timer state this device runs. */
+    suspend fun updatePomodoroLiveLink(state: PomodoroLiveLinkState): PomodoroLiveLinkState =
+        client.post("pomodoro-live-link", state.asJsonObject()).decode()
+
+    /** Stop the timer: delete the live link so no other device keeps showing it. */
+    suspend fun deletePomodoroLiveLink() = client.delete("pomodoro-live-link")
 
     // ── Watch list ─────────────────────────────────────────────────────────
 

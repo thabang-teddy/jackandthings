@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\BudgetTransferController;
 use App\Http\Controllers\Api\V1\ExerciseController;
 use App\Http\Controllers\Api\V1\HistoryEntryController;
 use App\Http\Controllers\Api\V1\NoteController;
+use App\Http\Controllers\Api\V1\PomodoroLiveLinkController;
 use App\Http\Controllers\Api\V1\PomodoroPresetController;
 use App\Http\Controllers\Api\V1\PomodoroSessionController;
 use App\Http\Controllers\Api\V1\ProgressPhotoController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\Api\V1\WatchListController;
 use App\Http\Controllers\Api\V1\WatchListItemController;
 use App\Http\Controllers\Api\V1\WorkoutEntryController;
 use App\Http\Controllers\Api\V1\WorkoutPresetController;
+use App\Http\Controllers\Api\V1\WorkoutReminderSettingController;
 use App\Http\Controllers\Api\V1\WorkoutRoutineController;
 use App\Http\Controllers\Api\V1\WorkoutSessionController;
 use App\Http\Controllers\Api\V1\WorkoutSetController;
@@ -54,6 +56,17 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::apiResource('pomodoro-sessions', PomodoroSessionController::class)
             ->except(['update']);
 
+        // The live link: the Pomodoro state that is running right now, synced
+        // between the website and the phone. One row per user, no route binding
+        // - the row is always the caller's own, reached through the user
+        // relation.
+        Route::get('pomodoro-live-link', [PomodoroLiveLinkController::class, 'show'])
+            ->name('pomodoro-live-link.show');
+        Route::post('pomodoro-live-link', [PomodoroLiveLinkController::class, 'store'])
+            ->name('pomodoro-live-link.store');
+        Route::delete('pomodoro-live-link', [PomodoroLiveLinkController::class, 'destroy'])
+            ->name('pomodoro-live-link.destroy');
+
         Route::apiResource('watch-lists', WatchListController::class)->parameters(['watch-lists' => 'watchList']);
         Route::apiResource('watch-list-items', WatchListItemController::class)
             ->parameters(['watch-list-items' => 'watchListItem'])
@@ -61,6 +74,15 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
 
         // Reminder state a client polls; the server sends no notifications.
         Route::get('workout-entries/due', [WorkoutEntryController::class, 'due'])->name('workout-entries.due');
+
+        // The workout reminder target: how many of an activity to hit, at
+        // selected times inside a daily window. One row per user.
+        Route::get('workout-reminder-setting', [WorkoutReminderSettingController::class, 'show'])
+            ->name('workout-reminder-setting.show');
+        Route::post('workout-reminder-setting', [WorkoutReminderSettingController::class, 'store'])
+            ->name('workout-reminder-setting.store');
+        Route::delete('workout-reminder-setting', [WorkoutReminderSettingController::class, 'destroy'])
+            ->name('workout-reminder-setting.destroy');
         Route::apiResource('workout-entries', WorkoutEntryController::class)->parameters(['workout-entries' => 'workout']);
         Route::apiResource('workout-presets', WorkoutPresetController::class)
             ->parameters(['workout-presets' => 'workoutPreset'])
