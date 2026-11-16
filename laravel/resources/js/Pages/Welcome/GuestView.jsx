@@ -15,11 +15,13 @@ export default function GuestView({ canLogin }) {
                 </Link>
             )}
 
-            <div className="flex flex-col items-center gap-3 text-center">
-                <p className="text-xs font-bold uppercase tracking-[0.3em] text-[var(--muted)]">
+            <div className="flex w-full flex-col gap-3">
+                <p className="text-center text-xs font-bold uppercase tracking-[0.3em] text-[var(--muted)]">
                     Jack &amp; Things
                 </p>
-                <LiveClock className="text-7xl sm:text-8xl lg:text-9xl" />
+                <div className="w-full text-center">
+                    <LiveClock className="text-7xl sm:text-8xl lg:text-9xl" />
+                </div>
             </div>
         </div>
     );
