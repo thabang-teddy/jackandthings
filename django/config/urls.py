@@ -22,6 +22,7 @@ urlpatterns = [
     path("training/", include("apps.training.urls")),  # [Stage 14]
     path("library/", include("apps.library.urls")),  # [Stage 16]
     path("api/", include("apps.library.api_urls")),  # [Stage 16]
+    path("api/v1/", include("apps.api.urls")),       # the token API for the phone and the add-on
 ]
 
 if settings.DEBUG:

@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "inertia",  # [Stage 4]
     "apps.core",
     "apps.accounts",  # [Stage 3]
+    "apps.api",  # the api/v1 token contract the Android app and the add-on use
     "apps.today",  # [Stage 4]
     "apps.notes",  # [Stage 6]
     "apps.focus",  # [Stage 8]
