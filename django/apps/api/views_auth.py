@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from django.contrib.auth import get_user_model
 from django.http import HttpRequest, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 
 from apps.library.models import ApiToken
 from apps.library.tokens import issue_token
@@ -42,6 +43,7 @@ def revoke(request: HttpRequest) -> HttpResponse:
     return no_content()
 
 
+@csrf_exempt  # the dispatcher is the view the CSRF middleware sees, so it needs the exemption too
 def token_endpoint(request: HttpRequest) -> HttpResponse:
     """One path, two routes, as in Laravel: POST issues a token, DELETE revokes this one.
 

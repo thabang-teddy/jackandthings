@@ -182,7 +182,7 @@ def body_metric(row: BodyEntry, *, photos: list[ProgressPhoto] | None = None) ->
 
 def progress_photo(row: ProgressPhoto) -> dict[str, Any]:
     return {"id": sid(row.pk), "taken_on": iso(row.date), "mime": row.content_type,
-            "size_bytes": _size(row), "url": reverse("api:v1:progress-photo-file", args=[row.pk])}
+            "size_bytes": _size(row), "url": reverse("v1:progress-photo-file", args=[row.pk])}
 
 
 def _size(row) -> int:
@@ -233,7 +233,7 @@ def transaction(row: Transaction) -> dict[str, Any]:
 
 def receipt(row: Receipt) -> dict[str, Any]:
     return {"id": sid(row.pk), "transaction_id": sid(row.transaction_id), "mime": row.content_type,
-            "size_bytes": _size(row), "url": reverse("api:v1:receipt-file", args=[row.pk])}
+            "size_bytes": _size(row), "url": reverse("v1:receipt-file", args=[row.pk])}
 
 
 def category(row: Category) -> dict[str, Any]:
