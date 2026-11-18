@@ -1,27 +1,61 @@
-# Jack & Things — reference implementation
+# Jack & Things — the Python web app
 
-The finished project that `LEARNING_PATH.md` builds, stage by stage. Python 3.11, Django 5.2 LTS,
-inertia-django, React 19 + TypeScript, Inertia v3, Vite, Tailwind v4, MariaDB 10.6 (SQLite locally until Stage 6).
+The Python port of the website in `../laravel`. Python 3.11, Django 5.2 LTS, inertia-django,
+React 19 + TypeScript on Inertia v3, Vite, Tailwind v4, SQLite locally and MariaDB 10.6 in
+production. The visual direction is **Daybook** (`../docs/jackandthings-option-1-daybook.pdf`).
 
-**Use it to check your work, not instead of doing it.** Each stage's files are also printed, complete,
-in `stages/STAGE_NN.md` with a sentence on what each file is for.
+It was built from the reference pack at `C:\Users\Teddy\projects\JackAndThings_Python_Path`,
+which also holds `LEARNING_PATH.md` (the eighteen stages), `DEPLOYMENT_GODADDY.md` and the
+`DOTNET_TO_PYTHON.md` cheat sheet.
+
+Modules: **Today · Focus · Projects · Notes · Money · Training · Library · Settings**, plus
+registration, sign-in, email verification and password reset. Everything a user owns is read
+through `.for_user()`, and a record owned by somebody else is a **404, never a 403**.
 
 ## Run it locally
 
-```bash
-python3.11 -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\Activate.ps1
-pip install -r requirements-dev.txt
-cp .env.example .env                                       # then edit; SQLite needs nothing else
-python manage.py makemigrations accounts core notes focus projects money training library
-python manage.py makemigrations training --empty --name seed_exercises   # then see apps/training/migrations/README.md
-python manage.py migrate && python manage.py createcachetable && python manage.py createsuperuser
+Two servers: Django serves the pages, Vite serves the assets (the local settings put
+django-vite in `dev_mode`). In the Claude Code app, "django" and "django-vite" in
+`.claude/launch.json` start both.
+
+```powershell
+# once
+python3.11 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+Copy-Item .env.example .env            # then put a value on DJANGO_SECRET_KEY
+.venv\Scripts\python.exe manage.py migrate
+.venv\Scripts\python.exe manage.py createcachetable
 npm --prefix frontend install
-python manage.py runserver            # terminal 1
-npm --prefix frontend run dev         # terminal 2 → open http://localhost:8000/
-pytest                                # tests
+
+# every day
+.venv\Scripts\python.exe manage.py runserver     # terminal 1 -> http://localhost:8000/
+npm --prefix frontend run dev                    # terminal 2 (port 5173)
 ```
 
-Migrations are not included on purpose: generating them (and reading them with `sqlmigrate`) is part of every stage.
+Sample data, so every page has something to draw (development only — it refuses to run with
+`DEBUG` off):
+
+```powershell
+.venv\Scripts\python.exe manage.py seed_demo --email you@example.com --password <your password>
+```
+
+A production-shaped build instead of the dev server:
+
+```powershell
+npm --prefix frontend run build    # writes static/dist + manifest.json, which django-vite reads
+```
+
+## Checks
+
+```powershell
+.venv\Scripts\python.exe -m pytest        # 90 tests
+.venv\Scripts\python.exe -m ruff check .
+npx --prefix frontend tsc --noEmit        # or: npm --prefix frontend run typecheck
+```
+
+Last run on 18 November 2026: **90 passed**, ruff clean, TypeScript clean, `vite build` clean.
+Coverage is not measured. The tests that exist came with the reference pack and cover services,
+ownership and auth; there are **no tests yet** for the `api/v1` routes added here.
 
 ## Layout
 
@@ -35,11 +69,32 @@ apps/focus/        pomodoro timer, presets, stats
 apps/projects/     boards, cards, card notes, time tracking, calendar, timesheet
 apps/money/        accounts, transactions, transfers, categories, caps, goals, recurring, reports, receipts
 apps/training/     exercises, routines, live sessions, body, photos, records
-apps/library/      watch lists, browsing history, extension API
+apps/library/      watch lists, browsing history, the add-on's ingest endpoint
+apps/api/          api/v1 — the token contract for the Android app and the add-on (docs/API_V1.md)
 frontend/src/      main.tsx, styles, lib/, components/{ui,layout,projects,money}, pages/<Section>/<Page>.tsx
 templates/         base.html (Inertia layout), 404.html, 500.html
 scripts/           deploy.sh (run on your machine), backup.sh (copy to the server)
+docs/API_V1.md     the token API: what matches Laravel, and every field that is spelled differently
 ```
+
+## Notes for this machine
+
+- Python 3.11 is at `%LOCALAPPDATA%\Python\pythoncore-3.11-64\python.exe`, and `python3.11`
+  resolves in Git Bash. The `python` alias is the Microsoft Store stub, and `py` is 3.9 — neither
+  will run Django 5.2.
+- `frontend/package.json` pins **rollup 4.68.0** through `overrides`. The newer native binary npm
+  downloads is blocked by this machine's Application Control policy ("An Application Control policy
+  has blocked this file"), and 4.68.0 is the build that loads. Remove the pin on a machine without
+  that policy.
+- This app has its own database (`db.sqlite3`); it does not read the Laravel app's.
+
+## Differences from the Laravel app
+
+- **Projects** (boards, cards, card timers, calendar, timesheet) exists here and not there.
+- Four Laravel features have no counterpart here, so their endpoints are absent: the Pomodoro
+  live link, workout reminder settings, workout presets and quick workout entries.
+- Field names on the wire are Laravel's wherever the concept exists; `docs/API_V1.md` has the
+  whole mapping.
 
 ## Cron jobs (production)
 
@@ -50,12 +105,5 @@ scripts/           deploy.sh (run on your machine), backup.sh (copy to the serve
 | daily 00:30 | `manage.py purge_history` |
 | weekly | `manage.py clearsessions` |
 
-See `DEPLOYMENT_GODADDY.md` for the exact cPanel lines.
-
-## How this code was checked
-
-`ruff check .` and `mypy --check-untyped-defs` (with Django treated as untyped) pass; the pure helper tests
-(money, dates, units) pass; the TypeScript compiles under `tsc --strict` against stand-in type declarations.
-The Django test suite and the browser build were **not** run where this was written (no package downloads were
-possible). Run `pytest` and `npm --prefix frontend run build` yourself after installing — that is your Stage 2
-and Stage 4 checkpoint anyway.
+`DEPLOYMENT_GODADDY.md` in the reference pack has the exact cPanel lines. **Nothing has been
+deployed.**
