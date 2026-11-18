@@ -96,3 +96,24 @@ def test_timesheet_csv(alice, as_alice, board):
     body = as_alice.client.get("/projects/time.csv").content.decode()
     assert body.splitlines()[0] == "date,start,stop,minutes,card,project"
     assert ",30,A,Q4 offsite" in body
+
+
+def test_starting_a_timer_through_the_view_works(as_alice, alice, board):
+    """A regression: in a request `owner` is a SimpleLazyObject, not the User class.
+
+    The service used type(owner).objects to lock the row, which is the wrapper, not the
+    model, so every real click on "Start" raised AttributeError while the service tests
+    (which pass a real User) stayed green.
+    """
+    _, _, a, _ = board
+    assert as_alice.post(f"/projects/cards/{a.pk}/timer/start/").status_code == 303
+    entry = TimeEntry.objects.get(card=a)
+    assert entry.running_key == alice.pk and entry.stopped_at is None
+
+
+def test_starting_a_second_timer_through_the_view_stops_the_first(as_alice, board):
+    _, _, a, b = board
+    as_alice.post(f"/projects/cards/{a.pk}/timer/start/")
+    as_alice.post(f"/projects/cards/{b.pk}/timer/start/")
+    assert TimeEntry.objects.filter(running_key__isnull=False).count() == 1
+    assert TimeEntry.objects.get(card=a).stopped_at is not None

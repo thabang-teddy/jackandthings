@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -88,7 +89,9 @@ def stop(e: TimeEntry, *, now: datetime | None = None) -> TimeEntry:
 def start(owner, card: Card, *, now: datetime | None = None) -> tuple[TimeEntry, TimeEntry | None]:
     """Start tracking `card`. Returns (new_entry, entry_that_was_stopped_or_None)."""
     now = now or timezone.now()
-    type(owner).objects.select_for_update().filter(pk=owner.pk).first()   # serialise per user
+    # Serialise per user. get_user_model(), not type(owner): in a request `owner` is a
+    # SimpleLazyObject wrapping the user, and that wrapper has no manager of its own.
+    get_user_model().objects.select_for_update().filter(pk=owner.pk).first()
     current = running_entry(owner)
     if current and current.card_id == card.pk:
         if current.paused_at:
