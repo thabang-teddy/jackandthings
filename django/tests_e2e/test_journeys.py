@@ -58,6 +58,7 @@ def test_writing_reading_and_deleting_a_note(app):
     app.fill("Title", "Kitchen tiles")
     app.page.get_by_label("Note").fill("Matte, 200x200, not the glossy ones.")
     app.press("Save")
+    assert app.shows("Saved"), "the editor says when it has saved; wait for that before leaving"
 
     app.section("Notes")
     assert app.shows("Kitchen tiles")
