@@ -1,0 +1,8 @@
+-r requirements.txt
+pytest
+pytest-django
+ruff
+django-debug-toolbar
+mypy
+django-stubs
+pip-audit
