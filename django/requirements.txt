@@ -1,0 +1,9 @@
+# Pin exact versions with `pip freeze > requirements.txt` after installing. These are the
+# packages and the version ranges this project was written against (Python 3.11 on GoDaddy).
+Django>=5.2,<5.3
+inertia-django>=2.0,<3
+django-vite>=3.0,<4
+whitenoise>=6.7
+python-dotenv>=1.0
+PyMySQL>=1.1
+Pillow>=10.4

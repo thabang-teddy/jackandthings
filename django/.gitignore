@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+db.sqlite3
+static/dist/
+staticfiles/
+private_media/
+.test_media/
+node_modules/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Local-only: serves this app behind Herd at https://jackpy.test
+config/settings/herd.py
+
+# Playwright writes these only when a journey fails
+test-results/
