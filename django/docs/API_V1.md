@@ -100,7 +100,19 @@ Nothing is allowed by default. Set `EXTENSION_ORIGIN` to the add-on's exact orig
 
 ## Verified
 
-`ruff check .`, `pytest` (90 passed) and a smoke run over every route above, as the
-demo user, on 18 November 2026: every endpoint answered with the status in this file,
-another user's note answered 404, and a revoked token answered 401. There is no
-automated test suite for these routes yet — see TESTING.md.
+`ruff check .` and `pytest` on 18 November 2026: **213 passed**, of which **123 are these
+routes** (`apps/api/tests/`). They cover every endpoint in the table above, the envelope and
+pagination, both throttles, the 401/404/405/422 paths, every field translation in the table
+further up, and a cross-user read for each resource — which must be a 404.
+
+Writing them found two real faults, both now fixed:
+
+- `POST`/`DELETE /api/v1/auth/token` answered **403** to a real client. The dispatcher that
+  sends POST to "issue" and DELETE to "revoke" is the view Django's CSRF middleware sees, and
+  it was not exempt. Django's test client turns CSRF checks off by default, so the earlier
+  manual run never saw it; these tests use `enforce_csrf_checks=True`.
+- Serializing a progress photo or a receipt raised `NoReverseMatch` (a **500**): the URL name
+  was looked up as `api:v1:…`, but the namespace is `v1:…`.
+
+The token flow was then re-checked against the running server with `curl` — no cookie and no
+CSRF token: issue `201`, `auth/me` `200`, `budget-due` `200`, revoke `204`.

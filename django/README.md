@@ -48,14 +48,16 @@ npm --prefix frontend run build    # writes static/dist + manifest.json, which d
 ## Checks
 
 ```powershell
-.venv\Scripts\python.exe -m pytest        # 90 tests
+.venv\Scripts\python.exe -m pytest        # 213 tests
 .venv\Scripts\python.exe -m ruff check .
 npx --prefix frontend tsc --noEmit        # or: npm --prefix frontend run typecheck
 ```
 
-Last run on 18 November 2026: **90 passed**, ruff clean, TypeScript clean, `vite build` clean.
-Coverage is not measured. The tests that exist came with the reference pack and cover services,
-ownership and auth; there are **no tests yet** for the `api/v1` routes added here.
+Last run on 18 November 2026: **213 passed**, ruff clean, TypeScript clean, `vite build` clean.
+Coverage is not measured. 90 of those tests came with the reference pack and cover services,
+ownership and auth; the other **123 cover `api/v1`** — every route, both error paths, the
+throttles, the field translations and a cross-user 404 for each resource. There are no
+browser (end-to-end) tests.
 
 ## Layout
 
