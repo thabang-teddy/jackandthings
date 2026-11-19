@@ -257,6 +257,37 @@ things to change while you are there:
   `.env`, `db.sqlite3` and your source. Give the subdomain a document root of its own, e.g.
   `public_html/jackandpy`, and leave the app root outside it.
 
+### `RecursionError: maximum recursion depth exceeded`, thousands of lines of it
+
+```
+File "/home/<cpanel-user>/jackandpy/passenger_wsgi.py", line 8, in <module>
+    wsgi = imp.load_source('wsgi', 'passenger_wsgi.py')
+… the same four frames, hundreds of times …
+RecursionError: maximum recursion depth exceeded while calling a Python object
+```
+
+This is **cPanel's own `passenger_wsgi.py`**, not this app's. The one cPanel writes when
+it creates the application loads a module from the file `passenger_wsgi.py` — itself — so
+it imports itself until Python runs out of stack. It is a placeholder, meant to be
+replaced by the real entry point.
+
+So the message means the code never arrived: the app root still holds the placeholder, and
+section 3 has not been done, or was done in a different folder. This app's entry point has
+no `imp` in it at all. Check which one you have:
+
+```
+grep -n 'config.wsgi\|imp.load_source' ~/jackandpy/passenger_wsgi.py
+```
+
+`config.wsgi` is this app's; `imp.load_source` is the stub. To replace it, do section 3
+(`git init`, `git fetch --depth 1 origin deploy/python`, `git reset --hard FETCH_HEAD` —
+the reset overwrites the stub), then `touch tmp/restart.txt` and reload. From then on
+`scripts/cpanel_update.sh` checks this for you and stops if the branch has not landed.
+
+While you are in that log: `tput: No value for $TERM and no -T specified` is your shell
+profile running `tput` in a session with no terminal. It is noise, not the fault, but
+guarding that line in `~/.bashrc` makes the next traceback easier to read.
+
 ### Other things the form will tell you
 
 - **"Application root is not empty"** when you try to `git clone` into it — expected: cPanel
