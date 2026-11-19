@@ -73,6 +73,15 @@ OLD="$(git rev-parse --short HEAD 2>/dev/null || echo none)"
 git reset --hard FETCH_HEAD
 printf '   %s -> %s\n' "$OLD" "$(git rev-parse --short HEAD)"
 
+# cPanel pre-creates its own passenger_wsgi.py, which loads itself by name and so
+# recurses until Python gives up ("RecursionError: maximum recursion depth exceeded"
+# in the Passenger log, over and over). This app's entry point imports config.wsgi.
+# If the stub is still here after the reset, the branch did not land in this folder.
+grep -q 'config.wsgi' passenger_wsgi.py \
+  || die "passenger_wsgi.py here is not this app's entry point — it still looks like
+     cPanel's stub, which recurses into itself. The deploy branch did not land in
+     $ROOT. See docs/DEPLOY_CPANEL.md section 10."
+
 step "Installing dependencies"
 "$PYBIN" -m pip install --quiet --upgrade pip
 "$PYBIN" -m pip install --quiet -r requirements.txt
