@@ -1,0 +1,1 @@
+function o(n){const u=Math.max(Math.round(n??0),0),t=Math.floor(u/3600),r=Math.round(u%3600/60);return t===0?`${r}m`:r===60?`${t+1}h 0m`:`${t}h ${r}m`}function a(n){return n==null?null:`${String(n).padStart(2,"0")}:00`}export{a,o as f};

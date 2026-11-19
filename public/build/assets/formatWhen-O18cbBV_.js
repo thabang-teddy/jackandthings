@@ -1,0 +1,1 @@
+const r=new Intl.DateTimeFormat("en-ZA",{weekday:"short",day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});function n(t){if(!t)return"";const e=new Date(t);return Number.isNaN(e.getTime())?String(t):r.format(e)}export{n as f};
