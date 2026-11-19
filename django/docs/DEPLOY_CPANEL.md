@@ -31,10 +31,16 @@ Three things about those answers:
 
 - **Application root is a folder path**, relative to `/home/<cpanel-user>`. Keep it lowercase
   with no spaces: every command afterwards — the `source …/activate` line, the cron entries,
-  `scripts/deploy.sh` — contains this path, and a space in it will break each of them in a
-  different way. It must also stay **outside** `public_html` and outside the subdomain's
+  `scripts/cpanel_update.sh` — contains this path, and a space in it will break each of them
+  in a different way. It must also stay **outside** `public_html` and outside the subdomain's
   document root, so that `.env`, `db.sqlite3` and the source are never downloadable. A bare
   `jackandpy` satisfies that.
+- **Do not point the app root at `~/repositories/…`**, the folder cPanel's **Git Version
+  Control** clones into. That clone is the whole monorepo — `laravel/`, `android/`,
+  `extension/` and `django/` — so the Django app would not be at the app root at all, and
+  cPanel manages that directory's contents on its own schedule. This app deploys from the
+  `deploy/python` branch into a folder of its own, as section 3 describes. Section 10 covers
+  the error you get when the two arrangements have been mixed.
 - **The startup file and entry point are already in the repo.** `passenger_wsgi.py` puts the
   app root on `sys.path`, sets `DJANGO_SETTINGS_MODULE=config.settings.production` itself, and
   imports `application` from `config/wsgi.py`. Nothing in those two boxes needs to be clever.
@@ -168,21 +174,31 @@ password on the command line. It keeps 14 days of gzipped dumps in `~/backups`, 
 
 ## 8. Updating later
 
+Every update after the first is one command, run on the server from the app root:
+
 ```
-cd ~/jackandpy
-git fetch --depth 1 origin deploy/python
-git reset --hard FETCH_HEAD
-source /home/<cpanel-user>/virtualenv/jackandpy/3.11/bin/activate
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py collectstatic --noinput
-touch tmp/restart.txt
+cd ~/jackandpy && APP_URL=https://jackandpy.fiyobra.co.za bash scripts/cpanel_update.sh
 ```
 
-Back up first — step 7 — because `migrate` is the step that cannot be undone by resetting the
-branch. `scripts/deploy.sh` in this repo does the same sequence over SSH from a workstation,
-including tagging and a `healthz` check, but it was written for a key-based SSH login to an
-app root called `jackandthings`; adjust `VENV` and the paths before trusting it.
+`scripts/cpanel_update.sh` ships on the deploy branch and does exactly what sections 5 and 7
+describe, in the order that cannot hurt you: it refuses to start unless it is in an app root
+with `~/jackandthings.env` present, finds the virtualenv's interpreter under
+`~/virtualenv/<app root>/`, runs `~/bin/backup.sh` if you have installed it, then fetches and
+resets to the deploy branch, installs, migrates, `createcachetable`, `collectstatic`,
+`check --deploy`, and only then touches `tmp/restart.txt`. It is safe to run twice, it changes
+nothing before the backup, and `APP_URL` is optional — give it and the script probes
+`/healthz/` at the end.
+
+Override what it guesses with `DEPLOY_BRANCH=deploy/python-staging`, `PYBIN=/full/path/python`
+or `SKIP_BACKUP=1`.
+
+Back up before migrating — which the script does for you — because `migrate` is the one step
+that resetting the branch cannot undo.
+
+`scripts/deploy.sh` is a **different** script and is deliberately absent from the deploy
+branch: it runs on a workstation, drives a server over SSH, and runs `ruff` and `pytest`,
+which the artefact branch does not contain. It also assumes an app root named `jackandthings`,
+so adjust its `VENV` and paths before trusting it.
 
 ## 9. Things that will cost you an hour
 
@@ -201,3 +217,54 @@ app root called `jackandthings`; adjust `VENV` and the paths before trusting it.
   account with `createsuperuser` and sign up normally.
 - **Read `~/logs/passenger.log` first** when a page 500s. Django's own log is
   `~/logs/jackandthings.log`, and `ADMINS_EMAIL` gets the traceback.
+
+## 10. When the Python Selector itself errors
+
+### `FileNotFoundError: … /repositories/<repo>/.htaccess`
+
+```
+File ".../clselect/clpassenger.py", line 357, in remove_passenger_lines_from_htaccess
+    lines = file_readlines(htaccess_filename, errors='surrogateescape')
+FileNotFoundError: [Errno 2] No such file or directory:
+    '/home/<cpanel-user>/repositories/jackandthings/.htaccess'
+```
+
+This is the Selector failing to **stop** the application, not Django failing. Passenger is
+wired up by directives in an `.htaccess`, and `Stop`, `Remove` and `Restart` all begin by
+editing that file to take the directives out — so when the file is gone, the operation aborts
+on its first move and the app is stuck half-registered, refusing to stop and refusing to be
+removed.
+
+Recreate it empty, which is all the remove step needs to succeed:
+
+```
+touch /home/<cpanel-user>/repositories/jackandthings/.htaccess
+```
+
+Then, in **Setup Python App**: **Stop**, then **Destroy/Remove** that application, and create
+it again with the values in section 1 — application root `jackandpy`, a folder of its own.
+
+That `.htaccess` is not part of this repository and never will be; the Selector writes it. So
+anything that wipes and recreates the app root takes it along: a cPanel **Git Version Control**
+clone into the same directory, a document root re-created in Domains, or a manual delete. Two
+things to change while you are there:
+
+- **Move the app out of `~/repositories/`.** That path belongs to cPanel's Git Version Control,
+  which clones the whole monorepo and manages the directory itself. Deploy from `deploy/python`
+  into `~/jackandpy` instead — section 3.
+- **Check whether that folder is also the subdomain's document root** (Domains → the
+  subdomain). If it is, every file in it is web-reachable, which for a Django checkout means
+  `.env`, `db.sqlite3` and your source. Give the subdomain a document root of its own, e.g.
+  `public_html/jackandpy`, and leave the app root outside it.
+
+### Other things the form will tell you
+
+- **"Application root is not empty"** when you try to `git clone` into it — expected: cPanel
+  created the folder, with its `.htaccess` and `passenger_wsgi.py` stub already inside. Use the
+  `git init` + `git reset --hard FETCH_HEAD` form in section 3, which keeps them.
+- **The app starts but every page is 503** — Python raised during import. `~/logs/passenger.log`
+  has the traceback; the usual cause is a missing variable from section 4, which
+  `production.py` raises `ImproperlyConfigured` for by name.
+- **Nothing in this section has been run against your server.** It is read off the traceback
+  and the CloudLinux source paths in it, so treat the `touch` as the first thing to try, and
+  read what the UI says next.
