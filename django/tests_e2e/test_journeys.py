@@ -63,9 +63,13 @@ def test_writing_reading_and_deleting_a_note(app):
     app.section("Notes")
     assert app.shows("Kitchen tiles")
 
-    app.page.get_by_role("link", name="Kitchen tiles").first.click()
-    app.page.wait_for_load_state("networkidle")
-    assert "Matte, 200x200" in app.text
+    # The list shows a snippet of the body, so reading the page text here would pass without
+    # ever opening the note. Wait for the URL, then read the fields themselves: the body is a
+    # controlled <textarea>, and whether its value appears in body.innerText differs between
+    # Chromium builds — it does in the local one and does not in CI's.
+    app.open_link("Kitchen tiles", re.compile(r"/notes/\d+/"))
+    assert app.value("Title") == "Kitchen tiles"
+    assert "Matte, 200x200" in app.value("Note")
 
     app.press("Delete")
     app.press("Delete note")                 # the confirm dialog, not the first button
