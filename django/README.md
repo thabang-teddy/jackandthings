@@ -84,7 +84,7 @@ flattened and with `static/dist` committed, to **`deploy/python`** (from `stagin
 
 Those branches are artefacts, not source: never open a pull request from one. **Nothing
 deploys them** — pulling on the server, migrating and restarting Passenger is still a manual
-step.
+step. `docs/DEPLOY_CPANEL.md` is that step, start to finish.
 
 ## Layout
 
@@ -104,6 +104,7 @@ frontend/src/      main.tsx, styles, lib/, components/{ui,layout,projects,money}
 templates/         base.html (Inertia layout), 404.html, 500.html
 scripts/           deploy.sh (run on your machine), backup.sh (copy to the server)
 docs/API_V1.md     the token API: what matches Laravel, and every field that is spelled differently
+docs/DEPLOY_CPANEL.md  putting it on cPanel: the Setup Python App form, the env file, cron, backups
 ```
 
 ## Notes for this machine
@@ -134,5 +135,5 @@ docs/API_V1.md     the token API: what matches Laravel, and every field that is 
 | daily 00:30 | `manage.py purge_history` |
 | weekly | `manage.py clearsessions` |
 
-`DEPLOYMENT_GODADDY.md` in the reference pack has the exact cPanel lines. **Nothing has been
-deployed.**
+`docs/DEPLOY_CPANEL.md` has the exact cPanel lines, along with the Setup Python App form, the
+environment file and the update sequence. **Nothing has been deployed.**

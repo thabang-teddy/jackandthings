@@ -1,0 +1,4 @@
+# Shell scripts here run on a Linux server. Keep them LF even when the repo is
+# checked out on Windows: a CRLF script fails under bash with a carriage return
+# stuck on the end of every command.
+*.sh text eol=lf

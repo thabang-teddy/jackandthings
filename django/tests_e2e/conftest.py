@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 
 # Playwright's sync API runs the test inside a greenlet that looks like an async context
@@ -129,6 +130,27 @@ class SignedIn:
             raise AssertionError(
                 f"Could not press {name!r}. Buttons on the page: {found}\n\n{self.text}") from exc
         self.settle()
+
+    def open_link(self, name: str, url: str | re.Pattern, *, timeout: int = 8_000):
+        """Click a link and wait until the URL says the page actually changed.
+
+        An Inertia link that is clicked before React has listened does nothing at all, and
+        `networkidle` cannot tell that apart from a page that arrived — there is no document
+        load either way. So wait on the URL, and try once more before giving up.
+        """
+        for attempt in range(2):
+            self.page.get_by_role("link", name=name).first.click()
+            try:
+                self.page.wait_for_url(url, timeout=timeout if attempt else 3_000)
+                self.settle()
+                return
+            except PlaywrightTimeout:
+                continue
+        raise AssertionError(f"Clicking {name!r} never left {self.page.url}")
+
+    def value(self, label: str) -> str:
+        """What a field holds. Exact label: "Note" must not match "Search notes"."""
+        return self.page.get_by_label(label, exact=True).first.input_value()
 
     def sign_in(self):
         self.page.goto(f"{self.base}/login/", wait_until="networkidle")

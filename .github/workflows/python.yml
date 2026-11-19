@@ -244,6 +244,11 @@ jobs:
           find django/apps -type d -name tests -prune -exec rm -rf {} +
           rm -f django/conftest.py django/requirements-dev.txt django/pyproject.toml
 
+          # scripts/deploy.sh drives a server from a workstation and runs ruff
+          # and pytest, neither of which is on this branch. The script that
+          # belongs here is scripts/cpanel_update.sh, which runs on the server.
+          rm -f django/scripts/deploy.sh
+
           git checkout -B "$DEPLOY_BRANCH"
 
           shopt -s dotglob nullglob
@@ -273,7 +278,9 @@ jobs:
             echo "- Contains: apps/, config/, templates/, static/ with the built bundle,"
             echo "  manage.py, passenger_wsgi.py, requirements.txt, scripts/"
             echo
-            echo "**Not deployed.** Nothing polls this branch yet: pulling it on the"
-            echo "server, running migrate and restarting Passenger is still a manual"
-            echo "step. See django/README.md and DEPLOYMENT_GODADDY.md."
+            echo "**Not deployed.** Nothing polls this branch. To put it live, on the"
+            echo "server: \`cd ~/jackandpy && bash scripts/cpanel_update.sh\` — it"
+            echo "fetches this branch, backs up, migrates, collects static files,"
+            echo "runs check --deploy and restarts Passenger. First time through,"
+            echo "follow docs/DEPLOY_CPANEL.md instead."
           } >> "$GITHUB_STEP_SUMMARY"
